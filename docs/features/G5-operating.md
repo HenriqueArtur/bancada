@@ -2,7 +2,7 @@
 
 ## G5.1 ○ Start a session from a queue item
 
-## G5.8 ★ Preflight before starting a session `[meta]`
+## G5.8 ◐ Preflight before starting a session `[meta]`
 
 Before starting: is the runtime up, does the disk have room, is the branch
 clean, are dependencies installed. Avoids the session that dies 20 minutes in

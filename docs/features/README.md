@@ -49,7 +49,26 @@ need content is a feature that was designed wrong.
 - **G9.6** — standalone Windows viewer
 - **G2.4** — step graph
 
-## A note on the marks
+## How the marks were calibrated
 
-43 of 77 are marked ★. If more than half is a differentiator, nothing is —
-the marking is loose and deserves a pass before these become issues.
+**★ 14 · ○ 40 · ◐ 23**
+
+The first pass marked 43 of 77 as signature. If more than half is a
+differentiator, nothing is. A stricter test was applied: **the product exists
+because of it, and no tool in the researched field does it.**
+
+What survived falls in four places:
+
+- **the queue as attention supervision** — the field builds orchestration, not
+  attention (G0.1–G0.6)
+- **review against intent** — everyone reviews at the end, on a raw diff
+  (G2.1, G2.3, G2.5)
+- **what only a host-side observer can see** — the guest's view of its own
+  resources is a lie (G3.5, G3.6)
+- **multi-account isolation** — no tool in the field has the concept
+  (G6.4, G6.10), and the middle layer it enables (G8.3, G8.4)
+
+Demoted to ○ where the field already does it in some tool — cross-harness
+agents, MCP servers, session discovery, stagnation by step-cap, context
+injection. Demoted to ◐ where the idea is new but derives from something else
+already marked, or is small.

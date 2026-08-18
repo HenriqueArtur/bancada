@@ -7,7 +7,7 @@ answer when registering is *"whose is this?"* — trivial, and you never get it
 wrong. If it were *"what confidentiality level?"* you could get it wrong on
 autopilot, and the error stays silent until it leaks.
 
-## G6.9 ★ Runtime discovery — proposes, you register `[meta]`
+## G6.9 ○ Runtime discovery — proposes, you register `[meta]`
 
 Each provider enumerates candidates its own way — VM listings, container
 listings, WSL distributions, ssh config hosts, and the machine itself. The
@@ -35,12 +35,12 @@ Three things come free:
 - two runtimes with the same `accountUuid` **share an account**, and the
   product sees it instead of depending on you remembering.
 
-## G6.2 ★ Export level on the workspace, project inherits `[meta]`
+## G6.2 ○ Export level on the workspace, project inherits `[meta]`
 
 `metadata` · `summary` · `full`. Few policies, many projects. A new project is
 born at `metadata`.
 
-## G6.3 ★ Permissive state visible `[meta]`
+## G6.3 ◐ Permissive state visible `[meta]`
 
 A workspace above `metadata` appears in the UI chrome, never buried in a
 settings screen.
@@ -65,7 +65,7 @@ A workspace that exists only on the machine gets its own harness config
 directory. Same mechanics as an isolated runtime, without the runtime around
 it.
 
-## G6.6 ★ Weight and thresholds per project `[meta]`
+## G6.6 ○ Weight and thresholds per project `[meta]`
 
 Every number in the rules engine has a per-project default: session duration,
 time without an event, tokens without a file change, same file N times, diff
@@ -95,7 +95,7 @@ memory, load — all per runtime. Two projects on the same runtime share the sam
 resource limit and can have completely different weights and stagnation
 thresholds.
 
-## G6.11 ★ Permission profile: base + tool policy `[meta]`
+## G6.11 ○ Permission profile: base + tool policy `[meta]`
 
 A profile is a base mode plus `allow` / `ask` / `deny` lists by tool pattern.
 Inherits workspace → project → session.
@@ -122,7 +122,7 @@ profile gcp-ops
 You already switch context by hand; the profile only makes it explicit and
 fast. Zero friction day to day, a real gate on what does not come back.
 
-## G6.12 ★ Mode always visible, one-click switch `[meta]`
+## G6.12 ○ Mode always visible, one-click switch `[meta]`
 
 The active mode appears permanently in the UI chrome — **an unsafe mode is
 never silent**. Same principle as a permissive workspace: a permissive state is

@@ -35,7 +35,7 @@ overwhelming majority. When a decision turns out to be architectural you
 and a mechanical refusal where one applies. Only promoted ones are read by the
 architecture linter.
 
-## G7.4 ★ The record feeds the next session `[content]`
+## G7.4 ○ The record feeds the next session `[content]`
 
 Today G7.2 records decisions **for you**. The strong version: they become
 context injected into that project's next sessions — *"this is how it was

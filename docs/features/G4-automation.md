@@ -4,13 +4,13 @@ The agreed L2. The line is not between small and large decisions. It is
 between **deciding about the work** and **establishing that nobody needs to be
 consulted**.
 
-## G4.1 ★ Continuity nudge `[content]`
+## G4.1 ◐ Continuity nudge `[content]`
 
 The session stopped only to report, with no pending question and declared work
 still open → tell it to continue. It does not opine on the code. Depends on
 [G3.4](G3-detection.md).
 
-## G4.5 ★ Cross-harness agent `[content]`
+## G4.5 ○ Cross-harness agent `[content]`
 
 One canonical definition — name, description, instructions, tool policy, model
 — that each adapter **compiles to its harness's native format**. There is no
@@ -34,7 +34,7 @@ subagents, personas, tool policy and model choice, and the product says so
 cites one client's conventions, used on another, is a leak. Global must be
 neutral.
 
-## G4.6 ★ The product as an MCP server `[meta]`
+## G4.6 ○ The product as an MCP server `[meta]`
 
 Free reads, writes only as proposals.
 
@@ -54,7 +54,7 @@ surface**.
 *Transport:* **stdio, child of the harness, per session.** No port, no network,
 no token — containment by construction.
 
-## G4.7 ★ MCP state per runtime `[meta]`
+## G4.7 ○ MCP state per runtime `[meta]`
 
 A health check returns three states that demand three different actions from
 **you**:
@@ -97,7 +97,7 @@ from memory.
 Autonomy per kind of decision, not a master switch. "Read permission" can rise
 to L2 while "approve plan" stays at L1 forever. **L3 is out of the product.**
 
-## G4.4 ★ Agent profiles + triggers `[content]`
+## G4.4 ○ Agent profiles + triggers `[content]`
 
 Preconfigured profiles — `reviewer`, `debugger`, whatever you define — that
 take on an activity running with **that project's account**, inside the

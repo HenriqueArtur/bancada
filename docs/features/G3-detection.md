@@ -3,7 +3,7 @@
 None of these produce a question from the agent. All of them vanish into
 scroll today.
 
-## G3.1 ★ Obvious stagnation — rules `[meta]`
+## G3.1 ○ Obvious stagnation — rules `[meta]`
 
 Continuous and free: same file edited N times; N thousand tokens with no file
 changing; no event for X minutes with a live process; the same command failing
@@ -12,7 +12,7 @@ repeatedly; total duration beyond what is normal for that project.
 All limits are **per project** ([G6.6](G6-governance.md)) — a 5-hour session is
 normal in a large refactor and strange almost everywhere else.
 
-## G3.7 ★ Collision between sessions `[meta]`
+## G3.7 ◐ Collision between sessions `[meta]`
 
 Two sessions touching the same file — or the same config file, routing table or
 component registry, which is where the conflict hurts most. It is the **most
@@ -32,7 +32,7 @@ the boundary when the sessions are in different workspaces; within one
 workspace it is feasible. Cheap metadata proxy: two sessions in modules that
 import each other.
 
-## G3.9 ★ Warning before compaction `[meta]`
+## G3.9 ◐ Warning before compaction `[meta]`
 
 Field practice is to **start preparing handoff at about 60% of the context
 window**. Today compaction simply happens, the agent "forgets", and there is no
@@ -45,17 +45,17 @@ failure into a warning.
 When a session compacted and what got summarised away. Explains the confusion
 that follows, and feeds the post-mortem (G3.6).
 
-## G3.3 ★ Scope escape `[meta]`
+## G3.3 ◐ Scope escape `[meta]`
 
 The session touched a file outside the agreement. Paths only, no content.
 
-## G3.4 ★ "Finished" vs "only reported" `[content]`
+## G3.4 ◐ "Finished" vs "only reported" `[content]`
 
 The classification that enables the one agreed automation
 ([G4.1](G4-automation.md)). It needs judgement: from the outside the two look
 identical.
 
-## G3.2 ★ Semantic drift — periodic AI `[content]`
+## G3.2 ◐ Semantic drift — periodic AI `[content]`
 
 Covers the blind spot of rules: *it tried four different approaches to the same
 problem, each plausible* — the expensive kind of stuck. Runs inside the

@@ -3,7 +3,7 @@
 The queue is reactive: the agent calls you. Activities are proactive: you
 decide where to invest. **No tool in the field has the middle layer.**
 
-## G8.1 ★ An activity is its own object, and it is not an issue `[meta]`
+## G8.1 ○ An activity is its own object, and it is not an issue `[meta]`
 
 An activity is created **by you or by your agents, always** — nothing created
 by another person. Issues and milestones are defined by managers and leads:
@@ -15,7 +15,7 @@ An activity may *reference* a tracker issue, and the reference is a pointer,
 not a copy. That eliminates bidirectional sync, which is where this kind of
 integration usually dies.
 
-## G8.2 ★ Activities screen with its own chat `[meta]`
+## G8.2 ○ Activities screen with its own chat `[meta]`
 
 Where you manage your activities across all projects, with a chat to talk about
 them — plan, order, decide where the week goes.

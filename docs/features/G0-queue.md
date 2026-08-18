@@ -38,7 +38,7 @@ matters more". It scales time without overriding the kind of decision — so a
 permission on the critical project still ranks below an architecture choice on
 the dormant one. See [G6.6](G6-governance.md).
 
-## G0.8 ★ Explainable ranking, on demand `[meta]`
+## G0.8 ◐ Explainable ranking, on demand `[meta]`
 
 Clicking an item opens the score breakdown. Per-project weights and thresholds
 make the order opaque, and a queue you do not trust is a queue you ignore —

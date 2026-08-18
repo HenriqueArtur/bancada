@@ -10,12 +10,12 @@ Because the surface lives inside a workspace, it **inherits the boundary** with
 no new mechanism. A project's documentation chat runs with that project's
 account and does not leak — the same rule as everything else.
 
-## G9.1 ★ Markdown at the centre, the rest by plugin `[content]`
+## G9.1 ○ Markdown at the centre, the rest by plugin `[content]`
 
 The view is the renderer. Tab, card, page and menu come from external plugins —
 the shell knows nothing about any subject.
 
-## G9.2 ★ Documentation lives where it makes sense `[meta]`
+## G9.2 ○ Documentation lives where it makes sense `[meta]`
 
 It can be a folder inside a code repository, **or a repository of its own**.
 There is no sense in creating a code repository to hold only `.md`.
@@ -24,7 +24,7 @@ What marks something as a documentation surface is the **config file**
 declaring which plugins that documentation uses — not being inside a code
 repository.
 
-## G9.3 ★ Doc agent declared by the documentation itself `[content]`
+## G9.3 ◐ Doc agent declared by the documentation itself `[content]`
 
 You define the specialist per subject: an ESP32 study declares an agent that
 understands ESP32; a marketing one declares another. **The definition lives in
