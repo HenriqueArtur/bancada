@@ -1,0 +1,18 @@
+{
+  "kind": "extracted",
+  "tool": "AskUserQuestion",
+  "why": "AskUserQuestion is not offered in print mode, so no scripted session can record one. Taken from a real interactive session.",
+  "verbatim": "message.content",
+  "normalised": [
+    "sessionId",
+    "session_id",
+    "uuid",
+    "parentUuid",
+    "timestamp",
+    "requestId",
+    "cwd",
+    "gitBranch",
+    "tool ids"
+  ],
+  "lines": 2
+}

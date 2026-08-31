@@ -122,9 +122,31 @@ afterwards: the recorder passes an empty MCP config with `--strict-mcp-config`,
 so the fixture stays genuine and carries nothing incidental. Scanning a fixture
 and finding it clean does not scale; recording clean does.
 
+## Two kinds of fixture
+
+**Recorded** — `fixtures/<scenario>/session.jsonl`, a whole session produced by
+`tools/record-fixture.sh`. Genuine output of the binary, nothing touched.
+
+**Extracted** — `fixtures/events/<name>/event.jsonl`, one tool-use event and
+its result, taken from a real interactive session by
+`tools/extract-event.py`. It exists because some events cannot be recorded at
+all: `AskUserQuestion` is absent from print mode, so no scripted session
+produces one.
+
+The distinction is labelled rather than blurred. An extracted fixture has
+`"kind": "extracted"` in its metadata and lists exactly what was normalised —
+identifiers, timestamps, working directory. Everything inside
+`message.content` is verbatim, because that is the shape the parser is tested
+against, and normalising the rest is what keeps two extractions comparable: a
+diff then shows a format change and never a fresh random id.
+
+The cheapest genuine source of an interactive event turned out to be the
+session driving this repository's own development.
+
 ## Open
 
 - **A permission prompt cannot be recorded in print mode either.** Nothing can
-  answer it. Same gate as the question: spike 5.
+  answer it. It can be extracted the same way once one occurs, or recorded
+  once control mode exists — spike 5.
 - **A session long enough to compact** is expensive and is not one of the
   three. It comes when compaction detection does.
