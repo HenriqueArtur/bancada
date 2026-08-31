@@ -3,10 +3,9 @@ use bancada_meta::{DecisionKind, MetaEvent, SessionId, Timestamp};
 
 /// One thing a session log records.
 ///
-/// Every variant corresponds to something a line in the log actually
-/// carries. Turn boundaries are **not** here: no line says a turn began or
-/// ended, so they are derived above the adapter rather than invented
-/// inside it. See `docs/specs/0002-session-log-parser.md`.
+/// Every variant corresponds to something a line actually carries. Turn
+/// boundaries are not here: no line records one. They are derived above
+/// the adapter rather than invented inside it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     Text {
@@ -40,8 +39,7 @@ pub enum Event {
         id: String,
         question: Question,
     },
-    /// Token counts, as the log records them: per assistant message, not
-    /// per turn. Summing into a turn is derivation.
+    /// Token counts as the log records them: per message, not per turn.
     Usage {
         session: SessionId,
         at: Timestamp,
@@ -83,57 +81,55 @@ impl Event {
 
     /// Project onto what the rules engine may see.
     ///
-    /// `None` where nothing survives: prose and reasoning are entirely
-    /// content, and an event that reduces to nothing should not reach the
-    /// engine as an empty shell it has to skip.
+    /// `None` where nothing survives. Note what does: *that* someone spoke
+    /// is a fact, while *what* they said is content — and keeping the fact
+    /// is what makes turn derivation possible without the engine reading a
+    /// word.
     pub fn to_meta(&self) -> Option<MetaEvent> {
+        let session = self.session().clone();
+        let at = self.at();
         Some(match self {
-            Self::Text { .. } | Self::Thinking { .. } => return None,
-            Self::ToolCall {
-                session, at, name, ..
-            } => MetaEvent::ToolCalled {
-                session: session.clone(),
-                at: *at,
+            Self::Text {
+                role: Role::User, ..
+            } => MetaEvent::HumanSpoke { session, at },
+            Self::Text { .. } => MetaEvent::AgentSpoke { session, at },
+            Self::Thinking { .. } => return None,
+            Self::ToolCall { id, name, .. } => MetaEvent::ToolCalled {
+                session,
+                at,
+                id: id.clone(),
                 tool: name.clone(),
             },
-            // A result's output is content. What survives is whether the
-            // call failed, which is what stagnation detection counts.
-            Self::ToolResult {
-                session, at, ok, ..
-            } => MetaEvent::Errored {
-                session: session.clone(),
-                at: *at,
-                fatal: false,
-            }
-            .only_if(!ok)?,
-            Self::Asked { session, at, .. } => MetaEvent::DecisionRaised {
-                session: session.clone(),
-                at: *at,
+            // The output is content. What survives is the id and whether the
+            // tool failed — and the id is what makes a decision's resolution
+            // visible without reading a word of the answer.
+            Self::ToolResult { id, ok, .. } => MetaEvent::ToolCompleted {
+                session,
+                at,
+                id: id.clone(),
+                ok: *ok,
+            },
+            Self::Asked { id, .. } => MetaEvent::DecisionRaised {
+                session,
+                at,
+                id: id.clone(),
                 kind: DecisionKind::Question,
             },
             Self::Usage {
-                session,
-                at,
                 input_tokens,
                 output_tokens,
+                cache_read_tokens,
+                cache_creation_tokens,
                 ..
-            } => MetaEvent::TurnEnded {
-                session: session.clone(),
-                at: *at,
-                input_tokens: *input_tokens,
-                output_tokens: *output_tokens,
+            } => MetaEvent::Tokens {
+                session,
+                at,
+                input: *input_tokens,
+                output: *output_tokens,
+                cache_read: *cache_read_tokens,
+                cache_creation: *cache_creation_tokens,
             },
         })
-    }
-}
-
-trait OnlyIf: Sized {
-    fn only_if(self, cond: bool) -> Option<Self>;
-}
-
-impl OnlyIf for MetaEvent {
-    fn only_if(self, cond: bool) -> Option<Self> {
-        cond.then_some(self)
     }
 }
 
@@ -150,18 +146,29 @@ mod tests {
     }
 
     #[test]
-    fn prose_does_not_survive_the_projection() {
+    fn prose_becomes_the_fact_that_someone_spoke_and_nothing_else() {
         let e = Event::Text {
             session: s(),
             at: at(0),
             role: Role::Assistant,
             content: "the client's schema is wrong".into(),
         };
-        assert!(e.to_meta().is_none(), "content reached the engine");
+        assert!(matches!(e.to_meta(), Some(MetaEvent::AgentSpoke { .. })));
     }
 
     #[test]
-    fn reasoning_does_not_survive_either() {
+    fn a_human_turn_is_distinguishable_from_the_agent_speaking() {
+        let e = Event::Text {
+            session: s(),
+            at: at(0),
+            role: Role::User,
+            content: "do the thing".into(),
+        };
+        assert!(matches!(e.to_meta(), Some(MetaEvent::HumanSpoke { .. })));
+    }
+
+    #[test]
+    fn reasoning_does_not_survive_at_all() {
         let e = Event::Thinking {
             session: s(),
             at: at(0),
@@ -179,26 +186,29 @@ mod tests {
             name: "Bash".into(),
             input: "psql -c 'select * from clients'".into(),
         };
-        let Some(MetaEvent::ToolCalled { tool, .. }) = e.to_meta() else {
+        let Some(MetaEvent::ToolCalled { id, tool, .. }) = e.to_meta() else {
             panic!("expected ToolCalled");
         };
-        assert_eq!(tool, "Bash");
+        assert_eq!((id.as_str(), tool.as_str()), ("t1", "Bash"));
     }
 
     #[test]
-    fn a_successful_result_carries_nothing_the_engine_needs() {
+    fn a_result_keeps_its_id_and_drops_its_output() {
         let e = Event::ToolResult {
             session: s(),
             at: at(10),
             id: "t1".into(),
             ok: true,
-            output: "rows: 400".into(),
+            output: "rows: 400 — client@example.com".into(),
         };
-        assert!(e.to_meta().is_none());
+        let Some(MetaEvent::ToolCompleted { id, ok, .. }) = e.to_meta() else {
+            panic!("expected ToolCompleted");
+        };
+        assert_eq!((id.as_str(), ok), ("t1", true));
     }
 
     #[test]
-    fn a_failed_result_survives_as_a_non_fatal_error() {
+    fn a_failed_result_says_so_without_saying_how() {
         let e = Event::ToolResult {
             session: s(),
             at: at(10),
@@ -208,7 +218,7 @@ mod tests {
         };
         assert!(matches!(
             e.to_meta(),
-            Some(MetaEvent::Errored { fatal: false, .. })
+            Some(MetaEvent::ToolCompleted { ok: false, .. })
         ));
     }
 
@@ -225,17 +235,14 @@ mod tests {
                 options: vec![],
             },
         };
-        assert!(matches!(
-            e.to_meta(),
-            Some(MetaEvent::DecisionRaised {
-                kind: DecisionKind::Question,
-                ..
-            })
-        ));
+        let Some(MetaEvent::DecisionRaised { id, kind, .. }) = e.to_meta() else {
+            panic!("expected DecisionRaised");
+        };
+        assert_eq!((id.as_str(), kind), ("t1", DecisionKind::Question));
     }
 
     #[test]
-    fn usage_carries_the_counts_through() {
+    fn usage_carries_every_count_through() {
         let e = Event::Usage {
             session: s(),
             at: at(10),
@@ -244,14 +251,16 @@ mod tests {
             cache_read_tokens: 900,
             cache_creation_tokens: 3,
         };
-        let Some(MetaEvent::TurnEnded {
-            input_tokens,
-            output_tokens,
+        let Some(MetaEvent::Tokens {
+            input,
+            output,
+            cache_read,
+            cache_creation,
             ..
         }) = e.to_meta()
         else {
-            panic!("expected TurnEnded");
+            panic!("expected Tokens");
         };
-        assert_eq!((input_tokens, output_tokens), (7, 11));
+        assert_eq!((input, output, cache_read, cache_creation), (7, 11, 900, 3));
     }
 }
