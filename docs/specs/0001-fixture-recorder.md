@@ -1,6 +1,6 @@
 # 0001 — Fixture recorder
 
-**status** draft
+**status** implemented; blocked on a login
 **features** — (tooling; nothing ships from it)
 **decisions** A7 (public repository), and the format-drift risk in
 [../RISKS.md](../RISKS.md)
@@ -78,12 +78,30 @@ not designed up front.
   the wrong choice.
 - Recording control-mode sessions. Observe mode first.
 
+## How it runs
+
+`tools/record-fixture.sh <scenario> [source-repo]`, inside the personal VM,
+whose `CLAUDE_CONFIG_DIR` is a separate slot by construction — so recording
+touches neither the operator's own history nor the credentials beside it.
+
+The session id is **chosen by the recorder** rather than discovered
+afterwards. Snapshot-diffing the log directory would race with anything else
+writing under the same config dir, and the failure would be a fixture of the
+wrong session, which is worse than no fixture.
+
+The source repository must have a GitHub origin, and the recorder refuses
+rather than recording when it does not. Default source:
+`neo-gitmoji.nvim` — small enough that a failing test can be read by hand.
+
 ## Open
 
-- **Which public repository is the source.** A23, never decided. A small one
-  produces a readable fixture, which matters when a test goes red for an
-  obscure reason; a larger one produces a session closer to real work. The two
-  are not exclusive — different scenarios can use different sources.
-- **Where the recorder runs.** It needs a harness, an account, and the source
-  repository checked out. Running it burns real tokens on a real account, so
-  which account it uses is a decision, not a detail.
+- **A permission prompt cannot be recorded in print mode.** Nothing can answer
+  it, so the session either refuses or hangs. That fixture waits for the
+  control-mode round trip, spike 5. The three scenarios that ship now are a
+  plain read, a tool call plus a deliberate failure, and a structured question.
+- **Whether a structured question survives print mode at all** is an empirical
+  question the first run answers: the tool-use block may be written to the log
+  before the session ends with nothing to answer it, which is exactly the
+  fixture we want, or it may never be emitted.
+- **A session long enough to compact** is expensive to record and is not one of
+  the three. It comes when compaction detection does.
