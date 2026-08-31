@@ -1,6 +1,6 @@
 # 0002 — Session log → normalised events
 
-**status** draft
+**status** done — 8 acceptance tests against real fixtures
 **features** G0.1 (the queue needs events to rank)
 **decisions** ADR-004 (rules engine has no AI), hard rule 1
 **depends on** [0001](0001-fixture-recorder.md)
@@ -66,7 +66,14 @@ versions — so the count is how a change announces itself.
 1. Given `fixtures/simple-read`, parsing yields at least one `ToolCall` named
    `Read` and at least one assistant `Text`.
 2. Given `fixtures/tool-and-error`, parsing yields two `ToolCall`s named
-   `Bash`, and the failing one yields a `ToolResult` whose `ok` is false.
+   `Bash`, and both yield a `ToolResult`.
+
+   **This criterion was written wrong and the fixture corrected it.** The
+   command that failed — `lua`, absent, exiting 127 — produced
+   `is_error: false`. `is_error` marks the *tool* erroring, not the command:
+   a shell exiting non-zero is a successful tool result whose *content* says
+   otherwise. The test now asserts the surprise, so a format change that
+   "fixes" it shows up as a failure rather than passing silently.
 3. Given `fixtures/events/ask-user-question`, parsing yields one `Asked`
    carrying three options, each with a label, a description and a preview.
 4. Given a line whose `type` the parser does not know, it appears in `skipped`
@@ -93,3 +100,15 @@ versions — so the count is how a change announces itself.
 - **`attachment`, `queue-operation`, `last-prompt`, `ai-title`** are present
   and carry no event we need today. They are named skips rather than silent
   ones, so if one of them turns out to matter the count is already there.
+- **A shell exit code is not visible as metadata.** It lives in the tool
+  result's content, so the rules engine cannot see it — which puts "the same
+  command failing repeatedly" (G3.1) out of reach as written.
+
+  The way out is not to relax the boundary. **The adapter is the one place
+  allowed to distil content into metadata**: it reads the log and emits both
+  an `Event` and a `MetaEvent`, so it can extract an exit code as a fact
+  without the engine ever seeing the text. That is a change to the adapter's
+  contract, not to hard rule 2, and it waits for a fixture that needs it.
+- **Only the first question of an `AskUserQuestion` call is read.** The log
+  carries an array; every recorded call has held one. Modelling a list nothing
+  produces would be modelling a guess.

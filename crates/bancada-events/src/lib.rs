@@ -6,5 +6,5 @@
 mod event;
 mod question;
 
-pub use event::Event;
-pub use question::Question;
+pub use event::{Event, Role};
+pub use question::{Question, QuestionOption};

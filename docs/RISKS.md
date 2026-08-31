@@ -24,6 +24,18 @@ open eyes in exchange for usefulness. It is logged and auditable — but a log
 only helps if someone reads it. Worth defining when and how it gets reviewed,
 or the record becomes theatre.
 
+## `is_error` does not mean the thing failed
+
+Recorded and verified: a shell command exiting 127 produced a tool result with
+`is_error: false`. The flag marks the *tool* erroring, not the command. The
+exit code lives in the result's content.
+
+The consequence is on G3.1: "the same command failing repeatedly" cannot be
+detected from metadata as the format stands. The fix is for the adapter — the
+one place allowed to read content and emit metadata — to distil an exit code
+into a fact. Not a relaxation of the boundary, a use of the layer that exists
+to cross it safely.
+
 ## Optional worktrees mean two code paths
 
 Everything that touches files — diff, terminal, tracker, cleanup — must work in
