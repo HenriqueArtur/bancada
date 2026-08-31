@@ -357,6 +357,18 @@ The config dir is **self-contained**: `.claude.json`, `.credentials.json` and
 `mise` do not exist in a non-interactive shell. **The probe must run in a login
 shell.** → G6.9
 
+**Recorded from real sessions** (2026-08-31, harness 2.1.221). Three findings
+that only recording produces:
+
+- The project directory encoding maps **both `/` and `.`** to `-`, so it is
+  **lossy**: a directory name cannot be decoded back into a path. Find a
+  project's logs by encoding a registered path, never by reversing a name.
+- **`AskUserQuestion` is not in the tool list in print mode.** The agent says
+  so in the log. A question fixture requires an interactive session or the
+  bidirectional stream protocol.
+- **Account-level MCP connectors are recorded** even when unused, so a fixture
+  recorded without `--strict-mcp-config` carries the operator's connector list.
+
 **Lima / devbox topology.** VMs are local (`vmType: vz`, virtiofs mounts), not
 remote. `~/Documents/dev/<subdir>` → `/mnt/dev`, and
 `~/.devbox/state/<vm>` → `/mnt/state` as `CLAUDE_CONFIG_DIR`.

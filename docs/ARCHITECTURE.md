@@ -175,10 +175,15 @@ implementation deferred** — every runtime today is `shared`.
 The host sees one path, the guest another, and the log records the **guest's**
 — including in the project directory name, with slashes turned into dashes.
 
-Every path that crosses must pass through the `PathMap`: paths inside events,
-the `cwd` when starting a session, and decoding the directory name. It is
-mechanical, but it rots if it spreads. One `toHost()` / `toGuest()` and nobody
-touches a path string again.
+Every path that crosses must pass through the `PathMap`: paths inside events
+and the `cwd` when starting a session. It is mechanical, but it rots if it
+spreads. One `toHost()` / `toGuest()` and nobody touches a path string again.
+
+**The directory name is computed, never decoded.** Recording showed the
+encoding maps both `/` and `.` to `-`, so `a.b` and `a-b` collide. A project's
+log directory is found by encoding a path the product already registered;
+reading the name and reversing it would be a guess that is right most of the
+time, which is the worst kind.
 
 ---
 

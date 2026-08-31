@@ -33,7 +33,10 @@ PROMPT="$(tail -n +2 "$DEF")"
 # A session id we chose, so the log is found rather than guessed at. Snapshot
 # diffing would race with anything else writing under the same config dir.
 SESSION_ID="$(cat /proc/sys/kernel/random/uuid)"
-ENCODED="$(printf '%s' "$SOURCE" | tr '/' '-')"
+# Both `/` and `.` become `-`. The encoding is therefore lossy — `a.b` and
+# `a-b` collide — so a project directory can be *computed* from a path but
+# never decoded back into one. Found by recording, not by reasoning.
+ENCODED="$(printf '%s' "$SOURCE" | tr '/.' '--')"
 LOG="$CONFIG_DIR/projects/$ENCODED/$SESSION_ID.jsonl"
 
 VERSION="$(claude --version | head -1)"
@@ -52,9 +55,14 @@ echo "  harness  $VERSION"
 echo "  mode     $MODE"
 
 set +e
+# No MCP servers at all. Account-level connectors are listed in the log
+# whether or not the session uses them, and a fixture should carry nothing
+# incidental. Recording clean beats scanning afterwards and hoping.
 ( cd "$SOURCE" && claude -p "$PROMPT" \
     --session-id "$SESSION_ID" \
     --permission-mode "$MODE" \
+    --mcp-config '{"mcpServers":{}}' \
+    --strict-mcp-config \
     >/dev/null 2>&1 )
 STATUS=$?
 set -e

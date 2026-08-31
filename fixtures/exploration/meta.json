@@ -1,0 +1,9 @@
+{
+  "scenario": "exploration",
+  "harness": "2.1.221 (Claude Code)",
+  "permission_mode": "acceptEdits",
+  "exit_status": 0,
+  "source_repo": "git@github.com:HenriqueArtur/neo-gitmoji.nvim.git",
+  "source_commit": "44480cfe7f1aceb3504d1b65ca325f6b70e57c78",
+  "lines": 28
+}

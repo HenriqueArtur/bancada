@@ -1,6 +1,6 @@
 # 0001 — Fixture recorder
 
-**status** implemented; blocked on a login
+**status** done — three fixtures recorded
 **features** — (tooling; nothing ships from it)
 **decisions** A7 (public repository), and the format-drift risk in
 [../RISKS.md](../RISKS.md)
@@ -93,15 +93,38 @@ The source repository must have a GitHub origin, and the recorder refuses
 rather than recording when it does not. Default source:
 `neo-gitmoji.nvim` — small enough that a failing test can be read by hand.
 
+## What recording taught us
+
+Three things the first runs settled, none of which reasoning would have.
+
+**The project directory encoding turns both `/` and `.` into `-`.**
+`/mnt/dev/neo-gitmoji.nvim` becomes `-mnt-dev-neo-gitmoji-nvim`. So the
+encoding is **lossy**: `a.b` and `a-b` collide. A project directory can be
+*computed* from a path and never decoded back into one — which means the
+product must find a project's log directory by encoding a registered path,
+never by reading a directory name and reversing it.
+
+**`AskUserQuestion` is not offered in print mode.** Not "the agent chose not to
+ask" — the tool is absent from the session, and the agent said so in the
+recorded log:
+
+> `AskUserQuestion` isn't available in this session — it's not in my tool list
+
+So a question fixture cannot come from `claude -p` at all. It needs either an
+interactive session recorded by hand, or the control-mode round trip (spike 5).
+The scenario that was going to produce it is now `exploration`, which is a
+genuine multi-tool working session and worth having on its own terms.
+
+**Account-level MCP connectors are written into the log** whether or not the
+session touches them, so the first recordings carried a list of the operator's
+configured connectors. Fixed at recording time rather than by editing
+afterwards: the recorder passes an empty MCP config with `--strict-mcp-config`,
+so the fixture stays genuine and carries nothing incidental. Scanning a fixture
+and finding it clean does not scale; recording clean does.
+
 ## Open
 
-- **A permission prompt cannot be recorded in print mode.** Nothing can answer
-  it, so the session either refuses or hangs. That fixture waits for the
-  control-mode round trip, spike 5. The three scenarios that ship now are a
-  plain read, a tool call plus a deliberate failure, and a structured question.
-- **Whether a structured question survives print mode at all** is an empirical
-  question the first run answers: the tool-use block may be written to the log
-  before the session ends with nothing to answer it, which is exactly the
-  fixture we want, or it may never be emitted.
-- **A session long enough to compact** is expensive to record and is not one of
-  the three. It comes when compaction detection does.
+- **A permission prompt cannot be recorded in print mode either.** Nothing can
+  answer it. Same gate as the question: spike 5.
+- **A session long enough to compact** is expensive and is not one of the
+  three. It comes when compaction detection does.
