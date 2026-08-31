@@ -56,9 +56,75 @@ Project
    agnosticism dies quietly.
 
 These three are the highest-value candidates for mechanical enforcement: their
-violation is silent and its consequence is a leak. On the Rust side, crate
-boundaries enforce rule 1 and 3 at compile time — the engine crate simply does
-not depend on the adapter crate or on `std::fs`.
+violation is silent and its consequence is a leak.
+
+### How each is actually enforced
+
+None of the three is enforced by the architecture linter, and that is not a
+gap in it — `import-boundary` needs a resolver, which Rust does not have there
+yet, and the crate-level half of what it would give is enforced better by the
+toolchain anyway.
+
+**Rule 1 — the crate graph.** `bancada-rules` does not declare
+`bancada-adapter-*` in its `Cargo.toml`. The compiler refuses; there is nothing
+to lint.
+
+**Rule 2 — two event types, not one.** This one does not follow from the crate
+graph on its own, and the reason is worth writing down: if the rules engine
+receives `Event`, and `Event::Text` carries `content`, then the engine *can*
+read content and only discipline stops it.
+
+So the model splits:
+
+```
+bancada-meta     MetaEvent — kind, timing, counts, paths. No content field.
+bancada-events   Event     — the full model. Depends on bancada-meta.
+```
+
+`bancada-rules` depends on `bancada-meta` and not on `bancada-events`. Reading
+content stops being something the engine must avoid and becomes something it
+cannot name. The adapter emits both; only the supervisor path carries the full
+one.
+
+**Rule 3 — clippy.** `std` is always linked, so "not depending on `std::fs`" is
+not expressible as a dependency. `clippy.toml` carries `disallowed-methods` and
+`disallowed-types`, scoped per crate through `[lints]`.
+
+### The crate split that carries this
+
+```
+crates/
+  bancada-meta        MetaEvent · no content, by construction
+  bancada-events      Event · depends on meta
+  bancada-runtime     Runtime trait and providers
+  bancada-adapter-*   one per harness · depends on events
+  bancada-rules       the rules engine · depends on meta only
+  bancada-core        wiring, store, the daemon binary
+  bancada-mcp         the MCP server binary
+app/src-tauri         the shell
+web/                  React + TypeScript
+```
+
+The split exists to make the rules mechanical. A crate boundary that is only
+organisation can be moved; these three cannot, and a change that needs to move
+one is a change that needs to revisit the rule.
+
+### What the architecture linter carries instead
+
+`arch.config.json` holds seven rules, and the valuable one is the first:
+
+**The seam.** `invoke("…")` in the webview and `#[tauri::command]` in the shell
+are the same edge, joined by a string that no import records. Neither cargo nor
+`tsc` can see it, and nothing checks it until somebody clicks the button. It is
+the only boundary here that needs a linter rather than a compiler.
+
+The rest: tests beside every Rust unit, a file naming what it exports, the same
+two for components, commands living in one folder, and the plugin boundary —
+a plugin may not reach host internals, which is ADR-006 made mechanical.
+
+Until code exists, `config doctor` reports every scope as matching nothing.
+That is correct and expected: the config is part of the specification, written
+before the tree it describes.
 
 ---
 

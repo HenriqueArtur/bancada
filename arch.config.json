@@ -1,0 +1,112 @@
+{
+  "$schema": "https://raw.githubusercontent.com/HenriqueArtur/archwarden/main/schema/v0.json",
+  "version": 0,
+  "languages": [
+    "rust"
+  ],
+  "rules": [
+    {
+      "type": "call-matches-export",
+      "id": "seam/every-invoke-names-a-command",
+      "level": "error",
+      "why": "The webview and the core are joined by a string that no import records and no resolver can see. It is the one boundary in this repository that neither cargo nor tsc can check, which is exactly why it is here.",
+      "roots": [
+        "web/src/**"
+      ],
+      "callee": "invoke",
+      "declared_in": [
+        "app/src-tauri/src/**"
+      ],
+      "attribute": "tauri::command"
+    },
+    {
+      "type": "structure",
+      "id": "seam/commands-live-together",
+      "level": "error",
+      "why": "A #[tauri::command] is the surface the webview can reach. Keeping them in one folder is what makes reviewing that surface something a person can do in one sitting.",
+      "roots": [
+        "app/src-tauri/src/*"
+      ],
+      "allowed_subfolders": [
+        "commands"
+      ]
+    },
+    {
+      "type": "spec-pair",
+      "id": "rust/every-unit-carries-its-tests",
+      "level": "error",
+      "why": "The rules engine is pure functions over metadata with an injected clock — the most testable half of the product, and the half whose correctness decides whether the queue can be trusted at all.",
+      "roots": [
+        "crates/*/src/*"
+      ],
+      "subfolders": [
+        "."
+      ]
+    },
+    {
+      "type": "naming",
+      "id": "rust/a-file-names-what-it-exports",
+      "level": "warning",
+      "why": "Barrels are exempt by construction, so this asks only of files that declare something of their own.",
+      "roots": [
+        "crates/*/src/*"
+      ],
+      "file_pattern": "^(?<name>.+)\\.rs$",
+      "must_export": {
+        "name": "{{pascal(name)}}",
+        "kind": [
+          "struct",
+          "fn",
+          "trait",
+          "enum"
+        ]
+      }
+    },
+    {
+      "type": "spec-pair",
+      "id": "web/a-component-has-a-test-beside-it",
+      "level": "warning",
+      "why": "Warning rather than error: the logic lives in the core and components are meant to be dumb. A component that needs a test is a signal that logic leaked upward.",
+      "roots": [
+        "web/src/components",
+        "web/src/components/**"
+      ],
+      "subfolders": [
+        "."
+      ],
+      "skip_type_only": true
+    },
+    {
+      "type": "naming",
+      "id": "web/a-component-file-names-its-component",
+      "level": "error",
+      "roots": [
+        "web/src/components",
+        "web/src/components/**"
+      ],
+      "file_pattern": "^(?<name>[a-z0-9-]+)\\.tsx$",
+      "must_export": {
+        "name": "{{pascal(name)}}",
+        "kind": [
+          "function",
+          "const"
+        ]
+      },
+      "why": "A component the host renders by name must be findable by name. This is also what keeps a plugin contribution and a host component from drifting into the same namespace."
+    },
+    {
+      "type": "import-boundary",
+      "id": "plugin/a-plugin-cannot-reach-the-host",
+      "level": "error",
+      "why": "A plugin returns typed data and never touches the DOM or the channel to the core. Reaching host internals is how a plugin would cross every workspace boundary at once, through a mechanism we introduced. ADR-006.",
+      "from": [
+        "web/src/plugins",
+        "web/src/plugins/**"
+      ],
+      "forbid_import_from": [
+        "web/src/core/**",
+        "web/src/ipc/**"
+      ]
+    }
+  ]
+}

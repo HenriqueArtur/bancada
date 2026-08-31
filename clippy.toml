@@ -1,0 +1,19 @@
+# Hard rule 3: the rules engine never calls `fs` directly, only through
+# Runtime.readFile / watch. `std` is always linked, so this cannot be a
+# dependency boundary — see docs/ARCHITECTURE.md, "How each is actually
+# enforced".
+#
+# Scoped per crate through [lints] in each Cargo.toml; this file carries the
+# list the lint reads.
+
+disallowed-methods = [
+  { path = "std::fs::read", reason = "use Runtime::read_file" },
+  { path = "std::fs::read_to_string", reason = "use Runtime::read_file" },
+  { path = "std::fs::write", reason = "the rules engine does not write" },
+  { path = "std::fs::File::open", reason = "use Runtime::read_file" },
+  { path = "std::fs::read_dir", reason = "use Runtime; a path is not always local" },
+]
+
+disallowed-types = [
+  { path = "std::time::SystemTime", reason = "the clock is injected — see docs/SPIKES.md" },
+]
