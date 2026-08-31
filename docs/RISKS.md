@@ -48,7 +48,7 @@ against its own sibling.
 
 Intercepting permission prompts in the product's UI is not confirmed on the
 installed harness version. The likely path is the agent SDK's tool-permission
-callback. It does not block the first slice, which is read-only.
+callback. It does not block 0.1 or 0.2, which carry no AI.
 
 ## Machine resources — an operational finding, not a feature
 

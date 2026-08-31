@@ -36,6 +36,37 @@ And nothing in the field is built for someone working across **multiple
 clients with separate accounts**, where one client's code must never be
 processed by another's credential. That constraint shapes the whole design.
 
+## Roadmap
+
+Milestones are stages in what the product *is* to you, not groupings of
+related features.
+
+| | | What you gain |
+|---|---|---|
+| **0.1** | The cockpit | you **see** everything in one place |
+| **0.2** | Detection | it **tells you** what you could not have known |
+| **0.3** | Control | you **act here**, not in the terminal |
+| **0.4** | The supervisor | it **advises** — and the boundary arrives with it |
+| **0.5** | Memory | it **remembers** what you decided |
+| **0.6** | Agents and permissions | it **works with** your agents |
+| **0.7** | Documentation | the knowledge surface |
+| **0.8** | Activities | the middle layer |
+| **0.9** | The consultant | what you **bill** and what it cost |
+| **1.0** | Satisfied | the bar, with no scope of its own |
+
+Two properties of that order are deliberate.
+
+**0.1 and 0.2 carry no AI at all.** All 24 features in them are rules over
+metadata plus rendering. The product becomes genuinely useful before any model
+is involved, before any account processes anything, and before any isolation
+apparatus needs to exist — because nothing crosses.
+
+**0.4 is where AI and the confidentiality boundary arrive together.** Export
+levels, computed reach, account identity and source citation guard nothing
+until a model reads content. Building them earlier would be a gate on a door
+nobody walks through; building them later would be walking through with no
+gate. It is the one ordering in the plan that is not negotiable.
+
 ## Documentation
 
 | | |
@@ -46,7 +77,7 @@ processed by another's credential. That constraint shapes the whole design.
 | [DECISIONS.md](docs/DECISIONS.md) | What was decided, and what was rejected and why |
 | [REFERENCES.md](docs/REFERENCES.md) | Every source that shaped a decision |
 | [RISKS.md](docs/RISKS.md) | What is known to be dangerous |
-| [SPIKES.md](docs/SPIKES.md) | Ordered, with the first slice at the top |
+| [SPIKES.md](docs/SPIKES.md) | Ordered, with what 0.1 needs at the top |
 | [specs/](docs/specs/) | Per-unit specifications |
 
 ## Status

@@ -1,7 +1,7 @@
 # Features
 
 Ten groups, 77 features. The order is thematic, not chronological — see
-[../DECISIONS.md](../DECISIONS.md) for the first slice.
+the roadmap in [../../README.md](../../README.md) for the milestone order.
 
 ## Legend
 

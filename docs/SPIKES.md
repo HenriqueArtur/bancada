@@ -1,6 +1,6 @@
 # Spikes
 
-Ordered. The first two are half of the first slice.
+Ordered. The first two are prerequisites for anything in milestone 0.1.
 
 ## 1. Fixture recorder
 
