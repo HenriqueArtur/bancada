@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.96"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/HenriqueArtur/bancada"
+authors = ["Henrique Artur"]
+
+# Single source of version truth. A member pulls an internal crate with
+# `foo = { workspace = true }` and never restates a path, so the crate graph
+# below is the whole graph — which is what makes hard rules 1 and 2 checkable
+# by reading one file.
+[workspace.dependencies]
+bancada-meta    = { path = "crates/bancada-meta" }
+bancada-events  = { path = "crates/bancada-events" }
+bancada-runtime = { path = "crates/bancada-runtime" }
+
+[workspace.lints.clippy]
+disallowed_methods = "deny"
+disallowed_types   = "deny"
