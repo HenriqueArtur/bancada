@@ -1,0 +1,20 @@
+[package]
+name = "bancada-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+bancada-meta = { workspace = true }
+bancada-events = { workspace = true }
+bancada-runtime = { workspace = true }
+bancada-rules = { workspace = true }
+bancada-adapter-claude = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

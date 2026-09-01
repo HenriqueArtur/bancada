@@ -64,6 +64,12 @@ impl SessionState {
                     s.awaiting_human = false;
                     s.pending.retain(|p| &p.id != id);
                 }
+                // Bookkeeping on a message already accounted for, not
+                // new activity. Token counts arrive *after* the prose of
+                // the same message, so treating them as movement erases
+                // the turn ending that just happened — which is what a
+                // real log does and a hand-built one does not.
+                MetaEvent::Tokens { .. } => {}
                 _ => s.awaiting_human = false,
             }
         }
@@ -211,6 +217,27 @@ mod tests {
     fn criterion_7_two_pending_things_in_one_session_are_two_items() {
         let q = queue_of(&[human("a", 10), asked("a", 20, "t1"), asked("a", 30, "t2")]);
         assert_eq!(q.len(), 2, "one hid behind the other");
+    }
+
+    #[test]
+    fn token_counts_do_not_count_as_the_session_moving() {
+        // The real log emits usage right after the assistant's prose. If
+        // that reads as activity, every finished turn looks alive.
+        let spoke_at = NOW.as_millis() - IDLE;
+        let q = queue_of(&[
+            human("a", 10),
+            spoke("a", spoke_at),
+            MetaEvent::Tokens {
+                session: s("a"),
+                at: at(spoke_at),
+                input: 1,
+                output: 2,
+                cache_read: 3,
+                cache_creation: 4,
+            },
+        ]);
+        assert_eq!(q.len(), 1, "usage erased the turn that had just ended");
+        assert_eq!(q[0].kind, DecisionKind::Review);
     }
 
     #[test]

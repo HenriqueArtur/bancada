@@ -5,9 +5,11 @@
 //! directly — that is hard rule 3, and it is what keeps the `piped` path
 //! from being born impossible.
 mod fs_access;
+mod host_runtime;
 mod path_map;
 mod runtime;
 
 pub use fs_access::FsAccess;
+pub use host_runtime::HostRuntime;
 pub use path_map::PathMap;
 pub use runtime::{Runtime, RuntimeError};

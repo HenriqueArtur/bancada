@@ -10,12 +10,16 @@
 //! is handed it, because the ranking is a function of time and an ambient
 //! clock would make the most important part of the product the least
 //! testable.
+mod grouped;
 mod pending;
 mod queue_item;
 mod ranked;
 mod session_state;
+mod wip;
 
+pub use grouped::{Grouped, group};
 pub use pending::Pending;
 pub use queue_item::QueueItem;
 pub use ranked::{Ranked, rank};
 pub use session_state::SessionState;
+pub use wip::Wip;

@@ -1,0 +1,19 @@
+//! Wiring: configuration, discovery, and the pipeline that turns logs into
+//! the queue.
+//!
+//! This crate knows about every layer, which is exactly why no other crate
+//! does. It is the only place a harness adapter, a runtime and the rules
+//! engine appear in the same file.
+mod cockpit;
+mod config;
+mod discovery;
+mod project;
+mod runtime_spec;
+mod workspace;
+
+pub use cockpit::Cockpit;
+pub use config::{Config, ConfigError};
+pub use discovery::{Account, Discovery, Harness};
+pub use project::Project;
+pub use runtime_spec::RuntimeSpec;
+pub use workspace::Workspace;

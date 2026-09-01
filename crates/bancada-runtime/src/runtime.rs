@@ -20,6 +20,8 @@ pub enum RuntimeError {
 /// filesystem exist at all.
 pub trait Runtime {
     fn id(&self) -> &str;
+    /// Which class of place this is: `local`, `vm`, `container`, `ssh`.
+    fn kind(&self) -> &str;
     fn paths(&self) -> &PathMap;
     fn fs_access(&self) -> FsAccess;
 
@@ -28,6 +30,12 @@ pub trait Runtime {
 
     /// Read a file, addressed in the guest's spelling.
     fn read_file(&self, guest_path: &Path) -> Result<Vec<u8>, RuntimeError>;
+
+    /// List a directory's entries, addressed in the guest's spelling.
+    ///
+    /// Returned in a stable order, because a queue that reorders itself
+    /// between two identical runs is a queue nobody can trust.
+    fn read_dir(&self, guest_path: &Path) -> Result<Vec<std::path::PathBuf>, RuntimeError>;
 }
 
 #[cfg(test)]
@@ -43,6 +51,9 @@ mod tests {
         fn id(&self) -> &str {
             "fake"
         }
+        fn kind(&self) -> &str {
+            "fake"
+        }
         fn paths(&self) -> &PathMap {
             &self.paths
         }
@@ -52,6 +63,10 @@ mod tests {
         fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
             Ok(cmd.join(" "))
         }
+        fn read_dir(&self, guest_path: &Path) -> Result<Vec<std::path::PathBuf>, RuntimeError> {
+            Err(RuntimeError::NotFound(guest_path.display().to_string()))
+        }
+
         fn read_file(&self, guest_path: &Path) -> Result<Vec<u8>, RuntimeError> {
             if guest_path == Path::new("/mnt/dev/a.txt") {
                 Ok(b"hello".to_vec())
