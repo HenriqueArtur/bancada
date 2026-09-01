@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>the mark</title>
+<style>
+  body { margin:0; font:13px ui-sans-serif,-apple-system,sans-serif; }
+  .band { padding:22px 30px; display:flex; gap:44px; align-items:flex-end; }
+  .light { background:#faf9f5; color:#1d1c1a; }
+  .dark  { background:#21201d; color:#ece8df; }
+  figure { margin:0; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  figcaption { font-size:11px; opacity:.5; letter-spacing:.04em; }
+  img { display:block; image-rendering:auto; }
+  .dock { display:flex; gap:14px; align-items:flex-end; padding:14px 20px;
+          background:rgba(120,120,120,.22); border-radius:18px; }
+  .dock div { width:52px; height:52px; border-radius:12px; display:grid; place-items:center; }
+</style></head>
+<body>
+  <div class="band light" id="l"></div>
+  <div class="band dark" id="d"></div>
+<script type="module">
+  const svg = await (await fetch("../../docs/logo/mark-light.svg")).text();
+  // The file carries a `prefers-color-scheme` rule; force each copy instead,
+  // so both grounds can be seen side by side in one screenshot.
+  const paint = (ink, clay) => svg
+    .replace(/\.ink \{ fill: [^}]+\}/, `.ink { fill: ${ink}; }`)
+    .replace(/\.clay \{ fill: [^}]+\}/, `.clay { fill: ${clay}; }`)
+    .replace(/@media[\s\S]*?\n    \}\n/, "");
+  const url = (s) => "data:image/svg+xml;utf8," + encodeURIComponent(s);
+
+  for (const [id, ink, clay] of [["l", "#1d1c1a", "#c15f3c"], ["d", "#ece8df", "#dd8560"]]) {
+    const src = url(paint(ink, clay));
+    const band = document.getElementById(id);
+    for (const size of [256, 96, 48, 32, 16]) {
+      band.insertAdjacentHTML("beforeend",
+        `<figure><img src="${src}" width="${size}" height="${size}">
+         <figcaption>${size}</figcaption></figure>`);
+    }
+    // Beside a few neighbours, at the size a dock actually shows.
+    band.insertAdjacentHTML("beforeend",
+      `<figure><div class="dock">
+         <div style="background:#1e1e1e"></div>
+         <div style="background:#0b6bcb"></div>
+         <div style="background:${ink === "#1d1c1a" ? "#faf9f5" : "#21201d"}">
+           <img src="${src}" width="44" height="44"></div>
+         <div style="background:#3ba55d"></div>
+       </div><figcaption>in a dock</figcaption></figure>`);
+  }
+</script></body></html>

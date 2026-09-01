@@ -96,7 +96,7 @@ an editor wearing two palettes at once.
 To see the packaged window instead:
 
 ```sh
-bun run --cwd app build && open target/release/bundle/macos/bancada.app
+bun run --cwd app build && open target/release/bundle/macos/Bancada.app
 tools/test-cockpit.sh                     # against a scratch configuration
 ```
 

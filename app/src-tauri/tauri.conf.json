@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "bancada",
+  "productName": "Bancada",
   "version": "0.1.0",
   "identifier": "com.henriqueartur.bancada",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "bancada",
+        "title": "Bancada",
         "width": 860,
         "height": 720,
         "minWidth": 520
@@ -29,7 +29,11 @@
       "app"
     ],
     "icon": [
-      "icons/icon.png"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ],
     "macOS": {
       "signingIdentity": "-"

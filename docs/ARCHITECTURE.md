@@ -492,7 +492,7 @@ product indexes; it does not copy.
 **Tauri v2 · Rust core · TypeScript webview · React · Bun as package manager.**
 
 ```
-bancada.app  (Tauri)
+Bancada.app  (Tauri)
  ├── Rust    window · menu · tray · notification · updater
  │           spawns and supervises the core
  ├── core    own binary, Rust        ← the daemon

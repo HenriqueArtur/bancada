@@ -81,7 +81,7 @@ bun install --cwd app
 bun add -g archwarden@0.35.0
 
 make check
-bun run --cwd app build && open target/release/bundle/macos/bancada.app
+bun run --cwd app build && open target/release/bundle/macos/Bancada.app
 ```
 
 macOS is the platform the product is developed and shipped on today. The Rust
