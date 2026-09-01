@@ -1,3 +1,5 @@
+// biome-ignore-all lint/suspicious/noArrayIndexKey: position *is* the identity here — these lists are rendered from one parse in source order and never reorder, which is the only thing the rule protects against
+
 import { cn } from "@/lib/cn";
 
 /// A small count, drawn rather than written.

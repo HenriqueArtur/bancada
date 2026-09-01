@@ -25,9 +25,10 @@ describe("readingOrder", () => {
   });
 
   it("ranks unannounced over merely fresh", () => {
-    const got = readingOrder([file("fresh.rs", true), file("surprise.rs", false)], [
-      "surprise.rs",
-    ]);
+    const got = readingOrder(
+      [file("fresh.rs", true), file("surprise.rs", false)],
+      ["surprise.rs"],
+    );
     expect(got[0].path).toBe("surprise.rs");
   });
 

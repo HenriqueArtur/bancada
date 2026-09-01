@@ -20,7 +20,8 @@ const ROOT = join(import.meta.dir, "..", "src");
 
 /// `t("…")`, `t('…')`, and both forms of `t.plural(n, "…", "…")`.
 const CALL = /\bt\(\s*(["'])((?:\\.|(?!\1)[^\\])*)\1/g;
-const PLURAL = /\bt\.plural\(\s*[^,]+,\s*(["'])((?:\\.|(?!\1)[^\\])*)\1\s*,\s*(["'])((?:\\.|(?!\3)[^\\])*)\3/g;
+const PLURAL =
+  /\bt\.plural\(\s*[^,]+,\s*(["'])((?:\\.|(?!\1)[^\\])*)\1\s*,\s*(["'])((?:\\.|(?!\3)[^\\])*)\3/g;
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -45,12 +46,14 @@ function code(text: string): string {
 
 function phrasesIn(text: string): string[] {
   const found: string[] = [];
-  for (const m of text.matchAll(CALL)) found.push(unescape(m[2]));
-  for (const m of text.matchAll(PLURAL)) found.push(unescape(m[2]), unescape(m[4]));
+  for (const m of text.matchAll(CALL)) found.push(unquote(m[2]));
+  for (const m of text.matchAll(PLURAL)) found.push(unquote(m[2]), unquote(m[4]));
   return found;
 }
 
-const unescape = (s: string) => s.replace(/\\(["'\\])/g, "$1").replace(/\\n/g, "\n");
+/// Named `unquote` rather than `unescape`: the global of that name is
+/// deprecated and shadowing it makes the two indistinguishable at a glance.
+const unquote = (s: string) => s.replace(/\\(["'\\])/g, "$1").replace(/\\n/g, "\n");
 
 const used = new Set(sources(ROOT).flatMap((f) => phrasesIn(code(readFileSync(f, "utf8")))));
 

@@ -57,7 +57,12 @@ export function Group({
             onClick={() => setOpen(open === i ? null : i)}
             className="items-baseline gap-3.5 rounded-none border-b border-line-soft px-4 py-3"
           >
-            <Text as="span" size="sm" tone="muted" className="min-w-[58px] shrink-0 tabular-nums">
+            <Text
+              as="span"
+              size="sm"
+              tone="muted"
+              className="min-w-[58px] shrink-0 tabular-nums"
+            >
               {age(row.first.age_ms, t)}
             </Text>
             <Text as="span" size="sm" tone="clay" className="min-w-[92px] shrink-0">
@@ -68,9 +73,7 @@ export function Group({
             <Text as="span" className="truncate">
               {detail(row.first, t, glance) ?? ""}
             </Text>
-            {row.count > 1 ? (
-              <Badge className="ml-auto shrink-0">×{row.count}</Badge>
-            ) : null}
+            {row.count > 1 ? <Badge className="ml-auto shrink-0">×{row.count}</Badge> : null}
           </RowButton>
           {open === i ? <Score r={row.first} /> : null}
         </Stack>

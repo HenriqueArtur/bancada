@@ -35,7 +35,12 @@ const TONE = {
   sage: "text-sage",
 } as const;
 
-const SIZE = { xs: "text-[11.5px]", sm: "text-[13px]", md: "text-sm", lg: "text-[15px]" } as const;
+const SIZE = {
+  xs: "text-[11.5px]",
+  sm: "text-[13px]",
+  md: "text-sm",
+  lg: "text-[15px]",
+} as const;
 
 export function Text({
   children,

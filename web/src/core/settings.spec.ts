@@ -141,7 +141,9 @@ describe("evidenceOf", () => {
   it("distinguishes an empty folder from an unreachable one", () => {
     // These look identical without saying so, and one of them is a typo.
     expect(evidenceOf(p(), t)!.tone).toBe("empty");
-    expect(evidenceOf(p({ reachable: false, why: "no such directory" }), t)!.tone).toBe("missing");
+    expect(evidenceOf(p({ reachable: false, why: "no such directory" }), t)!.tone).toBe(
+      "missing",
+    );
   });
 
   it("passes on the runtime's own words for why it failed", () => {
@@ -159,15 +161,21 @@ describe("whyNotRuntime", () => {
   });
 
   it("refuses the name reserved for the machine bancada runs on", () => {
-    expect(whyNotRuntime({ ...vm, id: THIS_MACHINE }, config, t)).toMatch(/belongs to the machine/);
+    expect(whyNotRuntime({ ...vm, id: THIS_MACHINE }, config, t)).toMatch(
+      /belongs to the machine/,
+    );
   });
 
   it("refuses a name already taken", () => {
-    expect(whyNotRuntime({ ...vm, id: "devbox" }, config, t)).toBe("devbox is already registered");
+    expect(whyNotRuntime({ ...vm, id: "devbox" }, config, t)).toBe(
+      "devbox is already registered",
+    );
   });
 
   it("insists on a prefix, since without one it is this machine twice", () => {
-    expect(whyNotRuntime({ ...vm, prefix: [] }, config, t)).toMatch(/in front of every command/);
+    expect(whyNotRuntime({ ...vm, prefix: [] }, config, t)).toMatch(
+      /in front of every command/,
+    );
   });
 });
 

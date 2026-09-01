@@ -67,26 +67,60 @@ export function paletteFor(dark: boolean): Palette {
 /// the code, not to decorate every token in it.
 function rulesFor(p: Palette) {
   const say = (tokens: string[], foreground: string, fontStyle?: string) =>
-    tokens.map((token) => (fontStyle ? { token, foreground, fontStyle } : { token, foreground }));
+    tokens.map((token) =>
+      fontStyle ? { token, foreground, fontStyle } : { token, foreground },
+    );
 
   return [
     ...say(["comment", "comment.doc", "comment.content"], p.comment, "italic"),
     ...say(
-      ["string", "string.quote", "string.escape", "string.key", "string.value", "regexp", "attribute.value"],
+      [
+        "string",
+        "string.quote",
+        "string.escape",
+        "string.key",
+        "string.value",
+        "regexp",
+        "attribute.value",
+      ],
       p.string,
     ),
     ...say(
-      ["keyword", "keyword.type", "keyword.operator", "keyword.control", "keyword.other",
-       "tag", "metatag", "annotation", "attribute.name", "key"],
+      [
+        "keyword",
+        "keyword.type",
+        "keyword.operator",
+        "keyword.control",
+        "keyword.other",
+        "tag",
+        "metatag",
+        "annotation",
+        "attribute.name",
+        "key",
+      ],
       p.keyword,
     ),
-    ...say(["number", "constant", "variable.predefined", "number.hex", "number.float"], p.literal),
+    ...say(
+      ["number", "constant", "variable.predefined", "number.hex", "number.float"],
+      p.literal,
+    ),
     ...say(["type", "type.identifier", "namespace", "predefined", "entity.name.type"], p.type),
     ...say(["invalid", "string.escape.invalid", "string.invalid"], p.alarm),
     // Named so they are deliberately *not* coloured, rather than merely
     // forgotten: colouring punctuation is how a file starts looking busy.
-    ...say(["delimiter", "delimiter.bracket", "delimiter.parenthesis", "delimiter.square",
-            "delimiter.angle", "operator", "identifier", "variable"], p.fg),
+    ...say(
+      [
+        "delimiter",
+        "delimiter.bracket",
+        "delimiter.parenthesis",
+        "delimiter.square",
+        "delimiter.angle",
+        "operator",
+        "identifier",
+        "variable",
+      ],
+      p.fg,
+    ),
   ];
 }
 

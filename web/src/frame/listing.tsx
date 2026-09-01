@@ -11,7 +11,9 @@ export function Listing({
   indent?: boolean;
   className?: string;
 }) {
-  return <ul className={cn("m-0 list-none", indent ? "pl-3" : "pl-0", className)}>{children}</ul>;
+  return (
+    <ul className={cn("m-0 list-none", indent ? "pl-3" : "pl-0", className)}>{children}</ul>
+  );
 }
 
 export function ListingItem({ children }: { children: ReactNode }) {

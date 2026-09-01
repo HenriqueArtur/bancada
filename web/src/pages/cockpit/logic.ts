@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Queue } from "@/core/queue";
 import { idsOf, newcomers, phrase, raise, waiting } from "@/core/attention";
@@ -39,7 +39,10 @@ export function useCockpit(): Cockpit {
   /// the same items forever.
   const seen = useRef<Set<string> | null>(null);
 
-  const reload = async () => {
+  /// Stable except when the language changes, because the notification it
+  /// raises is written in it. The interval below depends on this, so an
+  /// unstable identity would tear down and restart the poll on every render.
+  const reload = useCallback(async () => {
     try {
       const q = await invoke<Queue>("queue");
       setQueue(q);
@@ -60,7 +63,7 @@ export function useCockpit(): Cockpit {
       // own core must not look like a product with nothing to show.
       setFailed(String(e));
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     let alive = true;
@@ -68,12 +71,12 @@ export function useCockpit(): Cockpit {
       if (alive) void reload();
     };
     tick();
-    const t = setInterval(tick, EVERY_MS);
+    const every = setInterval(tick, EVERY_MS);
     return () => {
       alive = false;
-      clearInterval(t);
+      clearInterval(every);
     };
-  }, []);
+  }, [reload]);
 
   return { queue, failed, mute, reload };
 }

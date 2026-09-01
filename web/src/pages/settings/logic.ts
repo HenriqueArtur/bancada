@@ -28,7 +28,9 @@ export function useSettings(onChanged?: () => void): Settings {
   const [failed, setFailed] = useState<string | null>(null);
 
   useEffect(() => {
-    loadSettings().then(setConfig).catch((e) => setFailed(String(e)));
+    loadSettings()
+      .then(setConfig)
+      .catch((e) => setFailed(String(e)));
   }, []);
 
   const apply = (next: Promise<Config>) =>

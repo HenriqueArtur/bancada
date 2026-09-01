@@ -24,9 +24,7 @@ export function Banner({
       align="baseline"
       className={cn(
         "rounded-card border px-3.5 py-2",
-        tone === "clay"
-          ? "bg-clay-wash border-clay/25"
-          : "bg-alarm-wash border-alarm/25",
+        tone === "clay" ? "bg-clay-wash border-clay/25" : "bg-alarm-wash border-alarm/25",
       )}
     >
       <Text as="span" size="sm" tone={tone} className="font-semibold">

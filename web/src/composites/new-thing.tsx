@@ -34,7 +34,9 @@ export function NewThing({
       gap="normal"
       className={cn(
         "rounded-card border",
-        editing ? "border-clay/45 bg-raised shadow-raised" : "border-dashed border-line bg-transparent",
+        editing
+          ? "border-clay/45 bg-raised shadow-raised"
+          : "border-dashed border-line bg-transparent",
         className,
       )}
     >

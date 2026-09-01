@@ -28,7 +28,11 @@ import { THEME, definition, paletteFor } from "../src/core/monaco-theme";
 self.MonacoEnvironment = { getWorker: () => new editorWorker() };
 
 const q = new URLSearchParams(location.search);
-const dark = q.has("dark") ? true : q.has("light") ? false : matchMedia("(prefers-color-scheme: dark)").matches;
+const dark = q.has("dark")
+  ? true
+  : q.has("light")
+    ? false
+    : matchMedia("(prefers-color-scheme: dark)").matches;
 document.documentElement.classList.toggle("dark", dark);
 
 const LICENSE = `MIT License
@@ -75,14 +79,30 @@ function Work() {
       workspace: { id: "personal", export: "metadata" as const },
       projects: [
         {
-          project: { id: "bancada", workspace: "personal", runtime: "this-machine",
-            path: "/Users/henrique/Documents/dev/personal/bancada", weight: 1, idleAfterMinutes: 2 },
-          sessions: 7, lastActivity: Date.now() - 4 * 60_000, unreachable: null,
+          project: {
+            id: "bancada",
+            workspace: "personal",
+            runtime: "this-machine",
+            path: "/Users/henrique/Documents/dev/personal/bancada",
+            weight: 1,
+            idleAfterMinutes: 2,
+          },
+          sessions: 7,
+          lastActivity: Date.now() - 4 * 60_000,
+          unreachable: null,
         },
         {
-          project: { id: "neo-gitmoji", workspace: "personal", runtime: "devbox",
-            path: "/mnt/dev/neo-gitmoji.nvim", weight: 1, idleAfterMinutes: 2 },
-          sessions: 0, lastActivity: null, unreachable: null,
+          project: {
+            id: "neo-gitmoji",
+            workspace: "personal",
+            runtime: "devbox",
+            path: "/mnt/dev/neo-gitmoji.nvim",
+            weight: 1,
+            idleAfterMinutes: 2,
+          },
+          sessions: 0,
+          lastActivity: null,
+          unreachable: null,
         },
       ],
     },
@@ -90,9 +110,17 @@ function Work() {
       workspace: { id: "client-x", export: "summary" as const },
       projects: [
         {
-          project: { id: "api", workspace: "client-x", runtime: "devbox",
-            path: "/mnt/dev/api", weight: 3, idleAfterMinutes: 2 },
-          sessions: 3, lastActivity: Date.now() - 26 * 3_600_000, unreachable: null,
+          project: {
+            id: "api",
+            workspace: "client-x",
+            runtime: "devbox",
+            path: "/mnt/dev/api",
+            weight: 3,
+            idleAfterMinutes: 2,
+          },
+          sessions: 3,
+          lastActivity: Date.now() - 26 * 3_600_000,
+          unreachable: null,
         },
       ],
     },
@@ -103,8 +131,12 @@ function Work() {
     <Page>
       <Stack gap="loose">
         <Row justify="between" align="end" className="border-b border-line-soft pb-4">
-          <Heading level={1} as="h1">Your work</Heading>
-          <Text as="span" size="sm" tone="muted">2 waiting</Text>
+          <Heading level={1} as="h1">
+            Your work
+          </Heading>
+          <Text as="span" size="sm" tone="muted">
+            2 waiting
+          </Text>
         </Row>
         <Stack gap="airy">
           {workspaces.map((g) => (
@@ -114,7 +146,9 @@ function Work() {
                   <Heading level={2}>{g.workspace.id}</Heading>
                   <Badge>{exportsAs(g.workspace)}</Badge>
                 </Row>
-                <Text as="span" size="sm" tone="faint">{g.projects.length} project{g.projects.length === 1 ? "" : "s"}</Text>
+                <Text as="span" size="sm" tone="faint">
+                  {g.projects.length} project{g.projects.length === 1 ? "" : "s"}
+                </Text>
               </Row>
               <Card>
                 {g.projects.map((s, i) => (
@@ -123,14 +157,18 @@ function Work() {
                     <RowButton className="items-start gap-3 rounded-none px-4 py-3.5">
                       <Stack gap="tight" className="min-w-0 flex-1">
                         <Row gap="snug" align="baseline">
-                          <Heading level={3} as="h3">{s.project.id}</Heading>
+                          <Heading level={3} as="h3">
+                            {s.project.id}
+                          </Heading>
                           {waiting[s.project.id] ? (
                             <Badge tone="clay">{waiting[s.project.id]} waiting</Badge>
                           ) : null}
                         </Row>
                         <Mono className="break-all">{s.project.path}</Mono>
                         <Text size="sm" tone="faint">
-                          {s.project.runtime === "this-machine" ? "This machine" : s.project.runtime}
+                          {s.project.runtime === "this-machine"
+                            ? "This machine"
+                            : s.project.runtime}
                           {" · "}
                           {aliveness(s, now)}
                         </Text>
@@ -167,7 +205,11 @@ function Editor() {
         bracketPairColorization: { enabled: false },
         renderLineHighlight: "none",
         overviewRulerLanes: 0,
-        scrollbar: { verticalScrollbarSize: 11, horizontalScrollbarSize: 11, useShadows: false },
+        scrollbar: {
+          verticalScrollbarSize: 11,
+          horizontalScrollbarSize: 11,
+          useShadows: false,
+        },
         minimap: { enabled: false },
         automaticLayout: true,
         scrollBeyondLastLine: false,
@@ -178,24 +220,47 @@ function Editor() {
   return <Mount ref={host} />;
 }
 
-const FILES = ["Cargo.toml", "LICENSE-MIT", "README.md", "arch.config.json", "rust-toolchain.toml"];
+const FILES = [
+  "Cargo.toml",
+  "LICENSE-MIT",
+  "README.md",
+  "arch.config.json",
+  "rust-toolchain.toml",
+];
 
 /// The settings dialog, with a configuration invented for it.
 function Settings() {
   const [config, setConfig] = useState({
-    workspaces: [{ id: "personal", export: "metadata" as const }, { id: "client-x", export: "summary" as const }],
+    workspaces: [
+      { id: "personal", export: "metadata" as const },
+      { id: "client-x", export: "summary" as const },
+    ],
     runtimes: [],
     projects: [
-      { id: "bancada", workspace: "personal", runtime: "this-machine",
-        path: "/Users/henrique/Documents/dev/personal/bancada", weight: 1, idleAfterMinutes: 2 },
-      { id: "neo-gitmoji", workspace: "personal", runtime: "devbox",
-        path: "/mnt/dev/neo-gitmoji.nvim", weight: 1, idleAfterMinutes: 2 },
+      {
+        id: "bancada",
+        workspace: "personal",
+        runtime: "this-machine",
+        path: "/Users/henrique/Documents/dev/personal/bancada",
+        weight: 1,
+        idleAfterMinutes: 2,
+      },
+      {
+        id: "neo-gitmoji",
+        workspace: "personal",
+        runtime: "devbox",
+        path: "/mnt/dev/neo-gitmoji.nvim",
+        weight: 1,
+        idleAfterMinutes: 2,
+      },
     ],
   });
   return (
     <Page>
       <Stack gap="loose">
-        <Heading level={1} as="h1">Workspaces</Heading>
+        <Heading level={1} as="h1">
+          Workspaces
+        </Heading>
         <Text tone="muted" size="sm">
           Who each project belongs to, and what its supervisor may let out.
         </Text>
@@ -219,33 +284,37 @@ function Settings() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  q.has("settings") ? <Settings /> : q.has("work") ? <Work /> : (
-  <Workbench
-    bar={
-      <>
-        <Row gap="snug" align="baseline">
-          <Text as="span" size="sm" tone="muted">
-            bancada
+  q.has("settings") ? (
+    <Settings />
+  ) : q.has("work") ? (
+    <Work />
+  ) : (
+    <Workbench
+      bar={
+        <>
+          <Row gap="snug" align="baseline">
+            <Text as="span" size="sm" tone="muted">
+              bancada
+            </Text>
+            <Mono>/ {plain ? "LICENSE-MIT" : "crates/bancada-rules/src/session_state.rs"}</Mono>
+          </Row>
+          <Text as="span" size="sm" tone="faint">
+            probe
           </Text>
-          <Mono>/ {plain ? "LICENSE-MIT" : "crates/bancada-rules/src/session_state.rs"}</Mono>
-        </Row>
-        <Text as="span" size="sm" tone="faint">
-          probe
-        </Text>
-      </>
-    }
-    index={
-      <Listing>
-        {FILES.map((f) => (
-          <ListingItem key={f}>
-            <RowButton selected={plain ? f === "LICENSE-MIT" : false} className="gap-1.5">
-              {f}
-            </RowButton>
-          </ListingItem>
-        ))}
-      </Listing>
-    }
-    subject={<Editor />}
-  />
+        </>
+      }
+      index={
+        <Listing>
+          {FILES.map((f) => (
+            <ListingItem key={f}>
+              <RowButton selected={plain ? f === "LICENSE-MIT" : false} className="gap-1.5">
+                {f}
+              </RowButton>
+            </ListingItem>
+          ))}
+        </Listing>
+      }
+      subject={<Editor />}
+    />
   ),
 );

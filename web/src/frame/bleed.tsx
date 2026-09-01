@@ -11,5 +11,7 @@ import { cn } from "@/lib/cn";
 /// whose height comes from its content cannot have two independently
 /// scrolling halves.
 export function Bleed({ children, className }: { children: ReactNode; className?: string }) {
-  return <main className={cn("flex h-screen flex-col overflow-hidden", className)}>{children}</main>;
+  return (
+    <main className={cn("flex h-screen flex-col overflow-hidden", className)}>{children}</main>
+  );
 }

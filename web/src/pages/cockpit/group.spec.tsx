@@ -39,7 +39,9 @@ describe("collapse", () => {
   it("never folds two questions", () => {
     // Two questions are two decisions, and folding them would hide one
     // behind the other — the thing a per-decision queue exists to prevent.
-    expect(collapse(group([ranked("Question", 1, 1), ranked("Question", 2, 2)]))).toHaveLength(2);
+    expect(collapse(group([ranked("Question", 1, 1), ranked("Question", 2, 2)]))).toHaveLength(
+      2,
+    );
   });
 });
 

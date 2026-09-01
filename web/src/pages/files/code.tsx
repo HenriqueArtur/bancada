@@ -120,7 +120,13 @@ export function CodeView({ project, path }: { project: string; path: string | nu
 }
 
 /// A one-line state, set in from the edge like the text would be.
-function Aside({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "alarm" }) {
+function Aside({
+  children,
+  tone = "muted",
+}: {
+  children: ReactNode;
+  tone?: "muted" | "alarm";
+}) {
   return (
     <Inset pad="normal">
       <Text tone={tone} size="sm">

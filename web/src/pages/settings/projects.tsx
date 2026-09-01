@@ -91,10 +91,16 @@ function Registered({
               <Row gap="tight" wrap>
                 <Badge>{p.runtime === THIS_MACHINE ? t("This machine") : p.runtime}</Badge>
                 <Badge>{p.workspace}</Badge>
-                <Badge title={t("How fast waiting hurts here. Scales time, never the kind of decision.")}>
+                <Badge
+                  title={t(
+                    "How fast waiting hurts here. Scales time, never the kind of decision.",
+                  )}
+                >
                   {t("Weight ×{n}", { n: p.weight })}
                 </Badge>
-                <Badge title={t("How long a finished turn stays quiet before it is worth your eyes")}>
+                <Badge
+                  title={t("How long a finished turn stays quiet before it is worth your eyes")}
+                >
                   {t("Quiet {n} min", { n: p.idleAfterMinutes })}
                 </Badge>
               </Row>
@@ -153,118 +159,122 @@ function ProjectForm({
       editing={editing?.id}
     >
       <Stack gap="normal">
-          <Grid columns={2}>
-            <Full>
-              <Field
-                label={t("Where does it live?")}
-                value={draft.path}
-                onChange={setPath}
-                placeholder={local ? "/Users/you/dev/thing" : t("The path as the guest spells it")}
-                after={
-                  // Only for this machine. A guest path cannot be browsed
-                  // from here, and a picker that quietly returned the host's
-                  // spelling of it would register something that does not
-                  // exist.
-                  local ? (
-                    <Button tone="outline" onClick={browse} disabled={picking} type="button">
-                      <FolderOpenIcon size={15} />
-                      {picking ? "…" : t("Browse")}
-                    </Button>
-                  ) : undefined
-                }
-              />
-            </Full>
-
-            {evidence ? (
-              <Full>
-                <Notice tone={evidence.tone}>
-                  {evidence.says}
-                  {preview && preview.reachable && !preview.versioned
-                    ? ` · ${t("Not a git repository, so there will be no diff to review.")}`
-                    : ""}
-                </Notice>
-              </Full>
-            ) : null}
-
+        <Grid columns={2}>
+          <Full>
             <Field
-              label={t("Call it")}
-              value={draft.id}
-              onChange={(id) => setDraft({ ...draft, id })}
-              placeholder={t("From the folder name")}
+              label={t("Where does it live?")}
+              value={draft.path}
+              onChange={setPath}
+              placeholder={
+                local ? "/Users/you/dev/thing" : t("The path as the guest spells it")
+              }
+              after={
+                // Only for this machine. A guest path cannot be browsed
+                // from here, and a picker that quietly returned the host's
+                // spelling of it would register something that does not
+                // exist.
+                local ? (
+                  <Button tone="outline" onClick={browse} disabled={picking} type="button">
+                    <FolderOpenIcon size={15} />
+                    {picking ? "…" : t("Browse")}
+                  </Button>
+                ) : undefined
+              }
             />
-            <ChoiceField
-              label={t("Runs on")}
-              value={draft.runtime}
-              onChange={(runtime) => setDraft({ ...draft, runtime })}
-              choices={config.runtimes.map((r) => ({
-                value: r.id,
-                label: r.id === THIS_MACHINE ? t("This machine") : r.id,
-              }))}
-            />
+          </Full>
 
+          {evidence ? (
             <Full>
-              <Disclosure summary={t("Whose it is, and how fast waiting hurts")}>
-                <Grid columns={2}>
-                  <ChoiceField
-                    label={t("Workspace")}
-                    value={draft.workspace}
-                    onChange={(workspace) => setDraft({ ...draft, workspace })}
-                    choices={config.workspaces.map((w) => ({ value: w.id, label: w.id }))}
-                  />
-                  <Field
-                    label={t("Weight")}
-                    value={String(draft.weight)}
-                    onChange={(v) => setDraft({ ...draft, weight: Number(v) || 1 })}
-                    hint={t("Scales how fast waiting hurts. Never overrides the kind of decision.")}
-                  />
-                  <Field
-                    label={t("Quiet for (minutes) before it counts")}
-                    value={String(draft.idleAfterMinutes)}
-                    onChange={(v) => setDraft({ ...draft, idleAfterMinutes: Number(v) || 1 })}
-                  />
-                  {draft.path ? (
-                    <Stack gap="tight" justify="end">
-                      <Text size="sm" tone="faint">
-                        {t("Logs")}
-                      </Text>
-                      <Mono tone="faint">projects/{logDirName(draft.path)}</Mono>
-                    </Stack>
-                  ) : null}
-                </Grid>
-              </Disclosure>
+              <Notice tone={evidence.tone}>
+                {evidence.says}
+                {preview?.reachable && !preview.versioned
+                  ? ` · ${t("Not a git repository, so there will be no diff to review.")}`
+                  : ""}
+              </Notice>
             </Full>
-          </Grid>
+          ) : null}
 
-          <Row gap="normal" wrap>
+          <Field
+            label={t("Call it")}
+            value={draft.id}
+            onChange={(id) => setDraft({ ...draft, id })}
+            placeholder={t("From the folder name")}
+          />
+          <ChoiceField
+            label={t("Runs on")}
+            value={draft.runtime}
+            onChange={(runtime) => setDraft({ ...draft, runtime })}
+            choices={config.runtimes.map((r) => ({
+              value: r.id,
+              label: r.id === THIS_MACHINE ? t("This machine") : r.id,
+            }))}
+          />
+
+          <Full>
+            <Disclosure summary={t("Whose it is, and how fast waiting hurts")}>
+              <Grid columns={2}>
+                <ChoiceField
+                  label={t("Workspace")}
+                  value={draft.workspace}
+                  onChange={(workspace) => setDraft({ ...draft, workspace })}
+                  choices={config.workspaces.map((w) => ({ value: w.id, label: w.id }))}
+                />
+                <Field
+                  label={t("Weight")}
+                  value={String(draft.weight)}
+                  onChange={(v) => setDraft({ ...draft, weight: Number(v) || 1 })}
+                  hint={t(
+                    "Scales how fast waiting hurts. Never overrides the kind of decision.",
+                  )}
+                />
+                <Field
+                  label={t("Quiet for (minutes) before it counts")}
+                  value={String(draft.idleAfterMinutes)}
+                  onChange={(v) => setDraft({ ...draft, idleAfterMinutes: Number(v) || 1 })}
+                />
+                {draft.path ? (
+                  <Stack gap="tight" justify="end">
+                    <Text size="sm" tone="faint">
+                      {t("Logs")}
+                    </Text>
+                    <Mono tone="faint">projects/{logDirName(draft.path)}</Mono>
+                  </Stack>
+                ) : null}
+              </Grid>
+            </Disclosure>
+          </Full>
+        </Grid>
+
+        <Row gap="normal" wrap>
+          <Button
+            tone="primary"
+            disabled={blocked !== null}
+            onClick={() => {
+              if (!blocked) {
+                onSubmit(draft, editing?.id);
+                clear();
+              }
+            }}
+          >
+            {editing ? t("Save changes") : t("Watch it")}
+          </Button>
+          {editing ? (
             <Button
-              tone="primary"
-              disabled={blocked !== null}
+              tone="ghost"
               onClick={() => {
-                if (!blocked) {
-                  onSubmit(draft, editing?.id);
-                  clear();
-                }
+                clear();
+                onCancel();
               }}
             >
-              {editing ? t("Save changes") : t("Watch it")}
+              {t("Cancel")}
             </Button>
-            {editing ? (
-              <Button
-                tone="ghost"
-                onClick={() => {
-                  clear();
-                  onCancel();
-                }}
-              >
-                {t("Cancel")}
-              </Button>
-            ) : null}
-            {blocked ? (
-              <Text tone="muted" size="sm">
-                {blocked}
-              </Text>
-            ) : null}
-          </Row>
+          ) : null}
+          {blocked ? (
+            <Text tone="muted" size="sm">
+              {blocked}
+            </Text>
+          ) : null}
+        </Row>
       </Stack>
     </NewThing>
   );

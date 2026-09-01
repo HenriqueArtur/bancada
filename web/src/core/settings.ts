@@ -190,8 +190,10 @@ export function whyNotRuntime(r: RuntimeSpec, config: Config, t: Translate): str
   // for which field is unhappy.
   if (!r.id.trim()) return t("give the machine a name");
   if (r.id === THIS_MACHINE) return t("that name belongs to the machine bancada runs on");
-  if (config.runtimes.some((x) => x.id === r.id)) return t("{id} is already registered", { id: r.id });
-  if (!r.configDir.trim()) return t("where does the harness keep its state, as this machine spells it?");
+  if (config.runtimes.some((x) => x.id === r.id))
+    return t("{id} is already registered", { id: r.id });
+  if (!r.configDir.trim())
+    return t("where does the harness keep its state, as this machine spells it?");
   if (!r.configDir.startsWith("/")) return t("that path must be absolute");
   if (r.prefix.length === 0) return t("what goes in front of every command?");
   return null;

@@ -29,5 +29,14 @@ export default defineConfig({
     // warning that fires on every build is one people stop reading.
     chunkSizeWarningLimit: 4000,
   },
-  test: { environment: "jsdom", globals: true, setupFiles: ["src/test-setup.ts"] },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["src/test-setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "json-summary"],
+      include: ["src/**"],
+    },
+  },
 });

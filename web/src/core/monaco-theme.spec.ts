@@ -30,8 +30,19 @@ describe("the editor's palette", () => {
     // right — but a family that *should* have a colour and does not is
     // invisible rather than merely plain.
     const named = new Set(definition(paletteFor(false)).rules.map((r) => r.token));
-    for (const t of ["comment", "string", "keyword", "keyword.type", "number", "type",
-                     "delimiter", "operator", "identifier", "annotation", "invalid"]) {
+    for (const t of [
+      "comment",
+      "string",
+      "keyword",
+      "keyword.type",
+      "number",
+      "type",
+      "delimiter",
+      "operator",
+      "identifier",
+      "annotation",
+      "invalid",
+    ]) {
       expect(named, `${t} is uncoloured`).toContain(t);
     }
   });

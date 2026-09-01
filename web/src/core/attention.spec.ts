@@ -62,7 +62,9 @@ describe("newcomers", () => {
     // Two permissions from one session are two things to answer; only the
     // moment it was raised separates them.
     const before = idsOf(group([ranked("Permission", 1)]));
-    expect(newcomers(before, group([ranked("Permission", 1), ranked("Permission", 2)]))).toHaveLength(1);
+    expect(
+      newcomers(before, group([ranked("Permission", 1), ranked("Permission", 2)])),
+    ).toHaveLength(1);
   });
 });
 

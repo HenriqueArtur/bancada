@@ -32,7 +32,12 @@ export interface Translate {
   /// a two-hundred-phrase catalogue is machinery for a problem that does not
   /// exist yet. A language with more forms needs this replaced, and that is
   /// written down rather than discovered.
-  plural(n: number, one: string, many: string, values?: Record<string, string | number>): string;
+  plural(
+    n: number,
+    one: string,
+    many: string,
+    values?: Record<string, string | number>,
+  ): string;
 }
 
 /// Fill `{name}` from the values given.
@@ -58,7 +63,10 @@ export function translator(phrases: Phrases): Translate {
 /// `pt-BR` matches exactly; `pt-PT` and a bare `pt` fall to `pt-BR` rather
 /// than to English, because the nearest language is nearer than none. Any
 /// other tag is English, which is the source and therefore always complete.
-export function best(tags: readonly string[], available: readonly Language[] = LANGUAGES): Language {
+export function best(
+  tags: readonly string[],
+  available: readonly Language[] = LANGUAGES,
+): Language {
   for (const tag of tags) {
     const exact = available.find((l) => l.toLowerCase() === tag.toLowerCase());
     if (exact) return exact;

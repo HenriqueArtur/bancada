@@ -63,12 +63,20 @@ describe("editing a workspace", () => {
   it("hands back the old name so the rename can move its projects", async () => {
     const onRegister = vi.fn();
     render(
-      <WorkspacesPanel config={config} onRegister={onRegister} onForget={vi.fn()} failed={null} />,
+      <WorkspacesPanel
+        config={config}
+        onRegister={onRegister}
+        onForget={vi.fn()}
+        failed={null}
+      />,
     );
     fireEvent.click(screen.getByText("Edit"));
     fireEvent.change(await screen.findByLabelText(/Whose work/), { target: { value: "mine" } });
     fireEvent.click(screen.getByText("Save changes"));
-    expect(onRegister).toHaveBeenCalledWith(expect.objectContaining({ id: "mine" }), "personal");
+    expect(onRegister).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "mine" }),
+      "personal",
+    );
   });
 
   it("goes back to being a blank form when you cancel", async () => {

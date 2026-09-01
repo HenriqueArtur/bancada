@@ -16,7 +16,13 @@ export function Page({
   className?: string;
 }) {
   return (
-    <main className={cn("mx-auto px-7 pt-11 pb-24", wide ? "max-w-[1120px]" : "max-w-[720px]", className)}>
+    <main
+      className={cn(
+        "mx-auto px-7 pt-11 pb-24",
+        wide ? "max-w-[1120px]" : "max-w-[720px]",
+        className,
+      )}
+    >
       {children}
     </main>
   );

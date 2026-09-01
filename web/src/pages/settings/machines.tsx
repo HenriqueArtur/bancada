@@ -124,7 +124,10 @@ function AddRuntime({
                 label={t("What kind")}
                 value={draft.kind}
                 onChange={(kind) => setDraft({ ...draft, kind })}
-                choices={["vm", "container", "ssh", "local"].map((v) => ({ value: v, label: v }))}
+                choices={["vm", "container", "ssh", "local"].map((v) => ({
+                  value: v,
+                  label: v,
+                }))}
               />
               <Field
                 label={t("What runs in front of every command")}

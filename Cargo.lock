@@ -280,6 +280,13 @@ name = "bancada-runtime"
 version = "0.0.0"
 
 [[package]]
+name = "bancada-testing"
+version = "0.0.0"
+dependencies = [
+ "bancada-runtime",
+]
+
+[[package]]
 name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

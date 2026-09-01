@@ -52,7 +52,14 @@ export function Stack({
 }: Props) {
   return (
     <div
-      className={cn("flex flex-col", GAP[gap], ALIGN[align], JUSTIFY[justify], grow && "flex-1", className)}
+      className={cn(
+        "flex flex-col",
+        GAP[gap],
+        ALIGN[align],
+        JUSTIFY[justify],
+        grow && "flex-1",
+        className,
+      )}
     >
       {children}
     </div>

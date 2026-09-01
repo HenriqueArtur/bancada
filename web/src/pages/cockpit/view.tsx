@@ -51,11 +51,7 @@ export function CockpitView({
             detail={
               queue.watching === 0
                 ? t("No projects registered yet.")
-                : t.plural(
-                    queue.watching,
-                    "Watching {n} project.",
-                    "Watching {n} projects.",
-                  )
+                : t.plural(queue.watching, "Watching {n} project.", "Watching {n} projects.")
             }
             action={
               // With nothing registered the action is to register. With

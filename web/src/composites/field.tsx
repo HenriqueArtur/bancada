@@ -24,7 +24,12 @@ export function Field({
 }) {
   const id = useId();
   const control = (
-    <Input id={id} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+    <Input
+      id={id}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
   return (
     <Stack gap="tight">
@@ -64,7 +69,13 @@ export function ChoiceField({
   return (
     <Stack gap="tight">
       <Label htmlFor={id}>{label}</Label>
-      <Select id={id} value={value} onChange={onChange} choices={choices} placeholder={placeholder} />
+      <Select
+        id={id}
+        value={value}
+        onChange={onChange}
+        choices={choices}
+        placeholder={placeholder}
+      />
     </Stack>
   );
 }

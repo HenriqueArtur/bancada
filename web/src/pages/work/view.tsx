@@ -74,7 +74,13 @@ export function WorkPage({
       ) : (
         <Stack gap="airy">
           {work.workspaces.map((g) => (
-            <WorkspaceBlock key={g.workspace.id} group={g} queue={queue} now={now} onOpen={onOpen} />
+            <WorkspaceBlock
+              key={g.workspace.id}
+              group={g}
+              queue={queue}
+              now={now}
+              onOpen={onOpen}
+            />
           ))}
 
           {work.orphans.length > 0 ? (
@@ -127,7 +133,12 @@ function WorkspaceBlock({
           {group.projects.map((s, i) => (
             <Stack gap="none" key={s.project.id}>
               {i > 0 ? <Divider soft /> : null}
-              <ProjectRow standing={s} waiting={waitingOn(queue, s.project.id)} now={now} onOpen={onOpen} />
+              <ProjectRow
+                standing={s}
+                waiting={waitingOn(queue, s.project.id)}
+                now={now}
+                onOpen={onOpen}
+              />
             </Stack>
           ))}
         </Card>
@@ -159,11 +170,7 @@ function ProjectRow({
           <Heading level={3} as="h3">
             {project.id}
           </Heading>
-          {waiting > 0 ? (
-            <Badge tone="clay">
-              {t("{n} waiting", { n: waiting })}
-            </Badge>
-          ) : null}
+          {waiting > 0 ? <Badge tone="clay">{t("{n} waiting", { n: waiting })}</Badge> : null}
         </Row>
         <Mono className="break-all">{project.path}</Mono>
         <Text size="sm" tone={standing.unreachable ? "alarm" : "faint"}>

@@ -75,7 +75,14 @@ describe("age", () => {
 
 describe("label", () => {
   it("names every kind, so none can render blank", () => {
-    for (const k of ["Question", "PlanApproval", "Permission", "Review", "ScopeEscape", "Stalled"] as const) {
+    for (const k of [
+      "Question",
+      "PlanApproval",
+      "Permission",
+      "Review",
+      "ScopeEscape",
+      "Stalled",
+    ] as const) {
       expect(label(k, t).length).toBeGreaterThan(0);
     }
   });

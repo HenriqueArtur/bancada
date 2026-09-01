@@ -20,6 +20,7 @@ bancada-events  = { path = "crates/bancada-events" }
 bancada-runtime = { path = "crates/bancada-runtime" }
 bancada-rules   = { path = "crates/bancada-rules" }
 bancada-adapter-claude = { path = "crates/bancada-adapter-claude" }
+bancada-testing = { path = "crates/bancada-testing" }
 
 # --- external ---------------------------------------------------------------
 # Pinned exactly (`=`), not by caret. A lockfile already fixes what *this*

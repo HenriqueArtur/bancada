@@ -49,8 +49,7 @@ export function phrase(fresh: Ranked[], t: Translate): Announce | null {
       : fresh
           .slice(0, 3)
           .map((r) => label(r.item.kind, t))
-          .join(", ") +
-        (fresh.length > 3 ? t(", and {n} more", { n: fresh.length - 3 }) : "");
+          .join(", ") + (fresh.length > 3 ? t(", and {n} more", { n: fresh.length - 3 }) : "");
 
   return { title, body };
 }

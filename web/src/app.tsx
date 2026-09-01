@@ -12,7 +12,14 @@ import { Banner } from "@/composites";
 import { Row } from "@/frame";
 import { AppShell } from "@/layouts";
 import { BackToQueue, Elsewhere, WipBar } from "@/pages/_shared";
-import { CockpitView, FilesPage, ReviewPage, SettingsPage, WorkPage, useCockpit } from "@/pages";
+import {
+  CockpitView,
+  FilesPage,
+  ReviewPage,
+  SettingsPage,
+  WorkPage,
+  useCockpit,
+} from "@/pages";
 import { Button } from "@/components";
 
 import type { Origin } from "@/pages/_shared";
@@ -167,7 +174,11 @@ function Cockpit({
         wide
         title={where.project}
         above={
-          <BackToQueue queue={queue} from={where.from} onBack={() => setWhere({ at: where.from })} />
+          <BackToQueue
+            queue={queue}
+            from={where.from}
+            onBack={() => setWhere({ at: where.from })}
+          />
         }
         banner={<Elsewhere path={queue.elsewhere} />}
         aside={

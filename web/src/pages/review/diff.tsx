@@ -1,3 +1,5 @@
+// biome-ignore-all lint/suspicious/noArrayIndexKey: position *is* the identity here — these lists are rendered from one parse in source order and never reorder, which is the only thing the rule protects against
+
 import { useState } from "react";
 import type { Diff, FileDiff } from "@/core/review";
 import { churn } from "@/core/review";
@@ -30,7 +32,12 @@ export function DiffView({
   return (
     <Stack gap="snug">
       {readingOrder(diff.files, unannounced).map((f) => (
-        <FileBlock key={f.path} file={f} unannounced={surprising.has(f.path)} onVouch={onVouch} />
+        <FileBlock
+          key={f.path}
+          file={f}
+          unannounced={surprising.has(f.path)}
+          onVouch={onVouch}
+        />
       ))}
     </Stack>
   );
@@ -75,7 +82,9 @@ function FileBlock({
         </Button>
       </RowButton>
 
-      {open ? file.hunks.map((h, i) => <CodeBlock key={i} header={h.header} lines={h.lines} />) : null}
+      {open
+        ? file.hunks.map((h, i) => <CodeBlock key={i} header={h.header} lines={h.lines} />)
+        : null}
     </Card>
   );
 }

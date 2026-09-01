@@ -14,7 +14,9 @@ export function useReview(project: string): Review {
   const [failed, setFailed] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    loadReview(project).then(setData).catch((e) => setFailed(String(e)));
+    loadReview(project)
+      .then(setData)
+      .catch((e) => setFailed(String(e)));
   }, [project]);
 
   useEffect(load, [load]);

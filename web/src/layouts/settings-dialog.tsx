@@ -37,9 +37,17 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogFrame title={t("Settings")} description={t("What the product was told.")}>
-        <Region label={t("Settings sections")} className="w-[212px] shrink-0 border-r border-line bg-surface">
+        <Region
+          label={t("Settings sections")}
+          className="w-[212px] shrink-0 border-r border-line bg-surface"
+        >
           <Inset pad="snug">
-            <Text as="div" size="xs" tone="faint" className="px-2 pb-1.5 uppercase tracking-wider">
+            <Text
+              as="div"
+              size="xs"
+              tone="faint"
+              className="px-2 pb-1.5 uppercase tracking-wider"
+            >
               {t("Settings")}
             </Text>
             <Stack gap="none">

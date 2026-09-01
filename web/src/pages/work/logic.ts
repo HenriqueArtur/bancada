@@ -31,7 +31,5 @@ export function useWork(): WorkView {
 /// on what needs you, and a second count derived a second way is a second
 /// number that can disagree with the first.
 export function waitingOn(queue: Queue, project: string): number {
-  return queue.groups
-    .flatMap((g) => g.items)
-    .filter((r) => r.item.project === project).length;
+  return queue.groups.flatMap((g) => g.items).filter((r) => r.item.project === project).length;
 }

@@ -37,8 +37,14 @@ describe("what this human has already looked at", () => {
 });
 
 describe("churn", () => {
-  const f = (added: number, removed: number) =>
-    ({ path: "p", added, removed, fingerprint: "", fresh: true, hunks: [] });
+  const f = (added: number, removed: number) => ({
+    path: "p",
+    added,
+    removed,
+    fingerprint: "",
+    fresh: true,
+    hunks: [],
+  });
 
   it("reads as a diff stat", () => {
     expect(churn(f(12, 3), t)).toBe("+12 \u22123");
