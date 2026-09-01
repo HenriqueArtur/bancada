@@ -130,16 +130,3 @@ export function definition(p: Palette) {
     },
   };
 }
-
-/// True when the viewer is reading in the dark.
-///
-/// Reads the class the application already set, and only falls back to the
-/// media query when nothing has. Two independent readings of one fact is how
-/// a light page ends up holding a dark editor — which is exactly what the
-/// first render of this file did.
-export function prefersDark(): boolean {
-  const root = document.documentElement;
-  if (root.classList.contains("dark")) return true;
-  if (root.dataset.theme === "light") return false;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-}

@@ -1,8 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { loadFile } from "@/core/review";
-import { THEME, definition, paletteFor, prefersDark } from "@/core/monaco-theme";
+import { THEME, definition, paletteFor } from "@/core/monaco-theme";
 import { PlainText, Text } from "@/components";
 import { Inset, Mount } from "@/frame";
+
+/// Whether the document is currently in the dark.
+///
+/// Watches the class rather than taking a prop through three components.
+/// `appearance` says there is one writer and everything else reads the
+/// class; an editor that had to be *told* would be a second reading, which
+/// is the exact shape of the bug that once put a dark editor on a light
+/// page.
+export function useDark(): boolean {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const watch = new MutationObserver(() => setDark(root.classList.contains("dark")));
+    watch.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => watch.disconnect();
+  }, []);
+
+  return dark;
+}
 
 /// A file, read-only.
 ///
@@ -20,6 +40,7 @@ export function CodeView({ project, path }: { project: string; path: string | nu
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [plain, setPlain] = useState(false);
+  const dark = useDark();
 
   useEffect(() => {
     if (!path) return;
@@ -43,7 +64,7 @@ export function CodeView({ project, path }: { project: string; path: string | nu
       .then((monaco) => {
         if (!alive || !host.current) return;
         host.current.innerHTML = "";
-        monaco.editor.defineTheme(THEME, definition(paletteFor(prefersDark())));
+        monaco.editor.defineTheme(THEME, definition(paletteFor(dark)));
         editor = monaco.editor.create(host.current, {
           value: text,
           language: languageOf(path),
@@ -81,7 +102,11 @@ export function CodeView({ project, path }: { project: string; path: string | nu
       alive = false;
       editor?.dispose();
     };
-  }, [text, path]);
+    // `dark` is a dependency, so changing the palette rebuilds the editor.
+    // Cheaper would be `setTheme` on the live instance, and it would need a
+    // handle to the module kept in a ref for the sake of an action nobody
+    // performs twice a day.
+  }, [text, path, dark]);
 
   if (!path) return <Aside>Pick a file.</Aside>;
   if (failed) return <Aside tone="alarm">{failed}</Aside>;

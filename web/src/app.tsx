@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apply, remember, resolve, stored, systemIsDark, type Theme } from "@/core/appearance";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { Row } from "@/frame";
@@ -27,6 +28,12 @@ export function App() {
   const { queue, failed, mute } = useCockpit();
   const [where, setWhere] = useState<Where>({ at: "cockpit" });
   const [settings, setSettings] = useState(false);
+  const [theme, setTheme] = useState<Theme>(stored);
+
+  useEffect(() => {
+    remember(theme);
+    apply(resolve(theme, systemIsDark()));
+  }, [theme]);
 
   if (failed) {
     return (
@@ -42,7 +49,13 @@ export function App() {
   if (!queue) return <AppShell title="Needs you">{null}</AppShell>;
 
   const dialog = (
-    <SettingsPage open={settings} onOpenChange={setSettings} onChanged={() => setWhere({ at: "cockpit" })} />
+    <SettingsPage
+      open={settings}
+      onOpenChange={setSettings}
+      onChanged={() => setWhere({ at: "cockpit" })}
+      theme={theme}
+      onChooseTheme={setTheme}
+    />
   );
 
   if (where.at === "cockpit") {
