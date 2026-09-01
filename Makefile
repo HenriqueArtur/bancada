@@ -42,9 +42,14 @@ cover-web:
 	@python3 tools/coverage-gate.py web:web/coverage/lcov.info
 
 # ── the architecture ─────────────────────────────────────────────────────
+# Pinned like every other dependency (ADR-013). `@latest` in a gate means the
+# gate can change without anybody committing anything, and the day it does the
+# failure looks like the code's fault.
+ARCHWARDEN := archwarden@0.35.0
+
 arch: ## Do the rules hold, and do they still reach anything
-	bunx --bun archwarden@latest check
-	bunx --bun archwarden@latest config doctor
+	bunx --bun $(ARCHWARDEN) check
+	bunx --bun $(ARCHWARDEN) config doctor
 
 # ── the pieces, on their own ─────────────────────────────────────────────
 fmt: ## Format everything in place
