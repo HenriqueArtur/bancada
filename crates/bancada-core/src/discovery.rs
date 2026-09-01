@@ -108,49 +108,37 @@ fn read_account(spec: &RuntimeSpec, r: &dyn Runtime) -> Option<Account> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bancada_runtime::{FsAccess, PathMap, RuntimeError};
-    use std::path::{Path, PathBuf};
+    use bancada_testing::{Answers, FakeRuntime};
+    use std::collections::BTreeMap;
 
-    struct Fake {
-        has_claude: bool,
-        fails: bool,
+    const ACCOUNT: &[u8] =
+        br#"{"oauthAccount":{"accountUuid":"u1","emailAddress":"a@b.c","organizationName":"Org"}}"#;
+
+    /// A machine with the harness on it, logged in.
+    fn installed() -> FakeRuntime {
+        FakeRuntime::new(Answers {
+            says: vec![
+                ("command -v claude".into(), "/usr/bin/claude".into()),
+                ("--version".into(), "2.1.221 (Claude Code)".into()),
+                ("auth status".into(), "{\"loggedIn\": true}".into()),
+            ],
+            files: BTreeMap::from([("/c/.claude.json".to_owned(), ACCOUNT.to_vec())]),
+            ..Answers::default()
+        })
     }
 
-    impl Runtime for Fake {
-        fn id(&self) -> &str {
-            "fake"
-        }
-        fn kind(&self) -> &str {
-            "fake"
-        }
-        fn paths(&self) -> &'static PathMap {
-            Box::leak(Box::new(PathMap::new("/", "/")))
-        }
-        fn fs_access(&self) -> FsAccess {
-            FsAccess::Shared
-        }
-        fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
-            if self.fails {
-                return Err(RuntimeError::Failed("unreachable".into()));
-            }
-            let line = cmd.join(" ");
-            Ok(match () {
-                _ if line.contains("command -v") && self.has_claude => "/usr/bin/claude".into(),
-                _ if line.contains("command -v") => String::new(),
-                _ if line.contains("--version") => "2.1.221 (Claude Code)".into(),
-                _ if line.contains("auth status") => "{\"loggedIn\": true}".into(),
-                _ => String::new(),
-            })
-        }
-        fn modified(&self, _: &Path) -> Option<i64> {
-            None
-        }
-        fn read_dir(&self, _: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
-            Ok(Vec::new())
-        }
-        fn read_file(&self, _: &Path) -> Result<Vec<u8>, RuntimeError> {
-            Ok(br#"{"oauthAccount":{"accountUuid":"u1","emailAddress":"a@b.c","organizationName":"Org"}}"#.to_vec())
-        }
+    /// A machine with nothing on it. `command -v` printing nothing is how a
+    /// shell says "not here", and it is not an error.
+    fn bare() -> FakeRuntime {
+        FakeRuntime::new(Answers {
+            says: vec![("command -v claude".into(), String::new())],
+            ..Answers::default()
+        })
+    }
+
+    /// A machine that cannot be reached at all — asleep, or gone.
+    fn unreachable() -> FakeRuntime {
+        FakeRuntime::empty()
     }
 
     fn spec() -> RuntimeSpec {
@@ -159,13 +147,7 @@ mod tests {
 
     #[test]
     fn a_runtime_with_the_harness_reports_its_version_and_account() {
-        let d = Discovery::probe(
-            &spec(),
-            &Fake {
-                has_claude: true,
-                fails: false,
-            },
-        );
+        let d = Discovery::probe(&spec(), &installed());
         let h = d.harness.expect("harness");
         assert_eq!(h.path, "/usr/bin/claude");
         assert!(h.logged_in);
@@ -174,26 +156,14 @@ mod tests {
 
     #[test]
     fn a_runtime_without_the_harness_reports_nothing_rather_than_failing() {
-        let d = Discovery::probe(
-            &spec(),
-            &Fake {
-                has_claude: false,
-                fails: false,
-            },
-        );
+        let d = Discovery::probe(&spec(), &bare());
         assert!(d.harness.is_none());
         assert!(d.error.is_none(), "absent is not an error");
     }
 
     #[test]
     fn a_runtime_that_cannot_be_reached_says_so_instead_of_looking_empty() {
-        let d = Discovery::probe(
-            &spec(),
-            &Fake {
-                has_claude: true,
-                fails: true,
-            },
-        );
+        let d = Discovery::probe(&spec(), &unreachable());
         assert!(d.harness.is_none());
         assert!(
             d.error.is_some(),

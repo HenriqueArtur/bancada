@@ -194,4 +194,20 @@ mod tests {
     fn an_empty_log_glances_at_nothing_rather_than_failing() {
         assert_eq!(Glance::of(""), Glance::default());
     }
+    #[test]
+    fn an_agent_speaking_first_does_not_become_the_title() {
+        // A resumed session opens with the agent. The title is what *you*
+        // asked for, and there is no answer until you ask.
+        let assistant = r#"{"type":"assistant","sessionId":"s","timestamp":"2026-01-01T00:00:00Z","message":{"content":[{"type":"text","text":"Continuing."}]}}"#;
+        let g = Glance::of(&[assistant, &human("Rename the parser")].join("\n"));
+        assert_eq!(g.title.as_deref(), Some("Rename the parser"));
+    }
+
+    #[test]
+    fn an_unclosed_reminder_takes_the_rest_with_it() {
+        // A truncated log can end mid-tag. Everything after an unclosed one
+        // is the harness's, and guessing otherwise puts plumbing in a title.
+        let g = Glance::of(&human("Fix it<system-reminder>context that never ends"));
+        assert_eq!(g.title.as_deref(), Some("Fix it"));
+    }
 }

@@ -160,6 +160,7 @@ impl Cockpit {
 mod tests {
     use super::*;
     use bancada_meta::DecisionKind;
+    use bancada_testing::{Answers, FakeRuntime};
 
     const CFG: &str = r#"{
       "workspaces": [{"id":"personal"}],
@@ -225,117 +226,44 @@ mod tests {
         assert!(!wip.over());
     }
 
-    /// A runtime that answers git with canned output and serves one untracked
-    /// file, so the diff path can be exercised without a repository.
-    struct FakeGit {
-        tracked: String,
-        untracked: Vec<(String, Vec<u8>)>,
-    }
-
-    impl Runtime for FakeGit {
-        fn id(&self) -> &str {
-            "fake"
-        }
-        fn kind(&self) -> &str {
-            "local"
-        }
-        fn paths(&self) -> &bancada_runtime::PathMap {
-            unimplemented!("the diff path never maps a path")
-        }
-        fn fs_access(&self) -> bancada_runtime::FsAccess {
-            bancada_runtime::FsAccess::Shared
-        }
-        fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
-            match cmd.get(3).map(String::as_str) {
-                Some("diff") => Ok(self.tracked.clone()),
-                Some("ls-files") => Ok(self
-                    .untracked
-                    .iter()
-                    .map(|(n, _)| n.as_str())
-                    .collect::<Vec<_>>()
-                    .join("\n")),
-                other => Err(RuntimeError::Failed(format!("unexpected: {other:?}"))),
-            }
-        }
-        fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
-            self.untracked
+    /// The git answers `diff_of` asks for, and nothing else.
+    ///
+    /// `Answers` refuses an unscripted command, so a test that reaches
+    /// further than it meant to says so instead of quietly getting "".
+    fn git(tracked: &str, untracked: &[(&str, &str)]) -> FakeRuntime {
+        let names = untracked
+            .iter()
+            .map(|(n, _)| *n)
+            .collect::<Vec<_>>()
+            .join("\n");
+        FakeRuntime::new(Answers {
+            says: vec![
+                (
+                    "git -C /mnt/dev/neo-gitmoji.nvim diff".into(),
+                    tracked.into(),
+                ),
+                ("ls-files".into(), names),
+            ],
+            files: untracked
                 .iter()
-                .find(|(n, _)| p.ends_with(n))
-                .map(|(_, b)| b.clone())
-                .ok_or_else(|| RuntimeError::NotFound(p.display().to_string()))
-        }
-        fn modified(&self, _: &Path) -> Option<i64> {
-            None
-        }
-        fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
-            Err(RuntimeError::NotFound(p.display().to_string()))
-        }
+                .map(|(n, body)| {
+                    (
+                        format!("/mnt/dev/neo-gitmoji.nvim/{n}"),
+                        body.as_bytes().to_vec(),
+                    )
+                })
+                .collect(),
+            ..Answers::default()
+        })
     }
 
     const TRACKED: &str = "diff --git a/src/db.rs b/src/db.rs\n@@ -1,2 +1,2 @@\n fn open() {\n-    old();\n+    new();\n";
-
-    fn fake_git(untracked: Vec<(&str, &str)>) -> FakeGit {
-        FakeGit {
-            tracked: TRACKED.to_owned(),
-            untracked: untracked
-                .into_iter()
-                .map(|(n, b)| (n.to_owned(), b.as_bytes().to_vec()))
-                .collect(),
-        }
-    }
-
-    #[test]
-    fn git_is_asked_at_the_path_the_project_registered() {
-        // The guest's spelling, untranslated. The runtime handed in is the
-        // one that can reach that tree — translating here would produce a
-        // host path and run `git` in a directory the project does not have.
-        struct Spy(std::cell::RefCell<Vec<String>>);
-        impl Runtime for Spy {
-            fn id(&self) -> &str {
-                "spy"
-            }
-            fn kind(&self) -> &str {
-                "vm"
-            }
-            fn paths(&self) -> &bancada_runtime::PathMap {
-                unimplemented!()
-            }
-            fn fs_access(&self) -> bancada_runtime::FsAccess {
-                bancada_runtime::FsAccess::Shared
-            }
-            fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
-                self.0.borrow_mut().push(cmd.join(" "));
-                Ok(String::new())
-            }
-            fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
-                Err(RuntimeError::NotFound(p.display().to_string()))
-            }
-            fn modified(&self, _: &Path) -> Option<i64> {
-                None
-            }
-            fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
-                Err(RuntimeError::NotFound(p.display().to_string()))
-            }
-        }
-
-        let c = cockpit();
-        let spy = Spy(std::cell::RefCell::new(Vec::new()));
-        c.diff_of(&c.config().projects[0], &spy).unwrap();
-
-        let calls = spy.0.borrow();
-        assert!(
-            calls
-                .iter()
-                .all(|c| c.contains("-C /mnt/dev/neo-gitmoji.nvim")),
-            "git was asked somewhere else: {calls:?}"
-        );
-    }
 
     #[test]
     fn a_tracked_change_reaches_the_diff() {
         let c = cockpit();
         let d = c
-            .diff_of(&c.config().projects[0], &fake_git(vec![]))
+            .diff_of(&c.config().projects[0], &git(TRACKED, &[]))
             .unwrap();
         assert_eq!(d.files.len(), 1);
         assert_eq!((d.added(), d.removed()), (1, 1));
@@ -344,7 +272,7 @@ mod tests {
     #[test]
     fn an_untracked_file_is_shown_as_content_not_as_a_name() {
         let c = cockpit();
-        let rt = fake_git(vec![("notes.md", "one\ntwo\n")]);
+        let rt = git(TRACKED, &[("notes.md", "one\ntwo\n")]);
         let d = c.diff_of(&c.config().projects[0], &rt).unwrap();
 
         let new = d.files.iter().find(|f| f.path == "notes.md").unwrap();
@@ -355,7 +283,7 @@ mod tests {
     #[test]
     fn a_binary_untracked_file_is_left_out_rather_than_rendered_as_lines() {
         let c = cockpit();
-        let rt = fake_git(vec![("logo.png", "\u{0}\u{1}\u{2}binary")]);
+        let rt = git(TRACKED, &[("logo.png", "\u{0}\u{1}\u{2}binary")]);
         let d = c.diff_of(&c.config().projects[0], &rt).unwrap();
         assert!(d.files.iter().all(|f| f.path != "logo.png"));
     }
@@ -366,5 +294,40 @@ mod tests {
         // and would also stage them in the human's repository.
         let src = include_str!("cockpit.rs");
         assert!(!src.contains("\"add\""), "the diff path stages files");
+    }
+    #[test]
+    fn a_project_naming_no_runtime_is_named_rather_than_skipped() {
+        // `Config::parse` refuses a dangling reference, so this can only be
+        // reached by building one — which is exactly what a future writer of
+        // configuration in code would do.
+        let broken = Config {
+            workspaces: vec![],
+            runtimes: vec![],
+            projects: vec![Project {
+                id: "orphan".into(),
+                workspace: "w".into(),
+                runtime: "gone".into(),
+                path: "/x".into(),
+                weight: 1,
+                idle_after_minutes: 2,
+            }],
+        };
+        let c = Cockpit::new(broken);
+        let scan = c.scan(&c.config().projects[0], &FakeRuntime::empty());
+        assert_eq!(scan.unreachable.as_deref(), Some("no runtime registered"));
+        assert!(scan.logs.is_empty());
+    }
+
+    #[test]
+    fn a_machine_that_refused_is_not_a_project_with_nothing_pending() {
+        // The distinction this product keeps getting wrong: absent and
+        // refused are two answers, and only one of them is quiet.
+        let c = cockpit();
+        let asleep = FakeRuntime::new(Answers {
+            refuse: vec!["projects".into()],
+            ..Answers::default()
+        });
+        let scan = c.scan(&c.config().projects[0], &asleep);
+        assert!(scan.unreachable.is_some(), "a refusal read as silence");
     }
 }

@@ -201,4 +201,12 @@ mod tests {
         assert_eq!(r.announced.len(), 2);
         assert!(r.announced.contains(&"src/db.rs".to_owned()));
     }
+    #[test]
+    fn a_tool_call_before_any_prose_is_not_a_claim() {
+        // Only prose can announce. A session that opens by reading a file
+        // has said nothing, and the review has to know that.
+        let read = r#"{"type":"assistant","sessionId":"s","timestamp":"2026-01-01T00:00:00Z","message":{"content":[{"type":"tool_use","id":"r","name":"Read","input":{"file_path":"/repo/x.rs"}}]}}"#;
+        let r = Review::of(&log(&[read, &edit("/repo/x.rs")]));
+        assert!(r.intent.is_none());
+    }
 }

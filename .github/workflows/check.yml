@@ -1,0 +1,79 @@
+# Three jobs, one definition.
+#
+# Each calls a `make` target rather than restating the checks, so the gate
+# cannot drift: adding a step to the Makefile adds it here, and there is no
+# second place to forget. Splitting them is only about wall clock and about
+# the failure saying which half broke.
+#
+# macOS because it is what the product is developed and shipped on, and
+# because Tauri on Linux wants a list of system packages that changes between
+# versions and breaks on a day nobody touched anything. The repository is
+# public, so the runner is free.
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # A second push supersedes the first: a review of a commit nobody is
+  # looking at any more is minutes spent on nothing.
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: rust
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - run: make rust
+      - name: nothing was written into the repository
+        # A test that writes where the source lives will one day write over
+        # it. `.gitignore` would hide that rather than catch it.
+        run: git diff --exit-code && git status --porcelain --untracked-files=all | tee /dev/stderr | wc -l | grep -qx 0
+
+  web:
+    name: web
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile --cwd web
+      - run: make web
+      - name: nothing was written into the repository
+        run: git diff --exit-code && git status --porcelain --untracked-files=all | tee /dev/stderr | wc -l | grep -qx 0
+
+  arch:
+    name: architecture
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: make arch
+
+  bundle:
+    name: it still builds
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile --cwd web
+      - run: bun install --frozen-lockfile --cwd app
+      # The tests never build the window. A change that compiles as a library
+      # and fails to bundle is a change that passes every other job.
+      - run: bun run --cwd app build

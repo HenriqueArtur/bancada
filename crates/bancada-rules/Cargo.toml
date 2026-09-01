@@ -14,3 +14,6 @@ bancada-runtime = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+bancada-testing = { workspace = true }

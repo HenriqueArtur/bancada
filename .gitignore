@@ -15,3 +15,8 @@
 
 # lockfiles come from bun; npm must not leave a second, disagreeing one
 package-lock.json
+
+# Coverage. Written by every test run, and large.
+/web/coverage/
+*.profraw
+/target/llvm-cov-target/

@@ -280,12 +280,20 @@ mod tests {
     fn a_question_with_no_options_is_still_a_question() {
         let raw = line(
             "assistant",
-            r#","message":{"content":[{"type":"tool_use","id":"t1","name":"AskUserQuestion","input":{"questions":[{"header":"H","question":"Q"}]}}]}"#,
+            r#","message":{"content":[{"type":"text","text":"asking"},{"type":"tool_use","id":"t1","name":"AskUserQuestion","input":{"questions":[{"header":"H","question":"Q"}]}}]}"#,
         );
         let p = SessionLog::parse(&raw);
-        let Event::Asked { question, .. } = &p.events[0] else {
-            panic!("expected Asked, got {:?}", p.events[0]);
-        };
+        // `find_map(...).expect(...)` rather than a `let … else { panic! }`:
+        // the failure arm then lives in `Option::expect` instead of in this
+        // file, where it would be a line no passing test ever reaches.
+        let question = p
+            .events
+            .iter()
+            .find_map(|e| match e {
+                Event::Asked { question, .. } => Some(question),
+                _ => None,
+            })
+            .expect("an Asked event");
         assert_eq!(question.header, "H");
         assert!(question.options.is_empty());
     }
@@ -317,5 +325,54 @@ mod tests {
                 ..
             }
         ));
+    }
+    #[test]
+    fn a_line_with_no_type_is_skipped_and_named() {
+        // Skipped rather than dropped: a log the parser did not understand
+        // is a gap in the queue, and a gap nobody counts is a gap nobody
+        // notices.
+        let p = SessionLog::parse(r#"{"sessionId":"s","timestamp":"2026-01-01T00:00:00Z"}"#);
+        assert!(p.events.is_empty());
+        assert_eq!(p.skipped.len(), 1);
+    }
+
+    #[test]
+    fn a_content_block_of_an_unknown_kind_is_passed_over() {
+        // An image, or whatever the harness adds next. The turn still
+        // happened and its other blocks still count.
+        let raw = line(
+            "assistant",
+            r#","message":{"content":[{"type":"image","source":{}},{"type":"text","text":"here"}]}"#,
+        );
+        let p = SessionLog::parse(&raw);
+        assert_eq!(p.events.len(), 1);
+        assert!(matches!(&p.events[0], Event::Text { .. }));
+    }
+
+    #[test]
+    fn a_user_line_with_no_content_yields_nothing_rather_than_failing() {
+        let p = SessionLog::parse(&line("user", ""));
+        assert!(p.events.is_empty());
+    }
+    #[test]
+    fn an_assistant_line_with_no_content_yields_nothing() {
+        // The harness writes these on a turn that only carried usage.
+        assert!(SessionLog::parse(&line("assistant", "")).events.is_empty());
+    }
+
+    #[test]
+    fn a_user_block_that_is_not_a_tool_result_is_passed_over() {
+        // A user turn carries the answers to tool calls *and* whatever else
+        // the harness put there; only the results are facts about a session.
+        let raw = line(
+            "user",
+            r#","message":{"content":[{"type":"text","text":"hello"}]}"#,
+        );
+        let p = SessionLog::parse(&raw);
+        assert!(
+            !p.events
+                .iter()
+                .any(|e| matches!(e, Event::ToolResult { .. }))
+        );
     }
 }

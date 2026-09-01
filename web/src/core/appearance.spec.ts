@@ -1,5 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { nameOf, remember, resolve, stored, THEMES } from "@/core/appearance";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  apply,
+  nameOf,
+  remember,
+  resolve,
+  stored,
+  systemIsDark,
+  THEMES,
+} from "@/core/appearance";
 import { translator } from "@/core/language";
 
 /// English, so every assertion reads as the phrase itself.
@@ -47,5 +55,29 @@ describe("nameOf", () => {
 
   it("names every theme, so none can render blank", () => {
     for (const theme of THEMES) expect(nameOf(theme, t).length).toBeGreaterThan(0);
+  });
+});
+
+describe("apply and the machine", () => {
+  afterEach(() => document.documentElement.classList.remove("dark"));
+
+  it("puts the resolved palette on the document, and takes it off", () => {
+    // One writer. Everything else reads the class, which is what keeps a
+    // light page from ending up with a dark editor.
+    apply(true);
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    apply(false);
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+
+  it("answers what the machine is set to", () => {
+    // jsdom's `matchMedia` is the shim in `test-setup`, which says light —
+    // the assertion is that the question is asked at all, not the answer.
+    expect(typeof systemIsDark()).toBe("boolean");
+  });
+
+  it("keeps following the machine when nothing was stored", () => {
+    localStorage.clear();
+    expect(resolve(stored(), true)).toBe(true);
   });
 });

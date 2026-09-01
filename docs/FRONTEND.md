@@ -131,7 +131,10 @@ that is written here rather than discovered.
 
 ## Commands
 
+See [TESTING.md](TESTING.md) for the floors and what is exempt from them.
+
 ```sh
+make check                                  # everything, as CI runs it
 bun install --cwd web
 bun run --cwd web test      # vitest
 bun run --cwd web build     # tsc -b && vite build

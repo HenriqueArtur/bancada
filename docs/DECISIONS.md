@@ -533,7 +533,7 @@ static stylesheet is what `default-src 'self'` requires anyway.
 
 ---
 
-## ADR-017 · A Rust file names what it exports and carries its own tests
+## ADR-017 · A Rust file names what it exports
 
 **Status:** accepted · 2026-09-01
 
@@ -550,25 +550,16 @@ written, and both showed green.
 **A file names what it exports.** `session_state.rs` exports `SessionState`.
 The rule now points at `crates/*/src` and passes on the tree as it stands.
 
-**Tests live inside the file they test**, in `#[cfg(test)] mod tests`, not in a
-sibling. A test in the file can reach the private function it is testing, and
-moves with it when the file moves — which is the half nobody remembers to
-check in review.
-
-The webview does the opposite, with sibling `.spec.tsx` files, because
-TypeScript gives it no other option. That is not an inconsistency worth
-resolving; it is two languages with different tools for the same intent.
+Where the tests live is a separate decision, and a separate ADR: see
+[ADR-021](#adr-021--rust-unit-tests-live-inside-the-file-they-test).
 
 ### Consequences
 
-- `rust/every-unit-carries-its-tests` is **deleted** rather than fixed.
-  `spec-pair` is sibling-file shaped, and no glob makes it fit an inline
-  module. A rule that cannot be written is better absent than dead and green.
-- The convention is recorded in the config with `enforcement: none` and the
-  reason, so the gap is known rather than assumed closed. Filed upstream.
+- The rule is live and green, which it had not been.
 - The audit's real lesson is about the linter, not the rules:
   `archwarden check` passes on a rule that matches nothing, and only
-  `config doctor` says so. It now runs in the gate list.
+  `config doctor` says so. It now runs in the gate list — and it is what
+  caught this ADR bundling an enforced convention with an unenforceable one.
 
 ---
 
@@ -741,3 +732,47 @@ two hundred phrases and one person do not have.
 - Portuguese ships registered and empty, and the interface says so — *0 of 174
   phrases*. The honest state, visible, rather than a language that silently
   does nothing.
+
+---
+
+## ADR-021 · Rust unit tests live inside the file they test
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+Split out of ADR-017, which had bundled it with the naming rule because the
+two arrived together. `config doctor` caught the bundling: one half is kept
+by a rule and the other cannot be, and a decision marked unenforceable while
+a rule enforces it is a decision nobody can reason about.
+
+### Decision
+
+`#[cfg(test)] mod tests`, in the file, not in a sibling. A test in the file
+can reach the private function it is testing and moves with it when the file
+moves — the half nobody remembers to check in review.
+
+The webview does the opposite, with sibling `.spec.tsx` files, because
+TypeScript gives it no other option. That is not an inconsistency worth
+resolving; it is two languages with different tools for one intent.
+
+`crates/*/src` is a unit test; `app/src-tauri/tests` is an integration test
+and drives the commands against a real tree on disk. Both exist and they are
+not the same thing.
+
+### Consequences
+
+- `rust/every-unit-carries-its-tests` was **deleted** rather than fixed.
+  `spec-pair` looks for a sibling and no glob makes it fit an inline module.
+  A rule that cannot be written is better absent than dead and green. Filed
+  upstream as archwarden#178.
+- **It costs a clean coverage number.** Assertion machinery — a fake's
+  unreached arm, an `assert!`'s failure branch — sits in the measured file,
+  and llvm-cov cannot tell it from product code. Two answers: shared doubles
+  live in `bancada-testing`, which the report excludes by filename, and the
+  gate reads lcov's `DA:` records rather than llvm-cov's own summary, because
+  those are the source lines a person counts reading the file. With both, the
+  five pure crates measure a literal hundred per cent.
+- Narrow with `find_map(…).expect(…)` rather than `let … else { panic! }`.
+  The failure arm then lives in `Option::expect`, in the standard library,
+  instead of in a line no passing test ever reaches.

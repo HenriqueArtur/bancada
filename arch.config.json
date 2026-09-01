@@ -370,24 +370,40 @@
     },
     {
       "id": "ADR-017",
-      "title": "A Rust file names what it exports and carries its own tests",
-      "why": "A test in the file it tests can read the private function it is testing, and moves with it when the file moves \u2014 which is the half of the convention no reviewer ever remembers to check.",
-      "link": "docs/DECISIONS.md#adr-017--a-rust-file-names-what-it-exports-and-carries-its-own-tests",
+      "title": "A Rust file names what it exports",
+      "why": "A type the product refers to by name should be findable by that name, and a file that hides one is a file you only find by grep.",
+      "link": "docs/DECISIONS.md#adr-017--a-rust-file-names-what-it-exports",
       "scope": [
         "crates/*/src"
       ],
+      "alternatives": [
+        {
+          "option": "Any file may export anything",
+          "why_not": "Works until the crate has forty files, and then finding `SessionState` means grepping rather than looking.",
+          "refused_by": "rust/a-file-names-what-it-exports"
+        }
+      ]
+    },
+    {
+      "id": "ADR-021",
+      "title": "Rust unit tests live inside the file they test",
+      "why": "A test in the file can reach the private function it is testing, and moves with it when the file moves \u2014 which is the half no reviewer ever remembers to check.",
+      "link": "docs/DECISIONS.md#adr-021--rust-unit-tests-live-inside-the-file-they-test",
+      "scope": [
+        "crates/*/src"
+      ],
+      "enforcement": "none",
+      "why_not_enforceable": "`spec-pair` looks for a sibling file, and an inline `#[cfg(test)] mod tests` has none. The rule that claimed to keep this was deleted rather than fixed: a rule that cannot be written is better absent than dead and green. It also costs a clean coverage number \u2014 assertion machinery sits in the measured file \u2014 which is why the gate reads lcov rather than llvm-cov's own summary. Filed upstream as archwarden#178.",
       "alternatives": [
         {
           "option": "A sibling spec file, the way the webview does it",
           "why_not": "It cannot reach anything private, so it tests the crate's surface and calls it unit testing. The webview has sibling specs because TypeScript has no other option; Rust does."
         },
         {
-          "option": "A separate `tests/` directory",
-          "why_not": "That is where integration tests belong and they exist too. A unit test put there stops being a unit test the moment it can only see `pub` items."
+          "option": "A separate `tests/` directory for everything",
+          "why_not": "That is where integration tests belong and they exist too \u2014 `app/src-tauri/tests` drives the commands against a real tree. A unit test put there stops being one the moment it can only see `pub` items."
         }
-      ],
-      "enforcement": "none",
-      "why_not_enforceable": "`spec-pair` looks for a sibling file, and a Rust unit test lives in `#[cfg(test)] mod tests` inside the file it tests \u2014 there is no sibling to find. The rule that claimed to keep this was deleted rather than fixed: a rule that cannot be written is better absent than dead and green. Filed upstream as archwarden#178."
+      ]
     }
   ],
   "rules": [

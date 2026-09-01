@@ -12,3 +12,4 @@ bancada-meta = { workspace = true }
 
 [lints]
 workspace = true
+

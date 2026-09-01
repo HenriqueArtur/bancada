@@ -235,4 +235,14 @@ mod tests {
             .map(|f| (f.path.clone(), f.fingerprint.clone()))
             .collect()
     }
+    #[test]
+    fn the_no_newline_marker_is_not_a_line_of_the_file() {
+        // git prints `\ No newline at end of file` inside the hunk. Counting
+        // it would add a context line the file does not have.
+        let d = Diff::parse(
+            "diff --git a/a b/a\n@@ -1 +1 @@\n-one\n\\ No newline at end of file\n+two\n",
+        );
+        assert_eq!((d.added(), d.removed()), (1, 1));
+        assert_eq!(d.files[0].hunks[0].lines.len(), 2);
+    }
 }

@@ -186,10 +186,11 @@ mod tests {
             name: "Bash".into(),
             input: "psql -c 'select * from clients'".into(),
         };
-        let Some(MetaEvent::ToolCalled { id, tool, .. }) = e.to_meta() else {
-            panic!("expected ToolCalled");
-        };
-        assert_eq!((id.as_str(), tool.as_str()), ("t1", "Bash"));
+        let got = e.to_meta();
+        assert!(
+            matches!(&got, Some(MetaEvent::ToolCalled { id, tool, .. }) if id == "t1" && tool == "Bash"),
+            "expected ToolCalled(t1, Bash), got {got:?}"
+        );
     }
 
     #[test]
@@ -201,10 +202,11 @@ mod tests {
             ok: true,
             output: "rows: 400 — client@example.com".into(),
         };
-        let Some(MetaEvent::ToolCompleted { id, ok, .. }) = e.to_meta() else {
-            panic!("expected ToolCompleted");
-        };
-        assert_eq!((id.as_str(), ok), ("t1", true));
+        let got = e.to_meta();
+        assert!(
+            matches!(&got, Some(MetaEvent::ToolCompleted { id, ok, .. }) if id == "t1" && *ok),
+            "expected a successful ToolCompleted(t1), got {got:?}"
+        );
     }
 
     #[test]
@@ -235,10 +237,12 @@ mod tests {
                 options: vec![],
             },
         };
-        let Some(MetaEvent::DecisionRaised { id, kind, .. }) = e.to_meta() else {
-            panic!("expected DecisionRaised");
-        };
-        assert_eq!((id.as_str(), kind), ("t1", DecisionKind::Question));
+        let got = e.to_meta();
+        assert!(
+            matches!(&got, Some(MetaEvent::DecisionRaised { id, kind, .. })
+                if id == "t1" && *kind == DecisionKind::Question),
+            "expected DecisionRaised(t1, Question), got {got:?}"
+        );
     }
 
     #[test]
@@ -251,16 +255,11 @@ mod tests {
             cache_read_tokens: 900,
             cache_creation_tokens: 3,
         };
-        let Some(MetaEvent::Tokens {
-            input,
-            output,
-            cache_read,
-            cache_creation,
-            ..
-        }) = e.to_meta()
-        else {
-            panic!("expected Tokens");
-        };
-        assert_eq!((input, output, cache_read, cache_creation), (7, 11, 900, 3));
+        let got = e.to_meta();
+        assert!(
+            matches!(&got, Some(MetaEvent::Tokens { input, output, cache_read, cache_creation, .. })
+                if *input == 7 && *output == 11 && *cache_read == 900 && *cache_creation == 3),
+            "expected Tokens(7, 11, 900, 3), got {got:?}"
+        );
     }
 }

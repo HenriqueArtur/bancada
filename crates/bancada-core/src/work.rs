@@ -178,8 +178,9 @@ impl Config {
 mod tests {
     use super::*;
     use crate::Export;
-    use bancada_runtime::{FsAccess, PathMap, RuntimeError};
-    use std::path::{Path, PathBuf};
+    use bancada_testing::{Answers, FakeRuntime};
+    use std::collections::BTreeMap;
+    use std::path::PathBuf;
 
     const CFG: &str = r#"{
       "workspaces": [{"id":"personal"},{"id":"client-x","export":"summary"}],
@@ -191,41 +192,27 @@ mod tests {
       ]
     }"#;
 
-    /// Answers with two logs for `zed` and nothing for anybody else.
-    struct Fake;
-    impl Runtime for Fake {
-        fn id(&self) -> &str {
-            "fake"
-        }
-        fn kind(&self) -> &str {
-            "local"
-        }
-        fn paths(&self) -> &PathMap {
-            unimplemented!()
-        }
-        fn fs_access(&self) -> FsAccess {
-            FsAccess::Shared
-        }
-        fn exec(&self, _: &[String]) -> Result<String, RuntimeError> {
-            unimplemented!()
-        }
-        fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
-            Err(RuntimeError::NotFound(p.display().to_string()))
-        }
-        fn modified(&self, p: &Path) -> Option<i64> {
-            p.to_string_lossy().contains("dev-zed").then_some(1_700)
-        }
-        fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
-            if p.to_string_lossy().contains("-dev-zed") {
-                Ok(vec![p.join("a.jsonl"), p.join("b.jsonl")])
-            } else {
-                Err(RuntimeError::NotFound(p.display().to_string()))
-            }
-        }
+    /// Two recorded sessions for `zed`, and nothing anywhere else.
+    ///
+    /// The other two projects are the states that used to look identical
+    /// from the queue: registered, watched, and quiet.
+    fn harness() -> FakeRuntime {
+        let dir = "/state/claude/projects/-dev-zed";
+        FakeRuntime::new(Answers {
+            dirs: BTreeMap::from([(
+                dir.to_owned(),
+                vec![
+                    PathBuf::from(format!("{dir}/a.jsonl")),
+                    PathBuf::from(format!("{dir}/b.jsonl")),
+                ],
+            )]),
+            times: vec![("-dev-zed".into(), 1_700)],
+            ..Answers::default()
+        })
     }
 
     fn work() -> Work {
-        Cockpit::new(Config::parse(CFG).unwrap()).work(&Fake)
+        Cockpit::new(Config::parse(CFG).unwrap()).work(&harness())
     }
 
     #[test]
@@ -265,7 +252,7 @@ mod tests {
         // Otherwise registering one and then looking for it finds nothing,
         // and the only way to tell it exists is to open the JSON.
         let cfg = r#"{"workspaces":[{"id":"empty"}]}"#;
-        let w = Cockpit::new(Config::parse(cfg).unwrap()).work(&Fake);
+        let w = Cockpit::new(Config::parse(cfg).unwrap()).work(&harness());
         assert_eq!(w.workspaces.len(), 1);
         assert!(w.workspaces[0].projects.is_empty());
     }
@@ -376,5 +363,51 @@ mod tests {
         });
         assert_eq!(cfg.workspaces.len(), 2);
         assert_eq!(cfg.workspaces[1].export, Export::Full);
+    }
+    #[test]
+    fn a_project_naming_no_workspace_is_listed_as_an_orphan() {
+        // The configuration refuses to parse with one, so this is only
+        // reachable in code — and a screen that silently dropped the project
+        // would be worse than one that says it found something loose.
+        let stray = Config {
+            workspaces: vec![],
+            runtimes: vec![],
+            projects: vec![Project {
+                id: "loose".into(),
+                workspace: "gone".into(),
+                runtime: "local".into(),
+                path: "/dev/loose".into(),
+                weight: 1,
+                idle_after_minutes: 2,
+            }],
+        };
+        let w = Cockpit::new(stray).work(&harness());
+        assert_eq!(w.orphans.len(), 1);
+        assert_eq!(w.orphans[0].project.id, "loose");
+    }
+
+    #[test]
+    fn renaming_a_workspace_that_does_not_exist_is_refused() {
+        let err = Config::parse(CFG)
+            .unwrap()
+            .rename_workspace("ghost", "mine")
+            .unwrap_err();
+        assert!(err.contains("ghost"), "{err}");
+    }
+
+    #[test]
+    fn renaming_a_project_to_itself_changes_nothing() {
+        let before = Config::parse(CFG).unwrap();
+        assert_eq!(before.clone().rename_project("zed", "zed").unwrap(), before);
+    }
+
+    #[test]
+    fn renaming_a_project_onto_a_name_that_exists_is_refused() {
+        // It would replace the other one and take its path and weight along.
+        let err = Config::parse(CFG)
+            .unwrap()
+            .rename_project("zed", "api")
+            .unwrap_err();
+        assert!(err.contains("api already exists"), "{err}");
     }
 }

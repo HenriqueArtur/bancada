@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+[lib]
+name = "bancada_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bancada-app"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "=2.6.3", features = [] }
 

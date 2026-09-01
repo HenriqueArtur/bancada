@@ -20,6 +20,12 @@ pub struct Answers {
     pub says: Vec<(String, String)>,
     /// Path substring → its modification time.
     pub times: Vec<(String, i64)>,
+    /// Paths that answer `Failed` rather than `NotFound`.
+    ///
+    /// The two are a different thing to say — a directory that is not there
+    /// yet is a project with no sessions, and a directory that refused is a
+    /// machine asleep. Code that treats them alike needs a way to be caught.
+    pub refuse: Vec<String>,
     pub access: Option<FsAccess>,
 }
 
@@ -54,7 +60,10 @@ impl FakeRuntime {
 
     /// Every command it was given, in order, joined by spaces.
     pub fn commands(&self) -> Vec<String> {
-        self.asked.lock().expect("no test panicked holding this").clone()
+        self.asked
+            .lock()
+            .expect("no test panicked holding this")
+            .clone()
     }
 }
 
@@ -77,8 +86,16 @@ impl Runtime for FakeRuntime {
 
     fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
         let line = cmd.join(" ");
-        self.asked.lock().expect("no test panicked holding this").push(line.clone());
-        match self.answers.says.iter().find(|(needle, _)| line.contains(needle.as_str())) {
+        self.asked
+            .lock()
+            .expect("no test panicked holding this")
+            .push(line.clone());
+        match self
+            .answers
+            .says
+            .iter()
+            .find(|(needle, _)| line.contains(needle.as_str()))
+        {
             Some((_, said)) => Ok(said.clone()),
             // Refused rather than empty: a command nobody scripted is a test
             // reaching further than it meant to, and silence would let it.
@@ -101,15 +118,23 @@ impl Runtime for FakeRuntime {
             .files
             .get(&p)
             .cloned()
-            .ok_or_else(|| RuntimeError::NotFound(p))
+            .ok_or(RuntimeError::NotFound(p))
     }
 
     fn read_dir(&self, guest_path: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
         let p = guest_path.display().to_string();
+        if self
+            .answers
+            .refuse
+            .iter()
+            .any(|needle| p.contains(needle.as_str()))
+        {
+            return Err(RuntimeError::Failed(format!("refused: {p}")));
+        }
         self.answers
             .dirs
             .get(&p)
             .cloned()
-            .ok_or_else(|| RuntimeError::NotFound(p))
+            .ok_or(RuntimeError::NotFound(p))
     }
 }

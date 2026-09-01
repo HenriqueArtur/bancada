@@ -10,6 +10,6 @@
 //! Living in its own crate, this is excluded from the report by filename. A
 //! hundred per cent now means no untested branch, rather than no unreached
 //! line anywhere including the ladder.
-mod runtime;
+mod fake_runtime;
 
-pub use runtime::{Answers, FakeRuntime};
+pub use fake_runtime::{Answers, FakeRuntime};
