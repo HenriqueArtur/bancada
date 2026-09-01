@@ -54,7 +54,20 @@ export interface Discovery {
   error: string | null;
 }
 
+/// What a registration would actually be watching, before it is made.
+export interface Preview {
+  sessions: number;
+  reachable: boolean;
+  versioned: boolean;
+  logDir: string;
+  why: string | null;
+}
+
 export const loadSettings = (): Promise<Config> => invoke<Config>("settings");
+export const previewProject = (path: string, runtime: string): Promise<Preview> =>
+  invoke<Preview>("preview", { path, runtime });
+export const registerRuntime = (runtime: RuntimeSpec): Promise<Config> =>
+  invoke<Config>("register_runtime", { runtime });
 export const discover = (): Promise<Discovery[]> => invoke<Discovery[]>("discover");
 export const registerProject = (project: Project): Promise<Config> =>
   invoke<Config>("register_project", { project });
@@ -101,10 +114,63 @@ export function whyNot(p: Project, config: Config): string | null {
 
 /// The directory the harness keeps this project's logs in.
 ///
-/// Shown while typing so the registration can be checked before it is
-/// saved. **Computed, never decoded** — the encoding turns both `/` and `.`
-/// into `-`, so reading a directory name back would be a guess that is
-/// right most of the time.
+/// **Computed, never decoded** — the encoding turns both `/` and `.` into
+/// `-`, so reading a directory name back would be a guess that is right most
+/// of the time. Kept because the core computes the same thing and the two
+/// must agree; shown only in the small print, never as the confirmation.
 export function logDirName(path: string): string {
   return path.replace(/[/.]/g, "-");
+}
+
+/// A project name from the folder it lives in.
+///
+/// The last segment, and nothing clever. Somebody who wants a different
+/// name types one; somebody who does not should not have to invent one.
+export function nameFrom(path: string): string {
+  return path.replace(/\/+$/, "").split("/").pop() ?? "";
+}
+
+/// What the evidence line says, and how loudly.
+export function evidenceOf(p: Preview | null): {
+  tone: "found" | "empty" | "missing";
+  says: string;
+} | null {
+  if (!p) return null;
+  if (!p.reachable) {
+    return { tone: "missing", says: p.why ?? "cannot reach that folder" };
+  }
+  if (p.sessions === 0) {
+    return {
+      tone: "empty",
+      says: "reachable, and no sessions recorded here yet",
+    };
+  }
+  return {
+    tone: "found",
+    says: `${p.sessions} session${p.sessions === 1 ? "" : "s"} already recorded here`,
+  };
+}
+
+export const BLANK_RUNTIME: RuntimeSpec = {
+  id: "",
+  kind: "vm",
+  prefix: [],
+  hostRoot: "/",
+  guestRoot: "/",
+  configDir: "",
+  sharedFs: true,
+};
+
+/// Why this runtime cannot be registered yet.
+export function whyNotRuntime(r: RuntimeSpec, config: Config): string | null {
+  // Worded apart from the project's own "give it a name" on purpose: both
+  // forms are on one screen, and two identical complaints leave you looking
+  // for which field is unhappy.
+  if (!r.id.trim()) return "give the machine a name";
+  if (r.id === THIS_MACHINE) return "that name belongs to the machine bancada runs on";
+  if (config.runtimes.some((x) => x.id === r.id)) return `${r.id} is already registered`;
+  if (!r.configDir.trim()) return "where does the harness keep its state, as this machine spells it?";
+  if (!r.configDir.startsWith("/")) return "that path must be absolute";
+  if (r.prefix.length === 0) return "what goes in front of every command?";
+  return null;
 }

@@ -9,9 +9,11 @@ mod commands;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             commands::attention::attention,
+            commands::preview::preview,
             commands::queue::queue,
             commands::review::review,
             commands::setup::settings,

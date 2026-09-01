@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   BLANK,
+  BLANK_RUNTIME,
   THIS_MACHINE,
+  evidenceOf,
   logDirName,
+  nameFrom,
   whyNot,
+  whyNotRuntime,
   type Config,
   type Project,
 } from "./settings";
@@ -95,5 +99,70 @@ describe("the machine bancada runs on", () => {
   it("still needs the rest of the form", () => {
     // Preselecting a runtime must not make an empty form look complete.
     expect(whyNot(BLANK, config)).toBe("give it a name");
+  });
+});
+
+describe("nameFrom", () => {
+  it("takes the folder's own name", () => {
+    expect(nameFrom("/Users/h/dev/neo-gitmoji.nvim")).toBe("neo-gitmoji.nvim");
+  });
+
+  it("survives a trailing slash, which every folder picker adds sometimes", () => {
+    expect(nameFrom("/Users/h/dev/thing/")).toBe("thing");
+  });
+});
+
+describe("evidenceOf", () => {
+  const p = (over = {}) => ({
+    sessions: 0,
+    reachable: true,
+    versioned: true,
+    logDir: "/x",
+    why: null,
+    ...over,
+  });
+
+  it("says nothing before there is anything to say", () => {
+    expect(evidenceOf(null)).toBeNull();
+  });
+
+  it("counts what is already there", () => {
+    expect(evidenceOf(p({ sessions: 4 }))!.says).toBe("4 sessions already recorded here");
+  });
+
+  it("says one session in the singular, because it will happen constantly", () => {
+    expect(evidenceOf(p({ sessions: 1 }))!.says).toBe("1 session already recorded here");
+  });
+
+  it("distinguishes an empty folder from an unreachable one", () => {
+    // These look identical without saying so, and one of them is a typo.
+    expect(evidenceOf(p())!.tone).toBe("empty");
+    expect(evidenceOf(p({ reachable: false, why: "no such directory" }))!.tone).toBe("missing");
+  });
+
+  it("passes on the runtime's own words for why it failed", () => {
+    expect(evidenceOf(p({ reachable: false, why: "permission denied" }))!.says).toBe(
+      "permission denied",
+    );
+  });
+});
+
+describe("whyNotRuntime", () => {
+  const vm = { ...BLANK_RUNTIME, id: "sunne", configDir: "/state/claude", prefix: ["limactl"] };
+
+  it("lets a complete one through", () => {
+    expect(whyNotRuntime(vm, config)).toBeNull();
+  });
+
+  it("refuses the name reserved for the machine bancada runs on", () => {
+    expect(whyNotRuntime({ ...vm, id: THIS_MACHINE }, config)).toMatch(/belongs to the machine/);
+  });
+
+  it("refuses a name already taken", () => {
+    expect(whyNotRuntime({ ...vm, id: "devbox" }, config)).toBe("devbox is already registered");
+  });
+
+  it("insists on a prefix, since without one it is this machine twice", () => {
+    expect(whyNotRuntime({ ...vm, prefix: [] }, config)).toMatch(/in front of every command/);
   });
 });

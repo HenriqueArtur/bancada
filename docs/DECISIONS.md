@@ -425,3 +425,51 @@ RuntimeSpec::this_machine(home)   // prefix: [], roots: "/", configDir: $HOME/.c
 - Anyone whose harness keeps its state somewhere unusual writes an entry with
   that id and wins. A default that cannot be overridden is a default that
   eventually lies.
+
+---
+
+## ADR-015 · Warm paper, not a dark cockpit
+
+**Status:** accepted · 2026-09-01 · supersedes the palette in G0.5
+
+### Context
+
+0.1 shipped a dark instrument-panel palette: near-black ground, cold greys, a
+gold accent. The reasoning behind it was sound and survives — *at rest the
+screen is empty, and colour is reserved for things that ask for an action, so
+a colour appearing means one*.
+
+The ground it sat on was wrong. A dark cockpit borrows its authority from
+instrument panels, and this is not an instrument panel. It is a place you read
+prose an agent wrote and decide whether you agree with it. Reading is what
+happens here, for hours, and a black screen makes eight hours of it feel like
+surveillance rather than like work.
+
+### Decision
+
+Warm paper. An earth palette — ivory, clay, sage, kraft — with one accent
+spent sparingly, and a warm dark for people who read with the lights low. The
+scarcity rule is unchanged: `--accent` means *this wants you* and appears
+nowhere else.
+
+Typography carries most of the change. A humanist serif (`ui-serif` — New York
+on Apple, a transitional serif elsewhere) for headings and for quoted agent
+prose; the system sans for interface text; a mono for paths and diffs. **No
+web fonts:** the app must open with no network at all, and a font that arrives
+late is a layout that moves under the reader.
+
+Monaco gets the same palette. Its stock themes are cold, and a panel that does
+not belong to the page around it reads as a different program embedded in this
+one.
+
+### Consequences
+
+- Diffs read better: additions and removals are washes of sage and clay rather
+  than saturated bands, so a hundred changed lines stop looking like an alarm.
+- The serif does real work on the intent panel. What the agent claimed is
+  quoted prose, and setting it as prose rather than as UI text is the whole
+  argument of that screen made typographically.
+- Light is now the primary design and dark the variant, which is the reverse
+  of before. Both are defined completely; neither borrows from the other.
+- G0.5 was closed as "dark cockpit". The issue's principle held and its
+  palette did not, which is the ordinary way a design decision ages.

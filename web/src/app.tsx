@@ -95,8 +95,10 @@ export function App() {
       <main className="app">
         <ElsewhereBand path={queue.elsewhere} />
         <header className="head">
-          <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
-          <h1>what the product was told</h1>
+          <div className="head-stack">
+            <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
+            <h1>what the product was told</h1>
+          </div>
         </header>
         {/* Reloading the queue on every change is what makes registering a
             project feel like it did something: the empty screen changes
@@ -111,7 +113,12 @@ export function App() {
       <main className="app wide">
         <ElsewhereBand path={queue.elsewhere} />
         <header className="head">
-          <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
+          <div className="head-stack">
+            <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
+            {/* The project, named. Two screens deep into a diff, "which
+                repository am I even looking at" is a real question. */}
+            <h1>{view.project}</h1>
+          </div>
           <nav className="tabs">
             <button
               type="button"

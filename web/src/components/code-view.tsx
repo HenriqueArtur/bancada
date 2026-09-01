@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadFile } from "../review";
+import { THEME, definition, paletteFor, prefersDark } from "../monaco-theme";
 
 /// A file, read-only.
 ///
@@ -40,11 +41,17 @@ export function CodeView({ project, path }: { project: string; path: string | nu
       .then((monaco) => {
         if (!alive || !host.current) return;
         host.current.innerHTML = "";
+        monaco.editor.defineTheme(THEME, definition(paletteFor(prefersDark())));
         editor = monaco.editor.create(host.current, {
           value: text,
           language: languageOf(path),
           readOnly: true,
-          theme: "vs-dark",
+          theme: THEME,
+          fontSize: 12.5,
+          lineHeight: 20,
+          padding: { top: 12, bottom: 12 },
+          renderLineHighlight: "none",
+          overviewRulerLanes: 0,
           minimap: { enabled: false },
           automaticLayout: true,
           scrollBeyondLastLine: false,
