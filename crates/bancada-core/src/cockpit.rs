@@ -1,4 +1,4 @@
-use crate::{Config, Project};
+use crate::{Config, Diff, Project};
 use bancada_adapter_claude::SessionLog;
 use bancada_meta::{MetaEvent, Timestamp};
 use bancada_rules::{Grouped, QueueItem, SessionState, Wip, group, rank};
@@ -92,7 +92,7 @@ impl Cockpit {
     pub fn queue_of(project: &Project, facts: &[MetaEvent], now: Timestamp) -> Vec<QueueItem> {
         SessionState::queue(&SessionState::fold(facts), now, project.idle_after_ms())
             .into_iter()
-            .map(|i| i.with_weight(project.weight))
+            .map(|i| i.with_weight(project.weight).in_project(&project.id))
             .collect()
     }
 
@@ -101,6 +101,58 @@ impl Cockpit {
         let groups = group(rank(&items, now));
         let wip = Wip::of(&groups, Wip::DEFAULT_LIMIT);
         (groups, wip)
+    }
+
+    /// Everything this project's tree says has changed against `HEAD`,
+    /// including files git has never been told about.
+    ///
+    /// Untracked files are rendered as an all-addition diff rather than
+    /// listed by name, so they carry a fingerprint like every other file and
+    /// take part in "what moved since I last looked". A brand new file is
+    /// usually the one worth reading first, and a name alone cannot be
+    /// reviewed.
+    ///
+    /// Nothing here writes: no `add -N`, no index touch. The product reads a
+    /// repository the human is working in, and a supervisor that stages files
+    /// behind their back is worse than one that shows less.
+    pub fn diff_of(&self, project: &Project, host: &dyn Runtime) -> Result<Diff, String> {
+        let at = project.path.as_str();
+        let git = |args: &[&str]| -> Result<String, String> {
+            let mut cmd = vec!["git".to_owned(), "-C".to_owned(), at.to_owned()];
+            cmd.extend(args.iter().map(|a| (*a).to_owned()));
+            host.exec(&cmd).map_err(|e| format!("{e:?}"))
+        };
+
+        let tracked = git(&["diff", "HEAD", "--no-color", "--no-ext-diff"])?;
+        let mut text = tracked;
+        for name in git(&["ls-files", "--others", "--exclude-standard"])?.lines() {
+            if let Some(rendered) = Self::as_added_file(host, at, name) {
+                text.push_str(&rendered);
+            }
+        }
+        Ok(Diff::parse(&text))
+    }
+
+    /// One untracked file, spelled as a diff that adds every line.
+    ///
+    /// Returns `None` for anything unreadable or not text: a binary blob
+    /// rendered as lines is noise, and noise in a review list is what makes
+    /// people stop reading the list.
+    fn as_added_file(host: &dyn Runtime, at: &str, name: &str) -> Option<String> {
+        const MAX: usize = 256 * 1024;
+        let bytes = host.read_file(&Path::new(at).join(name)).ok()?;
+        if bytes.len() > MAX || bytes.contains(&0) {
+            return None;
+        }
+        let body = String::from_utf8(bytes).ok()?;
+        let count = body.lines().count();
+        let mut out = format!("diff --git a/{name} b/{name}\n@@ -0,0 +1,{count} @@\n");
+        for line in body.lines() {
+            out.push('+');
+            out.push_str(line);
+            out.push('\n');
+        }
+        Some(out)
     }
 }
 
@@ -171,5 +223,98 @@ mod tests {
         let (groups, wip) = Cockpit::present(vec![], Timestamp::from_millis(1));
         assert!(groups.is_empty());
         assert!(!wip.over());
+    }
+
+    /// A runtime that answers git with canned output and serves one untracked
+    /// file, so the diff path can be exercised without a repository.
+    struct FakeGit {
+        tracked: String,
+        untracked: Vec<(String, Vec<u8>)>,
+    }
+
+    impl Runtime for FakeGit {
+        fn id(&self) -> &str {
+            "fake"
+        }
+        fn kind(&self) -> &str {
+            "local"
+        }
+        fn paths(&self) -> &bancada_runtime::PathMap {
+            unimplemented!("the diff path never maps a path")
+        }
+        fn fs_access(&self) -> bancada_runtime::FsAccess {
+            bancada_runtime::FsAccess::Shared
+        }
+        fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
+            match cmd.get(3).map(String::as_str) {
+                Some("diff") => Ok(self.tracked.clone()),
+                Some("ls-files") => Ok(self
+                    .untracked
+                    .iter()
+                    .map(|(n, _)| n.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")),
+                other => Err(RuntimeError::Failed(format!("unexpected: {other:?}"))),
+            }
+        }
+        fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
+            self.untracked
+                .iter()
+                .find(|(n, _)| p.ends_with(n))
+                .map(|(_, b)| b.clone())
+                .ok_or_else(|| RuntimeError::NotFound(p.display().to_string()))
+        }
+        fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
+            Err(RuntimeError::NotFound(p.display().to_string()))
+        }
+    }
+
+    const TRACKED: &str = "diff --git a/src/db.rs b/src/db.rs\n@@ -1,2 +1,2 @@\n fn open() {\n-    old();\n+    new();\n";
+
+    fn fake_git(untracked: Vec<(&str, &str)>) -> FakeGit {
+        FakeGit {
+            tracked: TRACKED.to_owned(),
+            untracked: untracked
+                .into_iter()
+                .map(|(n, b)| (n.to_owned(), b.as_bytes().to_vec()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_tracked_change_reaches_the_diff() {
+        let c = cockpit();
+        let d = c
+            .diff_of(&c.config().projects[0], &fake_git(vec![]))
+            .unwrap();
+        assert_eq!(d.files.len(), 1);
+        assert_eq!((d.added(), d.removed()), (1, 1));
+    }
+
+    #[test]
+    fn an_untracked_file_is_shown_as_content_not_as_a_name() {
+        let c = cockpit();
+        let rt = fake_git(vec![("notes.md", "one\ntwo\n")]);
+        let d = c.diff_of(&c.config().projects[0], &rt).unwrap();
+
+        let new = d.files.iter().find(|f| f.path == "notes.md").unwrap();
+        assert_eq!(new.added, 2, "a name alone cannot be reviewed");
+        assert!(!new.fingerprint.is_empty());
+    }
+
+    #[test]
+    fn a_binary_untracked_file_is_left_out_rather_than_rendered_as_lines() {
+        let c = cockpit();
+        let rt = fake_git(vec![("logo.png", "\u{0}\u{1}\u{2}binary")]);
+        let d = c.diff_of(&c.config().projects[0], &rt).unwrap();
+        assert!(d.files.iter().all(|f| f.path != "logo.png"));
+    }
+
+    #[test]
+    fn the_diff_never_asks_git_to_write() {
+        // `add -N` would make untracked files appear in `git diff` for free,
+        // and would also stage them in the human's repository.
+        let src = include_str!("cockpit.rs");
+        assert!(!src.contains("\"add\""), "the diff path stages files");
     }
 }

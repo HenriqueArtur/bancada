@@ -15,6 +15,12 @@ pub struct QueueItem {
     pub blocking: u32,
     /// How fast waiting hurts on this project. 1 is the baseline.
     pub project_weight: u32,
+    /// Which project this came from.
+    ///
+    /// Carried rather than looked up later: an item that cannot say where it
+    /// belongs cannot be opened, and a queue you can only read is half a
+    /// cockpit.
+    pub project: String,
 }
 
 impl QueueItem {
@@ -24,12 +30,18 @@ impl QueueItem {
             kind,
             raised_at,
             blocking: 0,
+            project: String::new(),
             project_weight: 1,
         }
     }
 
     pub fn with_weight(mut self, weight: u32) -> Self {
         self.project_weight = weight.max(1);
+        self
+    }
+
+    pub fn in_project(mut self, id: &str) -> Self {
+        self.project = id.to_owned();
         self
     }
 

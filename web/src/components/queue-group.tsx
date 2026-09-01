@@ -8,13 +8,27 @@ import { ScoreBreakdown } from "./score-breakdown";
 /// item in each, so a session never floats up for having many trivial
 /// things — and identical permissions collapse into one line, which is the
 /// known defence against a queue nobody reads any more.
-export function QueueGroup({ group }: { group: Grouped }) {
+export function QueueGroup({
+  group,
+  onReview,
+}: {
+  group: Grouped;
+  onReview?: (project: string) => void;
+}) {
   const [open, setOpen] = useState<number | null>(null);
   const rows = collapse(group);
+  const project = group.items[0]?.item.project ?? "";
 
   return (
     <section className="group">
-      <div className="session">{group.session}</div>
+      <div className="session">
+        {group.session}
+        {onReview && project ? (
+          <button type="button" className="open" onClick={() => onReview(project)}>
+            open {project}
+          </button>
+        ) : null}
+      </div>
       {rows.map((row, i) => (
         <div key={row.key}>
           <button

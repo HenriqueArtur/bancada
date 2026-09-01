@@ -4,7 +4,14 @@ import type { Grouped, DecisionKind, Ranked } from "../queue";
 
 function ranked(kind: DecisionKind, ageMin: number): Ranked {
   return {
-    item: { session: "s", kind, raised_at: 0, blocking: 0, project_weight: 1 },
+    item: {
+      session: "s",
+      kind,
+      raised_at: 0,
+      blocking: 0,
+      project_weight: 1,
+      project: "neo-gitmoji",
+    },
     score: ageMin,
     age_ms: ageMin * 60_000,
     kind_factor: 1,

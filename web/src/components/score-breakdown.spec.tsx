@@ -5,7 +5,14 @@ import type { Ranked } from "../queue";
 const ranked: Ranked = {
   // Every factor distinct on purpose: with two of them equal, a test that
   // claims to check the weight would pass while reading the kind.
-  item: { session: "s", kind: "Question", raised_at: 0, blocking: 3, project_weight: 5 },
+  item: {
+    session: "s",
+    kind: "Question",
+    raised_at: 0,
+    blocking: 3,
+    project_weight: 5,
+    project: "neo-gitmoji",
+  },
   score: 42,
   age_ms: 600_000,
   kind_factor: 2,

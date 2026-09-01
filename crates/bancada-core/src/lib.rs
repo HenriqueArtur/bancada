@@ -6,14 +6,18 @@
 //! engine appear in the same file.
 mod cockpit;
 mod config;
+mod diff;
 mod discovery;
 mod project;
+mod review;
 mod runtime_spec;
 mod workspace;
 
 pub use cockpit::Cockpit;
 pub use config::{Config, ConfigError};
+pub use diff::{Diff, FileDiff, Hunk, Line, LineKind};
 pub use discovery::{Account, Discovery, Harness};
 pub use project::Project;
+pub use review::Review;
 pub use runtime_spec::RuntimeSpec;
 pub use workspace::Workspace;

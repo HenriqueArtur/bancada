@@ -9,7 +9,12 @@ mod commands;
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![commands::queue::queue])
+        .invoke_handler(tauri::generate_handler![
+            commands::queue::queue,
+            commands::review::review,
+            commands::tree::tree,
+            commands::tree::file
+        ])
         .run(tauri::generate_context!())
         .expect("bancada failed to start");
 }

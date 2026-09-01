@@ -327,3 +327,53 @@ manager's platform maturity never reaches production.
 - **The first code waits for the architecture linter's Rust support**, so the
   first line is born governed. The repository exists with the specification and
   no code — literally spec-first.
+
+---
+
+## ADR-013 · Exact versions everywhere, and bun is the only installer
+
+**Status:** accepted · 2026-08-31
+
+### Context
+
+Two habits crept in while the first milestone was being built: `npm` was used
+to add a package even though ADR-004 chose bun, and every dependency was
+written as a range — `"react": "^19.0.0"`, `serde = "1"`.
+
+Both are the same mistake wearing different clothes. A range says *some*
+version in a family; a lockfile then picks one and pins it for this checkout
+only. Anyone who runs `cargo add`, deletes a lockfile, or resolves the crate
+as a dependency gets a different answer, and the difference shows up as a
+failure nobody edited into existence. Two installers make it worse: `npm` and
+`bun` write different lockfiles from the same manifest, and a repository
+carrying both has two answers to "what version is this".
+
+### Decision
+
+**Exact versions, in both languages.** No `^`, no `~`, no bare major.
+
+```jsonc
+"react": "19.2.8"           // not "^19.0.0"
+```
+```toml
+serde = { version = "=1.0.229", features = ["derive"] }   // not "1"
+```
+
+**bun is the only package manager.** `bun install`, `bun run`, `bun.lock`.
+`package-lock.json` is in `.gitignore` so a stray `npm install` cannot leave a
+second, disagreeing lockfile behind. Tauri's `beforeDevCommand` and
+`beforeBuildCommand` call `bun`.
+
+Upgrades are a deliberate commit that changes the number, with a name on it.
+
+### Consequences
+
+- A fresh clone, CI, and a contributor's machine resolve to the same bytes,
+  lockfile or no lockfile.
+- Security patches no longer arrive silently. That is the cost, and it is the
+  point: a patch that lands without anyone choosing it is also a patch nobody
+  tested. Dependabot-style bumps become reviewable pull requests.
+- The pin is on the *direct* dependencies. Transitive versions still come
+  from the lockfile — pinning the whole graph by hand would be fiction.
+- `cargo update` becomes a no-op for pinned crates, which is the intended
+  behaviour, not a bug to work around.

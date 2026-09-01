@@ -5,3 +5,9 @@
 /crates/**/target
 /web/dist
 /app/node_modules
+
+# archwarden keeps a parse cache here; it is machine-local state.
+.archwarden/
+
+# lockfiles come from bun; npm must not leave a second, disagreeing one
+package-lock.json

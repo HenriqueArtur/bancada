@@ -22,9 +22,13 @@ bancada-rules   = { path = "crates/bancada-rules" }
 bancada-adapter-claude = { path = "crates/bancada-adapter-claude" }
 
 # --- external ---------------------------------------------------------------
-serde      = { version = "1", features = ["derive"] }
-serde_json = "1"
-chrono     = { version = "0.4", default-features = false, features = ["std"] }
+# Pinned exactly (`=`), not by caret. A lockfile already fixes what *this*
+# checkout builds; the pin fixes what a fresh `cargo add` or a dependant
+# resolves to, so "works on my machine" and "works in CI" cannot diverge by a
+# patch release nobody chose. Upgrades are a commit, with a name on them.
+serde      = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+chrono     = { version = "=0.4.45", default-features = false, features = ["std"] }
 
 [workspace.lints.clippy]
 disallowed_methods = "deny"

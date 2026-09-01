@@ -561,3 +561,17 @@ fast.
 - **Being a security tool.** Computed reach reports, it does not prevent.
 - **Being a chat aggregator.** Editors already do that for free. If the product
   is only that, it is born redundant.
+
+## Dependencies
+
+Exact versions, both languages, no ranges — `"react": "19.2.8"`,
+`serde = { version = "=1.0.229" }`. **bun** is the only package manager;
+`package-lock.json` is ignored so a stray `npm install` cannot leave a second
+lockfile that disagrees with `bun.lock`. See [ADR-013](DECISIONS.md#adr-013--exact-versions-everywhere-and-bun-is-the-only-installer).
+
+```sh
+bun install --cwd web      # frontend
+bun install --cwd app      # the tauri cli
+bun run --cwd web test     # vitest
+cargo test --workspace     # rust
+```

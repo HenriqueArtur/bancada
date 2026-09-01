@@ -15,6 +15,9 @@ export interface QueueItem {
   raised_at: number;
   blocking: number;
   project_weight: number;
+  /// Which project this came from. Carried on the item rather than looked
+  /// up: an item that cannot say where it belongs cannot be opened.
+  project: string;
 }
 
 export interface Ranked {

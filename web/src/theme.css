@@ -81,3 +81,81 @@ body {
   margin-top: 18px; padding: 10px 14px; font-size: 12px;
   border: 1px solid var(--border); border-radius: 8px; color: var(--muted);
 }
+
+/* --- review ------------------------------------------------------------ */
+.app.wide { max-width: 1180px; }
+
+.back, .tabs button {
+  background: none; border: 1px solid transparent; color: var(--muted);
+  font: inherit; cursor: pointer; padding: 4px 10px; border-radius: 6px;
+}
+.back:hover, .tabs button:hover { color: var(--text); }
+.tabs button.on { color: var(--text); border-color: var(--border); background: var(--surface); }
+.tabs { display: flex; gap: 4px; }
+
+.open {
+  margin-left: 10px; background: none; border: none; color: var(--muted);
+  font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline;
+}
+.open:hover { color: var(--accent); }
+
+h2 {
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  margin: 26px 0 10px; letter-spacing: .02em;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.quiet { color: var(--muted); font-size: 13px; }
+
+.intent { border-left: 2px solid var(--border); padding-left: 12px; margin-bottom: 14px; }
+.intent h3 { font-size: 12px; color: var(--muted); margin: 0 0 4px; font-weight: 500; }
+.intent blockquote {
+  margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap;
+  max-height: 8.5em; overflow: auto;
+}
+
+.badge {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--muted);
+}
+/* Reserved for the one thing worth looking at first. */
+.badge.surprise { color: var(--urgent); border-color: var(--urgent); }
+.badge.new { color: var(--accent); border-color: var(--accent); }
+
+.file { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.file.fresh { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.file > header {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--surface); cursor: pointer;
+}
+.file .path { font-family: ui-monospace, monospace; font-size: 12.5px; }
+.file .churn { margin-left: auto; color: var(--muted); font-size: 12px; }
+.file .seen {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
+}
+.file .seen:hover { color: var(--text); }
+
+.hunk { margin: 0; padding: 0; font-family: ui-monospace, monospace; font-size: 12px; overflow-x: auto; }
+.hunk code { display: block; padding: 0 12px; white-space: pre; }
+.hunk .header { color: var(--muted); background: var(--surface); }
+.hunk .added { background: color-mix(in srgb, var(--calm) 14%, transparent); }
+.hunk .removed { background: color-mix(in srgb, var(--urgent) 14%, transparent); }
+
+/* --- files ------------------------------------------------------------- */
+.explorer { display: grid; grid-template-columns: 260px 1fr; gap: 16px; height: calc(100vh - 130px); }
+.tree { overflow: auto; border-right: 1px solid var(--border); padding-right: 8px; font-size: 13px; }
+.tree ul { list-style: none; margin: 0; padding-left: 12px; }
+.tree > ul { padding-left: 0; }
+.tree button {
+  background: none; border: none; color: var(--text); font: inherit;
+  cursor: pointer; padding: 2px 4px; width: 100%; text-align: left; border-radius: 4px;
+}
+.tree button:hover { background: var(--surface); }
+.tree .dir { color: var(--muted); }
+.tree .leaf.selected { background: var(--surface); color: var(--accent); }
+.code { height: 100%; min-height: 320px; }
+.plain {
+  font-family: ui-monospace, monospace; font-size: 12px; overflow: auto;
+  height: 100%; margin: 0; padding: 8px;
+}

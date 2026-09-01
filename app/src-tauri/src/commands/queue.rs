@@ -66,7 +66,7 @@ pub fn queue() -> Result<Queue, String> {
     })
 }
 
-fn config_path() -> PathBuf {
+pub(super) fn config_path() -> PathBuf {
     std::env::var_os("BANCADA_CONFIG")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
@@ -75,7 +75,7 @@ fn config_path() -> PathBuf {
         })
 }
 
-fn load_config() -> Result<Config, String> {
+pub(super) fn load_config() -> Result<Config, String> {
     let path = config_path();
     // A missing configuration is not a failure: it is a cockpit nobody has
     // pointed at anything yet, and the empty screen says so.
