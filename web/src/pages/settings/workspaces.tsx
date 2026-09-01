@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Config, Workspace } from "@/core/settings";
 import { exportsAs } from "@/core/work";
 import { Badge, Button, Card, Heading, Text } from "@/components";
@@ -93,6 +93,10 @@ function held(config: Config, id: string): string {
   return n === 0 ? "No projects" : `${n} project${n === 1 ? "" : "s"}`;
 }
 
+/// A workspace is born sealed. It rises by a deliberate act, never by
+/// default and never the other way.
+const BLANK: Workspace = { id: "", export: "metadata" };
+
 function WorkspaceForm({
   config,
   editing,
@@ -104,14 +108,17 @@ function WorkspaceForm({
   onSubmit: (w: Workspace, previous?: string) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Workspace>({ id: "", export: "metadata" });
-  const current = editing ?? draft;
-  const blocked = whyNot(current.id, config, editing?.id);
+  const [draft, setDraft] = useState<Workspace>(BLANK);
 
-  const set = (next: Workspace) => {
-    if (editing) onSubmit(next, editing.id);
-    else setDraft(next);
-  };
+  /// Copied in once, then owned here.
+  ///
+  /// This read `editing ?? draft` and rendered straight from the prop, so
+  /// for as long as something was being edited every keystroke wrote to a
+  /// state nothing was reading. A form is a draft of a thing, not a view of
+  /// it — the moment it shows a value it does not own, it stops being one.
+  useEffect(() => setDraft(editing ?? BLANK), [editing]);
+
+  const blocked = whyNot(draft.id, config, editing?.id);
 
   return (
     <NewThing
@@ -122,14 +129,14 @@ function WorkspaceForm({
       <Grid columns={2}>
         <Field
           label="Whose work is this?"
-          value={current.id}
-          onChange={(id) => (editing ? setDraft({ ...current, id }) : setDraft({ ...draft, id }))}
+          value={draft.id}
+          onChange={(id) => setDraft({ ...draft, id })}
           placeholder="A client, or personal"
         />
         <ChoiceField
           label="What its supervisors may let out"
-          value={current.export ?? "metadata"}
-          onChange={(level) => set({ ...current, export: level as Level })}
+          value={draft.export ?? "metadata"}
+          onChange={(level) => setDraft({ ...draft, export: level as Level })}
           choices={LEVELS}
         />
       </Grid>
@@ -140,10 +147,8 @@ function WorkspaceForm({
           disabled={blocked !== null}
           onClick={() => {
             if (blocked) return;
-            // Born sealed. A workspace rises by a deliberate act, never by
-            // default and never the other way.
-            onSubmit({ ...current, export: current.export ?? "metadata" }, editing?.id);
-            setDraft({ id: "", export: "metadata" });
+            onSubmit({ ...draft, id: draft.id.trim() }, editing?.id);
+            setDraft(BLANK);
           }}
         >
           {editing ? "Save changes" : "Make it"}
