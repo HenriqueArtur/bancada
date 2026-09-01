@@ -49,6 +49,11 @@ export interface Queue {
   /// Named rather than silent: a project the product could not read looks
   /// exactly like a project with nothing pending.
   unreachable: string[];
+  /// Set only when the configuration came from somewhere other than the
+  /// default path. A cockpit pointed at a scratch configuration looks
+  /// exactly like the real one, and the whole product is a claim about what
+  /// needs you — so it has to say when the claim is about somewhere else.
+  elsewhere: string | null;
 }
 
 /// How long something has been waiting, in the words a person uses.

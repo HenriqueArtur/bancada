@@ -70,7 +70,13 @@ set -e
 [ -f "$LOG" ] || { echo "no log at $LOG (claude exited $STATUS)" >&2; exit 1; }
 
 mkdir -p "$OUT"
-cp "$LOG" "$OUT/session.jsonl"
+# Moved, not copied. The recording has to happen inside an authenticated
+# config directory — a throwaway one has no credentials — which is the same
+# directory the product watches. A fixture left behind there becomes a
+# permanent item in somebody's queue that no work will ever resolve.
+mv "$LOG" "$OUT/session.jsonl"
+# And the project directory too, if this was the only session in it.
+rmdir "$(dirname "$LOG")" 2>/dev/null || true
 cat > "$OUT/meta.json" <<JSON
 {
   "scenario": "$SCENARIO",

@@ -3,6 +3,7 @@
 // `pub mod` rather than a re-export: the command macro generates a hidden
 // sibling that `generate_handler!` resolves by path, and a tidy `pub use`
 // silently hides it.
+pub mod attention;
 pub mod queue;
 pub mod review;
 pub mod setup;

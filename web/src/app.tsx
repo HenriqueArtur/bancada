@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Queue } from "./queue";
 import type { FileDiff, ReviewView } from "./review";
@@ -11,6 +11,8 @@ import { IntentPanel } from "./components/intent-panel";
 import { FileTree } from "./components/file-tree";
 import { CodeView } from "./components/code-view";
 import { SettingsScreen } from "./components/settings-screen";
+import { ElsewhereBand } from "./components/elsewhere-band";
+import { idsOf, newcomers, phrase, raise, waiting } from "./attention";
 
 /// Polling rather than watching, for now.
 ///
@@ -30,10 +32,29 @@ export function App() {
   const [failed, setFailed] = useState<string | null>(null);
   const [view, setView] = useState<View>({ at: "cockpit" });
 
+  /// What the last reading held, so the next one can tell what is new.
+  ///
+  /// A ref rather than state: it must not cause a render, and it must be
+  /// current inside the interval closure — state read there would be the
+  /// value from the render that created it, and every poll would announce
+  /// the same items forever.
+  const seen = useRef<Set<string> | null>(null);
+
   const reload = async () => {
     try {
-      setQueue(await invoke<Queue>("queue"));
+      const q = await invoke<Queue>("queue");
+      setQueue(q);
       setFailed(null);
+
+      const fresh = newcomers(seen.current, q.groups);
+      seen.current = idsOf(q.groups);
+      // The badge every time, the notification only for what arrived. A
+      // window you have to remember to open does not answer "I cannot keep
+      // track of what is happening".
+      void raise(waiting(q), phrase(fresh)).catch(() => {
+        // An operating system that will not take the message is not a
+        // reason to lose the queue that was already read.
+      });
     } catch (e) {
       // Named rather than a blank screen: a product that cannot reach its
       // own core must not look like a product with nothing to show.
@@ -66,10 +87,9 @@ export function App() {
   if (view.at === "settings") {
     return (
       <main className="app">
+        <ElsewhereBand path={queue.elsewhere} />
         <header className="head">
-          <button type="button" className="back" onClick={() => setView({ at: "cockpit" })}>
-            ← needs you
-          </button>
+          <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
           <h1>what the product was told</h1>
         </header>
         {/* Reloading the queue on every change is what makes registering a
@@ -83,10 +103,9 @@ export function App() {
   if (view.at !== "cockpit") {
     return (
       <main className="app wide">
+        <ElsewhereBand path={queue.elsewhere} />
         <header className="head">
-          <button type="button" className="back" onClick={() => setView({ at: "cockpit" })}>
-            ← needs you
-          </button>
+          <BackToQueue queue={queue} onBack={() => setView({ at: "cockpit" })} />
           <nav className="tabs">
             <button
               type="button"
@@ -115,6 +134,7 @@ export function App() {
 
   return (
     <main className="app">
+      <ElsewhereBand path={queue.elsewhere} />
       <header className="head">
         <h1>needs you</h1>
         <div className="head-right">
@@ -143,6 +163,21 @@ export function App() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+/// The way back, carrying the count.
+///
+/// The queue lives on one screen and the product exists to say what needs
+/// you — so every other screen has to keep saying how much is waiting, or
+/// opening the file pane becomes a way to stop being told.
+function BackToQueue({ queue, onBack }: { queue: Queue; onBack: () => void }) {
+  const n = queue.wip.sessions_waiting;
+  return (
+    <button type="button" className="back" onClick={onBack}>
+      ← needs you
+      {n > 0 ? <span className="count-chip">{n}</span> : null}
+    </button>
   );
 }
 

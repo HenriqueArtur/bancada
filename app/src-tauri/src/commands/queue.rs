@@ -12,6 +12,7 @@ use std::path::PathBuf;
 
 /// What the webview receives.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Queue {
     groups: Vec<Grouped>,
     wip: Wip,
@@ -22,6 +23,13 @@ pub struct Queue {
     /// Named rather than silent: a project the product could not read
     /// looks exactly like a project with nothing pending.
     unreachable: Vec<String>,
+    /// Set only when the configuration came from somewhere other than the
+    /// default path.
+    ///
+    /// A cockpit pointed at a scratch configuration looks exactly like the
+    /// real one, and the whole product is a claim about what needs you —
+    /// so it has to say when the claim is about somewhere else.
+    elsewhere: Option<String>,
 }
 
 /// Read every registered project and answer what needs the human.
@@ -63,7 +71,16 @@ pub fn queue() -> Result<Queue, String> {
         wip,
         watching,
         unreachable,
+        elsewhere: overridden_config(),
     })
+}
+
+/// The configuration path, when it is not the default one.
+///
+/// `None` for the real cockpit, so the band costs nothing to the case that
+/// matters — a warning that is always on is a warning nobody reads.
+fn overridden_config() -> Option<String> {
+    std::env::var_os("BANCADA_CONFIG").map(|p| PathBuf::from(p).display().to_string())
 }
 
 pub(super) fn config_path() -> PathBuf {

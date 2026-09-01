@@ -16,6 +16,7 @@ bancada-meta = { workspace = true }
 bancada-rules = { workspace = true }
 bancada-runtime = { workspace = true }
 tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-notification = "=2.4.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
 
