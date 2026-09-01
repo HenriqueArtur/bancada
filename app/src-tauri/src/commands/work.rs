@@ -16,9 +16,21 @@ pub fn work() -> Result<Work, String> {
 }
 
 /// Register a workspace, or replace the one with the same id.
+///
+/// `previous` is the name it had before, when this is an edit rather than a
+/// creation. Renaming takes the projects along: left behind, they would name
+/// a workspace that no longer exists, and that configuration does not fail
+/// to save — it fails to open.
 #[tauri::command]
-pub fn register_workspace(workspace: Workspace) -> Result<Config, String> {
-    super::setup::save(super::queue::load_config()?.with_workspace(workspace))
+pub fn register_workspace(
+    workspace: Workspace,
+    previous: Option<String>,
+) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    if let Some(before) = previous.filter(|b| *b != workspace.id) {
+        config = config.rename_workspace(&before, &workspace.id)?;
+    }
+    super::setup::save(config.with_workspace(workspace))
 }
 
 /// Drop a workspace, unless something still belongs to it.

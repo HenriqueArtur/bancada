@@ -26,4 +26,14 @@ describe("whyNot", () => {
   it("ignores the spaces around a name", () => {
     expect(whyNot("  personal  ", config)).toBe("personal already exists");
   });
+
+  it("lets a workspace keep its own name while being edited", () => {
+    // A thing is not a collision with itself.
+    expect(whyNot("personal", config, "personal")).toBeNull();
+  });
+
+  it("still refuses renaming onto a name somebody else has", () => {
+    const two = { ...config, workspaces: [{ id: "personal" }, { id: "client-x" }] };
+    expect(whyNot("client-x", two, "personal")).toBe("client-x already exists");
+  });
 });

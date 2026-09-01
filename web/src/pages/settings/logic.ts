@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Config, Preview, Project, RuntimeSpec, Workspace } from "@/core/settings";
 import { forgetWorkspace, registerWorkspace } from "@/core/work";
 import {
@@ -16,10 +16,10 @@ import {
 export interface Settings {
   config: Config | null;
   failed: string | null;
-  register: (p: Project) => void;
+  register: (p: Project, previous?: string) => void;
   forget: (id: string) => void;
   addRuntime: (r: RuntimeSpec) => void;
-  addWorkspace: (w: Workspace) => void;
+  addWorkspace: (w: Workspace, previous?: string) => void;
   dropWorkspace: (id: string) => void;
 }
 
@@ -43,10 +43,10 @@ export function useSettings(onChanged?: () => void): Settings {
   return {
     config,
     failed,
-    register: (p) => void apply(registerProject(p)),
+    register: (p, previous) => void apply(registerProject(p, previous)),
     forget: (id) => void apply(forgetProject(id)),
     addRuntime: (r) => void apply(registerRuntime(r)),
-    addWorkspace: (w) => void apply(registerWorkspace(w)),
+    addWorkspace: (w, previous) => void apply(registerWorkspace(w, previous)),
     dropWorkspace: (id) => void apply(forgetWorkspace(id)),
   };
 }
@@ -86,7 +86,14 @@ export function useDraftProject() {
     setPreview(null);
   };
 
-  return { draft, setDraft, setPath, preview, clear };
+  /// Fill the form from something already registered.
+  ///
+  /// Wrapped in `useCallback` because an effect depends on it: a new
+  /// identity every render would reload the draft on every keystroke and
+  /// undo the typing.
+  const load = useCallback((p: Project) => setDraft(p), []);
+
+  return { draft, setDraft, setPath, preview, clear, load };
 }
 
 /// Probing shells into every VM, so it never runs on open.

@@ -30,9 +30,16 @@ pub fn discover() -> Result<Vec<Discovery>, String> {
 /// Replacing rather than refusing: the screen that calls this is also the
 /// screen that edits, and two paths for "write this row" is one more than
 /// the shape needs.
+///
+/// `previous` is the name it had before, when this is an edit that renamed
+/// it. Without it the old entry stays and the cockpit watches one tree twice
+/// under two names.
 #[tauri::command]
-pub fn register_project(project: Project) -> Result<Config, String> {
+pub fn register_project(project: Project, previous: Option<String>) -> Result<Config, String> {
     let mut config = super::queue::load_config()?;
+    if let Some(before) = previous.filter(|b| *b != project.id) {
+        config = config.rename_project(&before, &project.id)?;
+    }
     config.projects.retain(|p| p.id != project.id);
     config.projects.push(project);
     config.projects.sort_by(|a, b| a.id.cmp(&b.id));

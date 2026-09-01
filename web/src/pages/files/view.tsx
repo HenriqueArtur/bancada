@@ -3,7 +3,7 @@ import type { Queue } from "@/core/queue";
 import { Mono, Text } from "@/components";
 import { Row } from "@/frame";
 import { Workbench } from "@/layouts";
-import { BackToQueue } from "@/pages/_shared";
+import { BackToQueue, type Origin } from "@/pages/_shared";
 import { FileTree } from "@/pages/files/tree";
 import { CodeView } from "@/pages/files/code";
 
@@ -15,11 +15,13 @@ import { CodeView } from "@/pages/files/code";
 export function FilesPage({
   project,
   queue,
+  from,
   onBack,
   tabs,
 }: {
   project: string;
   queue: Queue;
+  from: Origin;
   onBack: () => void;
   tabs: React.ReactNode;
 }) {
@@ -30,7 +32,7 @@ export function FilesPage({
       bar={
         <>
           <Row gap="snug" align="baseline" className="min-w-0">
-            <BackToQueue queue={queue} onBack={onBack} />
+            <BackToQueue queue={queue} from={from} onBack={onBack} />
             <Text as="span" size="sm" tone="muted">
               {project}
             </Text>

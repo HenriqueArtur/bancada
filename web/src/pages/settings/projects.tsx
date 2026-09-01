@@ -1,10 +1,10 @@
 import { open as pickFolder } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FolderOpenIcon } from "@phosphor-icons/react";
 import type { Config, Project } from "@/core/settings";
 import { THIS_MACHINE, evidenceOf, logDirName, whyNot } from "@/core/settings";
 import { Badge, Button, Card, Heading, Mono, Text } from "@/components";
-import { ChoiceField, Field, Notice } from "@/composites";
+import { ChoiceField, Field, NewThing, Notice, Section } from "@/composites";
 import { Full, Grid, Inset, Row, Stack } from "@/frame";
 import { Disclosure } from "@/components";
 import { useDraftProject } from "@/pages/settings/logic";
@@ -15,13 +15,25 @@ export function ProjectsPanel({
   onForget,
 }: {
   config: Config;
-  onRegister: (p: Project) => void;
+  onRegister: (p: Project, previous?: string) => void;
   onForget: (id: string) => void;
 }) {
+  const [editing, setEditing] = useState<Project | null>(null);
+
   return (
     <Stack gap="loose">
-      <Registered config={config} onForget={onForget} />
-      <AddProject config={config} onRegister={onRegister} />
+      <Section title="Watched">
+        <Registered config={config} onForget={onForget} onEdit={setEditing} />
+      </Section>
+      <ProjectForm
+        config={config}
+        editing={editing}
+        onCancel={() => setEditing(null)}
+        onSubmit={(p, previous) => {
+          onRegister(p, previous);
+          setEditing(null);
+        }}
+      />
     </Stack>
   );
 }
@@ -32,11 +44,19 @@ export function ProjectsPanel({
 /// pixels, and every one of them lost. A card gives the path its own line
 /// and turns the rest into what it actually is: a handful of facts about
 /// one thing, not a row of a spreadsheet with four other things.
-function Registered({ config, onForget }: { config: Config; onForget: (id: string) => void }) {
+function Registered({
+  config,
+  onForget,
+  onEdit,
+}: {
+  config: Config;
+  onForget: (id: string) => void;
+  onEdit: (p: Project) => void;
+}) {
   if (config.projects.length === 0) {
     return (
       <Text tone="muted" size="sm">
-        Nothing registered yet.
+        None yet.
       </Text>
     );
   }
@@ -50,9 +70,14 @@ function Registered({ config, onForget }: { config: Config; onForget: (id: strin
                 <Heading level={3} as="h3">
                   {p.id}
                 </Heading>
-                <Button tone="ghost" size="sm" onClick={() => onForget(p.id)}>
-                  Forget
-                </Button>
+                <Row gap="tight">
+                  <Button tone="ghost" size="sm" onClick={() => onEdit(p)}>
+                    Edit
+                  </Button>
+                  <Button tone="ghost" size="sm" onClick={() => onForget(p.id)}>
+                    Forget
+                  </Button>
+                </Row>
               </Row>
 
               {/* Its own line, and allowed to wrap. A truncated path is a
@@ -83,18 +108,28 @@ function Registered({ config, onForget }: { config: Config; onForget: (id: strin
 /// The confirmation is evidence — *four sessions already recorded here* —
 /// rather than the encoded directory name this used to print. That was
 /// jargon asking a person to verify what the product can verify itself.
-function AddProject({
+function ProjectForm({
   config,
-  onRegister,
+  editing,
+  onSubmit,
+  onCancel,
 }: {
   config: Config;
-  onRegister: (p: Project) => void;
+  editing: Project | null;
+  onSubmit: (p: Project, previous?: string) => void;
+  onCancel: () => void;
 }) {
-  const { draft, setDraft, setPath, preview, clear } = useDraftProject();
+  const { draft, setDraft, setPath, preview, clear, load } = useDraftProject();
   const [picking, setPicking] = useState(false);
 
+  // Editing fills the same form. Two ways to write one row is one more than
+  // the shape needs, and the second one always drifts.
+  useEffect(() => {
+    if (editing) load(editing);
+  }, [editing, load]);
+
   const local = draft.runtime === THIS_MACHINE;
-  const blocked = whyNot(draft, config);
+  const blocked = whyNot(draft, config, editing?.id);
   const evidence = evidenceOf(preview);
 
   const browse = async () => {
@@ -108,9 +143,12 @@ function AddProject({
   };
 
   return (
-    <Card>
-      <Inset pad="loose">
-        <Stack gap="normal">
+    <NewThing
+      title="Watch a project"
+      blurb="Pick a folder and bancada will say what it found there."
+      editing={editing?.id}
+    >
+      <Stack gap="normal">
           <Grid columns={2}>
             <Full>
               <Field
@@ -199,21 +237,31 @@ function AddProject({
               disabled={blocked !== null}
               onClick={() => {
                 if (!blocked) {
-                  onRegister(draft);
+                  onSubmit(draft, editing?.id);
                   clear();
                 }
               }}
             >
-              Watch it
+              {editing ? "Save changes" : "Watch it"}
             </Button>
+            {editing ? (
+              <Button
+                tone="ghost"
+                onClick={() => {
+                  clear();
+                  onCancel();
+                }}
+              >
+                Cancel
+              </Button>
+            ) : null}
             {blocked ? (
               <Text tone="muted" size="sm">
                 {blocked}
               </Text>
             ) : null}
           </Row>
-        </Stack>
-      </Inset>
-    </Card>
+      </Stack>
+    </NewThing>
   );
 }

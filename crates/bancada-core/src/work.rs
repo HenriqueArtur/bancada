@@ -106,6 +106,51 @@ impl Config {
         self
     }
 
+    /// Rename a workspace, taking everything that belongs to it along.
+    ///
+    /// A rename that left the projects pointing at the old name would not
+    /// produce an error — it would produce a configuration that refuses to
+    /// parse, which is a cockpit that will not open. The projects move.
+    pub fn rename_workspace(mut self, from: &str, to: &str) -> Result<Self, String> {
+        if from == to {
+            return Ok(self);
+        }
+        if !self.workspaces.iter().any(|w| w.id == from) {
+            return Err(format!("no workspace called {from}"));
+        }
+        if self.workspaces.iter().any(|w| w.id == to) {
+            return Err(format!("{to} already exists"));
+        }
+        for w in &mut self.workspaces {
+            if w.id == from {
+                w.id = to.to_owned();
+            }
+        }
+        for p in &mut self.projects {
+            if p.workspace == from {
+                p.workspace = to.to_owned();
+            }
+        }
+        self.workspaces.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(self)
+    }
+
+    /// Rename a project.
+    ///
+    /// Nothing points at a project by name, so this only has to not leave
+    /// the old one behind — which is exactly what registering under a new
+    /// name would do.
+    pub fn rename_project(mut self, from: &str, to: &str) -> Result<Self, String> {
+        if from == to {
+            return Ok(self);
+        }
+        if self.projects.iter().any(|p| p.id == to) {
+            return Err(format!("{to} already exists"));
+        }
+        self.projects.retain(|p| p.id != from);
+        Ok(self)
+    }
+
     /// Drop a workspace, unless something still belongs to it.
     ///
     /// Refused rather than cascaded: forgetting a workspace and silently
@@ -268,6 +313,59 @@ mod tests {
             export: Export::Metadata,
         });
         assert!(cfg.without_workspace("spare").is_ok());
+    }
+
+    #[test]
+    fn renaming_a_workspace_takes_its_projects_with_it() {
+        // Left behind, they would point at a name that no longer exists —
+        // and that configuration does not fail to save, it fails to *open*.
+        let cfg = Config::parse(CFG)
+            .unwrap()
+            .rename_workspace("personal", "mine")
+            .unwrap();
+        assert!(cfg.workspaces.iter().any(|w| w.id == "mine"));
+        assert!(
+            cfg.projects
+                .iter()
+                .filter(|p| p.workspace == "mine")
+                .count()
+                == 2
+        );
+        assert!(!cfg.projects.iter().any(|p| p.workspace == "personal"));
+        // And what it produced still parses, which is the actual claim.
+        let text = serde_json::to_string(&cfg).unwrap();
+        assert!(Config::parse(&text).is_ok());
+    }
+
+    #[test]
+    fn renaming_onto_a_name_that_exists_is_refused() {
+        let err = Config::parse(CFG)
+            .unwrap()
+            .rename_workspace("personal", "client-x")
+            .unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+    }
+
+    #[test]
+    fn renaming_a_workspace_to_itself_changes_nothing() {
+        let before = Config::parse(CFG).unwrap();
+        let after = before
+            .clone()
+            .rename_workspace("personal", "personal")
+            .unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn renaming_a_project_leaves_nothing_behind() {
+        // Registering under a new name would keep the old entry, and the
+        // cockpit would watch the same tree twice under two names.
+        let cfg = Config::parse(CFG)
+            .unwrap()
+            .rename_project("zed", "editor")
+            .unwrap();
+        assert!(!cfg.projects.iter().any(|p| p.id == "zed"));
+        assert_eq!(cfg.projects.len(), 2);
     }
 
     #[test]

@@ -15,13 +15,14 @@
 /// could not switch off, and a licence file was one line six hundred
 /// characters long.
 import { createRoot } from "react-dom/client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
 import { Badge, Card, Heading, Mono, RowButton, Text } from "../src/components";
 import { aliveness, exportsAs } from "../src/core/work";
 import { Divider, Listing, ListingItem, Mount, Page, Row, Stack } from "../src/frame";
 import { Workbench } from "../src/layouts";
+import { WorkspacesPanel } from "../src/pages/settings/workspaces";
 import { THEME, definition, paletteFor } from "../src/core/monaco-theme";
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() };
@@ -166,6 +167,7 @@ function Editor() {
         bracketPairColorization: { enabled: false },
         renderLineHighlight: "none",
         overviewRulerLanes: 0,
+        scrollbar: { verticalScrollbarSize: 11, horizontalScrollbarSize: 11, useShadows: false },
         minimap: { enabled: false },
         automaticLayout: true,
         scrollBeyondLastLine: false,
@@ -178,8 +180,46 @@ function Editor() {
 
 const FILES = ["Cargo.toml", "LICENSE-MIT", "README.md", "arch.config.json", "rust-toolchain.toml"];
 
+/// The settings dialog, with a configuration invented for it.
+function Settings() {
+  const [config, setConfig] = useState({
+    workspaces: [{ id: "personal", export: "metadata" as const }, { id: "client-x", export: "summary" as const }],
+    runtimes: [],
+    projects: [
+      { id: "bancada", workspace: "personal", runtime: "this-machine",
+        path: "/Users/henrique/Documents/dev/personal/bancada", weight: 1, idleAfterMinutes: 2 },
+      { id: "neo-gitmoji", workspace: "personal", runtime: "devbox",
+        path: "/mnt/dev/neo-gitmoji.nvim", weight: 1, idleAfterMinutes: 2 },
+    ],
+  });
+  return (
+    <Page>
+      <Stack gap="loose">
+        <Heading level={1} as="h1">Workspaces</Heading>
+        <Text tone="muted" size="sm">
+          Who each project belongs to, and what its supervisor may let out.
+        </Text>
+        <Divider soft />
+        <WorkspacesPanel
+          config={config}
+          onRegister={(w, previous) =>
+            setConfig((c) => ({
+              ...c,
+              workspaces: [...c.workspaces.filter((x) => x.id !== (previous ?? w.id)), w],
+            }))
+          }
+          onForget={(id) =>
+            setConfig((c) => ({ ...c, workspaces: c.workspaces.filter((w) => w.id !== id) }))
+          }
+          failed={null}
+        />
+      </Stack>
+    </Page>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
-  q.has("work") ? <Work /> : (
+  q.has("settings") ? <Settings /> : q.has("work") ? <Work /> : (
   <Workbench
     bar={
       <>

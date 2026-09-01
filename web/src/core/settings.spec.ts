@@ -166,3 +166,33 @@ describe("whyNotRuntime", () => {
     expect(whyNotRuntime({ ...vm, prefix: [] }, config)).toMatch(/in front of every command/);
   });
 });
+
+describe("whyNot, editing rather than creating", () => {
+  const taken: Config = {
+    ...config,
+    projects: [
+      { ...good, id: "bancada" },
+      { ...good, id: "neo-gitmoji" },
+    ],
+  };
+
+  it("refuses a name another project already has", () => {
+    // Registering over it would replace that project and quietly take its
+    // path, weight and workspace with it.
+    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken)).toBe(
+      "neo-gitmoji is already registered",
+    );
+  });
+
+  it("lets a project keep its own name while being edited", () => {
+    // A thing is not a collision with itself, and the form that edits is
+    // the same form that creates.
+    expect(whyNot({ ...good, id: "bancada" }, taken, "bancada")).toBeNull();
+  });
+
+  it("still refuses renaming onto a name somebody else has", () => {
+    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken, "bancada")).toBe(
+      "neo-gitmoji is already registered",
+    );
+  });
+});

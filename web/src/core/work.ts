@@ -26,8 +26,8 @@ export interface Work {
 }
 
 export const loadWork = (): Promise<Work> => invoke<Work>("work");
-export const registerWorkspace = (workspace: Workspace): Promise<Config> =>
-  invoke<Config>("register_workspace", { workspace });
+export const registerWorkspace = (workspace: Workspace, previous?: string): Promise<Config> =>
+  invoke<Config>("register_workspace", { workspace, previous: previous ?? null });
 export const forgetWorkspace = (id: string): Promise<Config> =>
   invoke<Config>("forget_workspace", { id });
 

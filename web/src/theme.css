@@ -120,4 +120,34 @@
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
+
+  /* The webview draws its own scrollbars, and the default is a wide grey
+     slab from a different design. Thin, warm, and only as present as it has
+     to be: a scrollbar is a position indicator that happens to be draggable,
+     not a control anybody looks at. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--line);
+    border-radius: 999px;
+    /* Drawn inside a transparent border so the visible bar is 5px while the
+       grab target stays 11 — thin to look at and still catchable. */
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ink-faint);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }

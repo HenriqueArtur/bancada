@@ -9,3 +9,4 @@ export { Notice, type Tone } from "@/composites/notice";
 export { Section } from "@/composites/section";
 export { EmptyState } from "@/composites/empty-state";
 export { Banner } from "@/composites/banner";
+export { NewThing } from "@/composites/new-thing";

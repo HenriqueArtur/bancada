@@ -7,11 +7,16 @@ import { BackToQueue, Elsewhere, WipBar } from "@/pages/_shared";
 import { CockpitView, FilesPage, ReviewPage, SettingsPage, WorkPage, useCockpit } from "@/pages";
 import { Button } from "@/components";
 
+import type { Origin } from "@/pages/_shared";
+
 type Where =
   | { at: "cockpit" }
   | { at: "work" }
-  | { at: "review"; project: string }
-  | { at: "files"; project: string };
+  /// `from` is where the project was opened, so the way back leads there.
+  /// Always sending you to the queue is right half the time, and the other
+  /// half is the product deciding you were somewhere else.
+  | { at: "review"; project: string; from: Origin }
+  | { at: "files"; project: string; from: Origin };
 
 /// Which screen, and the queue that every screen carries.
 ///
@@ -46,7 +51,7 @@ export function App() {
         <CockpitView
           queue={queue}
           mute={mute}
-          onOpenProject={(project) => setWhere({ at: "review", project })}
+          onOpenProject={(project) => setWhere({ at: "review", project, from: "cockpit" })}
           onOpenSettings={() => setSettings(true)}
           onOpenWork={() => setWhere({ at: "work" })}
         />
@@ -60,7 +65,7 @@ export function App() {
       <>
         <WorkPage
           queue={queue}
-          onOpen={(project) => setWhere({ at: "review", project })}
+          onOpen={(project) => setWhere({ at: "review", project, from: "work" })}
           onOpenSettings={() => setSettings(true)}
           onOpenQueue={() => setWhere({ at: "cockpit" })}
         />
@@ -74,14 +79,14 @@ export function App() {
       <Button
         tone={where.at === "review" ? "outline" : "ghost"}
         size="sm"
-        onClick={() => setWhere({ at: "review", project: where.project })}
+        onClick={() => setWhere({ at: "review", project: where.project, from: where.from })}
       >
         What changed
       </Button>
       <Button
         tone={where.at === "files" ? "outline" : "ghost"}
         size="sm"
-        onClick={() => setWhere({ at: "files", project: where.project })}
+        onClick={() => setWhere({ at: "files", project: where.project, from: where.from })}
       >
         Files
       </Button>
@@ -97,7 +102,8 @@ export function App() {
         <FilesPage
           project={where.project}
           queue={queue}
-          onBack={() => setWhere({ at: "cockpit" })}
+          from={where.from}
+          onBack={() => setWhere({ at: where.from })}
           tabs={tabs}
         />
         {dialog}
@@ -110,7 +116,9 @@ export function App() {
       <AppShell
         wide
         title={where.project}
-        above={<BackToQueue queue={queue} onBack={() => setWhere({ at: "cockpit" })} />}
+        above={
+          <BackToQueue queue={queue} from={where.from} onBack={() => setWhere({ at: where.from })} />
+        }
         banner={<Elsewhere path={queue.elsewhere} />}
         aside={
           <Row gap="normal">

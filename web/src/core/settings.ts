@@ -75,8 +75,8 @@ export const previewProject = (path: string, runtime: string): Promise<Preview> 
 export const registerRuntime = (runtime: RuntimeSpec): Promise<Config> =>
   invoke<Config>("register_runtime", { runtime });
 export const discover = (): Promise<Discovery[]> => invoke<Discovery[]>("discover");
-export const registerProject = (project: Project): Promise<Config> =>
-  invoke<Config>("register_project", { project });
+export const registerProject = (project: Project, previous?: string): Promise<Config> =>
+  invoke<Config>("register_project", { project, previous: previous ?? null });
 export const forgetProject = (id: string): Promise<Config> =>
   invoke<Config>("forget_project", { id });
 
@@ -102,8 +102,11 @@ export const BLANK: Project = {
 ///
 /// Returned rather than thrown, and one reason at a time: a form that
 /// lights up four errors at once is one people stop reading.
-export function whyNot(p: Project, config: Config): string | null {
+export function whyNot(p: Project, config: Config, previous?: string): string | null {
   if (!p.id.trim()) return "give it a name";
+  if (p.id !== previous && config.projects.some((x) => x.id === p.id)) {
+    return `${p.id} is already registered`;
+  }
   if (!p.path.trim()) return "where does it live, as the guest spells it?";
   if (!p.path.startsWith("/")) return "the path must be absolute";
   if (!p.runtime) return "which runtime runs it?";

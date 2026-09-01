@@ -64,6 +64,12 @@ export function CodeView({ project, path }: { project: string; path: string | nu
           bracketPairColorization: { enabled: false },
           renderLineHighlight: "none",
           overviewRulerLanes: 0,
+          // Monaco draws its own, so it needs telling twice.
+          scrollbar: {
+            verticalScrollbarSize: 11,
+            horizontalScrollbarSize: 11,
+            useShadows: false,
+          },
           minimap: { enabled: false },
           automaticLayout: true,
           scrollBeyondLastLine: false,
