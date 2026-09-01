@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 /// What a pending decision is, without saying anything about its content.
 ///
 /// The kind is the first factor of the ranking, and it is the reason a
 /// permission on a critical project stays below an architecture choice on
 /// a dormant one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DecisionKind {
     /// A structured question with options.
     Question,

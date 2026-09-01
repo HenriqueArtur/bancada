@@ -1,5 +1,6 @@
 use crate::QueueItem;
 use bancada_meta::Timestamp;
+use serde::{Deserialize, Serialize};
 
 /// A queue item with the arithmetic that placed it, kept rather than
 /// discarded.
@@ -7,7 +8,7 @@ use bancada_meta::Timestamp;
 /// The breakdown is the feature: weights and thresholds per project make
 /// the order opaque, and a queue nobody trusts is a queue nobody reads.
 /// Keeping the factors costs nothing, because they were all computed.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ranked {
     pub item: QueueItem,
     pub score: u64,

@@ -1,0 +1,83 @@
+/* Dark cockpit: at rest the screen is empty and quiet. Colour is reserved
+   for things that ask for an action, so a colour that appears means one. */
+:root {
+  --bg: #0e1116;
+  --surface: #161b22;
+  --border: #2a313c;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #d4a017;
+  --urgent: #e5534b;
+  --calm: #3fb950;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --border: #d8dee4;
+    --text: #1f2328;
+    --muted: #59636e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.app { max-width: 780px; margin: 0 auto; padding: 28px 20px 60px; }
+
+.head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.head h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+.head .wip { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.head .wip.over { color: var(--urgent); }
+
+.group {
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); margin-bottom: 10px; overflow: hidden;
+}
+.group > .session {
+  padding: 8px 14px; font-size: 12px; color: var(--muted);
+  border-bottom: 1px solid var(--border); font-family: ui-monospace, monospace;
+}
+
+.item {
+  display: flex; gap: 14px; align-items: baseline;
+  padding: 11px 14px; width: 100%; text-align: left;
+  background: none; border: 0; color: inherit; font: inherit; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.item:last-child { border-bottom: 0; }
+.item:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.item .when {
+  color: var(--muted); font-variant-numeric: tabular-nums;
+  min-width: 68px; font-family: ui-monospace, monospace; font-size: 12px;
+}
+.item .what { flex: 1; }
+.item .count { color: var(--muted); font-size: 12px; }
+
+.breakdown {
+  padding: 10px 14px 14px 96px; font-size: 12px; color: var(--muted);
+  font-family: ui-monospace, monospace; border-bottom: 1px solid var(--border);
+}
+.breakdown div { display: flex; justify-content: space-between; max-width: 320px; }
+.breakdown .total { color: var(--text); border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+
+/* The empty state is the normal one, and it says nothing loudly. */
+.empty { color: var(--muted); text-align: center; padding: 80px 0 40px; }
+.empty p { margin: 0; }
+.empty .sub { font-size: 12px; margin-top: 8px; }
+
+.unreachable {
+  margin-top: 18px; padding: 10px 14px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 8px; color: var(--muted);
+}

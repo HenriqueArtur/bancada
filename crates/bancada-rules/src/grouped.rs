@@ -1,5 +1,6 @@
 use crate::Ranked;
 use bancada_meta::{DecisionKind, SessionId};
+use serde::{Deserialize, Serialize};
 
 /// The queue as it is shown: items of one session together, sessions in
 /// the order of their strongest item.
@@ -7,7 +8,7 @@ use bancada_meta::{DecisionKind, SessionId};
 /// Grouping is display, not ranking. The order between groups is decided
 /// by the best item in each, so a session never floats up because it has
 /// many trivial things pending.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Grouped {
     pub session: SessionId,
     pub items: Vec<Ranked>,
@@ -55,7 +56,7 @@ pub fn group(ranked: Vec<Ranked>) -> Vec<Grouped> {
             }),
         }
     }
-    out.sort_by(|a, b| b.score().cmp(&a.score()));
+    out.sort_by_key(|g| std::cmp::Reverse(g.score()));
     out
 }
 

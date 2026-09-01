@@ -3,3 +3,5 @@
 /dist
 .DS_Store
 /crates/**/target
+/web/dist
+/app/node_modules

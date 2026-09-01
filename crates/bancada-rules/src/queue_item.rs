@@ -1,11 +1,12 @@
 use bancada_meta::{DecisionKind, SessionId, Timestamp};
+use serde::{Deserialize, Serialize};
 
 /// One thing waiting on the human.
 ///
 /// The unit is the decision, not the session: a pending question and a
 /// scope escape in the same session are two things, need two actions, and
 /// neither may hide behind the other.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueItem {
     pub session: SessionId,
     pub kind: DecisionKind,

@@ -1,5 +1,6 @@
+use serde::{Deserialize, Serialize};
 /// Opaque identity of a session, as the harness spelled it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SessionId(String);
 
 impl SessionId {

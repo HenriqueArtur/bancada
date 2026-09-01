@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 /// Milliseconds since the Unix epoch.
 ///
 /// There is deliberately no `now()`. The ranking is a function of time, so
 /// a clock reachable from inside would make the most important part of the
 /// product the least testable — see `docs/SPIKES.md`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Timestamp(i64);
 
 impl Timestamp {

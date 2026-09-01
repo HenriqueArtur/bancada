@@ -1,4 +1,5 @@
 use crate::Grouped;
+use serde::{Deserialize, Serialize};
 
 /// How much of the human's attention is already spoken for.
 ///
@@ -6,7 +7,7 @@ use crate::Grouped;
 /// running. Six agents working cost no attention; five stalled on you mean
 /// you became the bottleneck. Unweighted on purpose: attention is finite
 /// regardless of whose work it is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wip {
     pub sessions_waiting: usize,
     pub items: usize,
