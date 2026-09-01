@@ -569,3 +569,51 @@ resolving; it is two languages with different tools for the same intent.
 - The audit's real lesson is about the linter, not the rules:
   `archwarden check` passes on a rule that matches nothing, and only
   `config doctor` says so. It now runs in the gate list.
+
+---
+
+## ADR-018 · Inline styles are allowed, and nothing else is
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+The webview shipped with `default-src 'self'` and nothing else, which is the
+right instinct: no network, no CDN, no eval, everything from the bundle.
+
+It also silently destroyed the file viewer. Monaco positions every single line
+with a `style` attribute and injects its token colours as a `<style>` element
+at runtime. Under the strict policy the lines stacked on top of one another,
+nothing was coloured, and scrolling left holes in the text.
+
+It took three rounds of *"it is still broken"* to find, and the reason is
+worth recording: **a blocked style raises no error.** The tests passed, the
+build passed, the dev server was perfect, and the production build served over
+plain HTTP was perfect too. Only the packaged app was wrong, because only the
+packaged app carries the policy.
+
+### Decision
+
+```
+default-src 'self'; style-src 'self' 'unsafe-inline'
+```
+
+Nothing else moves. Script, connect, img and font stay on `default-src`, so
+CSS still has nowhere to reach — the classic abuse of `'unsafe-inline'` styles
+is exfiltration through `background: url(https://…)`, and that URL is refused
+by a directive this change does not touch.
+
+A test in the shell reads `tauri.conf.json` and asserts both halves: that the
+loosening is there, and that it is still only this one.
+
+### Consequences
+
+- The file viewer works, in both themes, with the palette from ADR-015.
+- Anything that renders through injected styles now works too, which includes
+  most of what a future dependency will want. That is a genuine loss of
+  strictness and the reason it is written down rather than merely committed.
+- **The diagnostic loop is the lasting part.** The bug was invisible to every
+  gate, so the fix was to reproduce the policy outside the app: serve the
+  production build with the header attached and render it in headless Chrome.
+  `web/probe/` builds with `PROBE=1`, and the difference between "works over
+  HTTP" and "works under the app's CSP" is now one command apart.

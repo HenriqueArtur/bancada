@@ -14,6 +14,13 @@ export default defineConfig({
   // same build working in a browser and inside the shell.
   base: "./",
   build: {
+    // The probe is built alongside the app only when asked for. Production
+    // asset loading is the thing that differs from the dev server, so a
+    // probe that only ever runs under `vite dev` cannot see the bugs that
+    // live there.
+    rollupOptions: process.env.PROBE
+      ? { input: { index: "index.html", probe: "probe/index.html" } }
+      : undefined,
     outDir: "dist",
     emptyOutDir: true,
     // Monaco is ~3.3 MB and lands in its own chunk, fetched only when a
