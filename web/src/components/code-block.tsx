@@ -50,7 +50,7 @@ export function CodeBlock({
 /// A whole file, unhighlighted. The fallback when Monaco will not load.
 export function PlainText({ text }: { text: string }) {
   return (
-    <pre className="m-0 h-full overflow-auto rounded-card border border-line bg-surface p-3.5 font-mono text-xs">
+    <pre className="m-0 h-full overflow-auto whitespace-pre-wrap break-words bg-surface p-3.5 font-mono text-xs">
       {text}
     </pre>
   );

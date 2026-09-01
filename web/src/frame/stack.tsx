@@ -86,6 +86,15 @@ export function Row({
   );
 }
 
+/// Takes whatever room is left, and may be narrower than its content.
+///
+/// `min-w-0` and `min-h-0` are the whole point: a flex child defaults to
+/// `min-width: auto`, so one long line of code pushes the pane wider than
+/// the window instead of scrolling inside it.
+export function Fill({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("min-h-0 min-w-0 flex-1", className)}>{children}</div>;
+}
+
 /// Empty space that pushes what follows to the far edge.
 export function Push() {
   return <div className="ml-auto" />;

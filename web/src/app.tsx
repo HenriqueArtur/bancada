@@ -53,6 +53,42 @@ export function App() {
     );
   }
 
+  const tabs = (
+    <Row gap="tight">
+      <Button
+        tone={where.at === "review" ? "outline" : "ghost"}
+        size="sm"
+        onClick={() => setWhere({ at: "review", project: where.project })}
+      >
+        What changed
+      </Button>
+      <Button
+        tone={where.at === "files" ? "outline" : "ghost"}
+        size="sm"
+        onClick={() => setWhere({ at: "files", project: where.project })}
+      >
+        Files
+      </Button>
+    </Row>
+  );
+
+  // The file pane gets the whole window; everything else keeps the measured
+  // column. Prose wants a narrow line and an editor wants every pixel, and
+  // one shell cannot be right for both.
+  if (where.at === "files") {
+    return (
+      <>
+        <FilesPage
+          project={where.project}
+          queue={queue}
+          onBack={() => setWhere({ at: "cockpit" })}
+          tabs={tabs}
+        />
+        {dialog}
+      </>
+    );
+  }
+
   return (
     <>
       <AppShell
@@ -63,30 +99,11 @@ export function App() {
         aside={
           <Row gap="normal">
             <WipBar wip={queue.wip} />
-            <Row gap="tight">
-              <Button
-                tone={where.at === "review" ? "outline" : "ghost"}
-                size="sm"
-                onClick={() => setWhere({ at: "review", project: where.project })}
-              >
-                What changed
-              </Button>
-              <Button
-                tone={where.at === "files" ? "outline" : "ghost"}
-                size="sm"
-                onClick={() => setWhere({ at: "files", project: where.project })}
-              >
-                Files
-              </Button>
-            </Row>
+            {tabs}
           </Row>
         }
       >
-        {where.at === "review" ? (
-          <ReviewPage project={where.project} />
-        ) : (
-          <FilesPage project={where.project} />
-        )}
+        <ReviewPage project={where.project} />
       </AppShell>
       {dialog}
     </>

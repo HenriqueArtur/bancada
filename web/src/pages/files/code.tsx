@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { loadFile } from "@/core/review";
 import { THEME, definition, paletteFor, prefersDark } from "@/core/monaco-theme";
 import { PlainText, Text } from "@/components";
-import { Mount } from "@/frame";
+import { Inset, Mount } from "@/frame";
 
 /// A file, read-only.
 ///
@@ -52,6 +52,12 @@ export function CodeView({ project, path }: { project: string; path: string | nu
           fontSize: 13,
           lineHeight: 20,
           padding: { top: 12, bottom: 12 },
+          // Wrapped, and indented where it wraps. This is a reading pane,
+          // not an editing one: a line that runs off the right edge is a
+          // line you did not review, and a licence file is four paragraphs
+          // of six hundred characters each.
+          wordWrap: "on",
+          wrappingIndent: "indent",
           // Rainbow brackets are a separate feature from the token rules, and
           // they ship their own primaries. Punctuation is deliberately not
           // coloured here — colouring it is how a file starts looking busy.
@@ -71,30 +77,23 @@ export function CodeView({ project, path }: { project: string; path: string | nu
     };
   }, [text, path]);
 
-  if (!path) {
-    return (
-      <Text tone="muted" size="sm">
-        Pick a file.
-      </Text>
-    );
-  }
-  if (failed) {
-    return (
-      <Text tone="alarm" size="sm">
-        {failed}
-      </Text>
-    );
-  }
-  if (text === null) {
-    return (
-      <Text tone="muted" size="sm">
-        Reading…
-      </Text>
-    );
-  }
+  if (!path) return <Aside>Pick a file.</Aside>;
+  if (failed) return <Aside tone="alarm">{failed}</Aside>;
+  if (text === null) return <Aside>Reading…</Aside>;
   if (plain) return <PlainText text={text} />;
+  // No border and no radius: the pane *is* the editor, and a card around
+  // it would be a frame around a window.
+  return <Mount ref={host} />;
+}
+
+/// A one-line state, set in from the edge like the text would be.
+function Aside({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "alarm" }) {
   return (
-    <Mount ref={host} className="min-h-[340px] overflow-hidden rounded-card border border-line" />
+    <Inset pad="normal">
+      <Text tone={tone} size="sm">
+        {children}
+      </Text>
+    </Inset>
   );
 }
 
