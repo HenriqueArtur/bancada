@@ -71,16 +71,26 @@ pub fn file(project: String, path: String) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "not text".to_owned())
 }
 
+/// The project's tree, and a runtime that can reach it.
+///
+/// The project's own runtime, not the local one: `path` is written in the
+/// *guest's* spelling, and only that runtime knows how the host spells the
+/// same tree. Reading it locally would look for `/mnt/dev/...` on a Mac and
+/// report the project missing.
 fn project_root(id: &str) -> Result<(PathBuf, HostRuntime), String> {
     let cockpit = Cockpit::new(super::queue::load_config()?);
-    let root = cockpit
+    let project = cockpit
         .config()
         .projects
         .iter()
         .find(|p| p.id == id)
-        .map(|p| PathBuf::from(&p.path))
         .ok_or_else(|| format!("no project registered as {id}"))?;
-    Ok((root, HostRuntime::local()))
+    let at = cockpit
+        .config()
+        .runtime_of(project)
+        .ok_or_else(|| format!("no runtime registered for {id}"))?
+        .open();
+    Ok((PathBuf::from(&project.path), at))
 }
 
 /// Join a caller-supplied relative path to the project root, refusing to

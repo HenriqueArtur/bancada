@@ -38,8 +38,6 @@ pub struct SessionReview {
 #[tauri::command]
 pub fn review(project: String, seen: HashMap<String, String>) -> Result<ReviewView, String> {
     let cockpit = Cockpit::new(super::queue::load_config()?);
-    let host = HostRuntime::local();
-
     let project = cockpit
         .config()
         .projects
@@ -47,7 +45,19 @@ pub fn review(project: String, seen: HashMap<String, String>) -> Result<ReviewVi
         .find(|p| p.id == project)
         .ok_or_else(|| format!("no project registered as {project}"))?;
 
-    let (diff, unreachable) = match cockpit.diff_of(project, &host) {
+    // Two runtimes, deliberately. The harness keeps its logs on *this*
+    // machine — `configDir` is written in the host's spelling — while the
+    // project's tree lives wherever the project runs, and `git -C` has to be
+    // asked there. Reading both through one runtime is how a VM project
+    // reports "no such directory" about a tree that exists.
+    let host = HostRuntime::local();
+    let at = cockpit
+        .config()
+        .runtime_of(project)
+        .ok_or_else(|| format!("no runtime registered for {}", project.id))?
+        .open();
+
+    let (diff, unreachable) = match cockpit.diff_of(project, &at) {
         Ok(mut d) => {
             d.mark_fresh(&seen);
             (d, None)

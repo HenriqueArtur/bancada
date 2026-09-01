@@ -282,6 +282,50 @@ mod tests {
     }
 
     #[test]
+    fn git_is_asked_at_the_path_the_project_registered() {
+        // The guest's spelling, untranslated. The runtime handed in is the
+        // one that can reach that tree — translating here would produce a
+        // host path and run `git` in a directory the project does not have.
+        struct Spy(std::cell::RefCell<Vec<String>>);
+        impl Runtime for Spy {
+            fn id(&self) -> &str {
+                "spy"
+            }
+            fn kind(&self) -> &str {
+                "vm"
+            }
+            fn paths(&self) -> &bancada_runtime::PathMap {
+                unimplemented!()
+            }
+            fn fs_access(&self) -> bancada_runtime::FsAccess {
+                bancada_runtime::FsAccess::Shared
+            }
+            fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
+                self.0.borrow_mut().push(cmd.join(" "));
+                Ok(String::new())
+            }
+            fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
+                Err(RuntimeError::NotFound(p.display().to_string()))
+            }
+            fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
+                Err(RuntimeError::NotFound(p.display().to_string()))
+            }
+        }
+
+        let c = cockpit();
+        let spy = Spy(std::cell::RefCell::new(Vec::new()));
+        c.diff_of(&c.config().projects[0], &spy).unwrap();
+
+        let calls = spy.0.borrow();
+        assert!(
+            calls
+                .iter()
+                .all(|c| c.contains("-C /mnt/dev/neo-gitmoji.nvim")),
+            "git was asked somewhere else: {calls:?}"
+        );
+    }
+
+    #[test]
     fn a_tracked_change_reaches_the_diff() {
         let c = cockpit();
         let d = c
