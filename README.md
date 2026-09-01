@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo/mark-dark.svg">
+  <img src="docs/logo/mark-light.svg" alt="" width="96" align="right">
+</picture>
+
 # bancada
 
 A cockpit for supervising AI coding agents across clients, accounts and
@@ -78,7 +83,7 @@ bun install --cwd web
 bun install --cwd app
 
 bun run --cwd app build
-open target/release/bundle/macos/bancada.app
+open target/release/bundle/macos/Bancada.app
 ```
 
 macOS is the platform it is developed and shipped on today. The Rust core is
@@ -178,6 +183,23 @@ gate. It is the one ordering in the plan that is not negotiable.
 | [REFERENCES.md](docs/REFERENCES.md) | Every source that shaped a decision |
 | [RISKS.md](docs/RISKS.md) | What is known to be dangerous |
 | [specs/](docs/specs/) | Per-unit specifications |
+
+## The mark
+
+Three things propped against a bench, one of them in clay.
+
+It is drawn by [`tools/logo.py`](tools/logo.py) from parameters rather than
+written as paths, so moving one is changing a number. Every mark is a filled
+outline and never a stroke — a stroke has one width and machine ends, and no
+amount of curving hides that — with the two long sides bowing a third of a
+pixel in opposite directions. Nobody sees it; everybody feels it.
+
+The clay one is neither the tallest nor the first. What wants you is not the
+biggest thing on the bench.
+
+```sh
+tools/logo.py docs/logo/mark-light.svg
+```
 
 ## Licence
 

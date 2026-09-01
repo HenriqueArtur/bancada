@@ -11,7 +11,7 @@ set -euo pipefail
 
 CONFIG="${1:-$HOME/.config/bancada/test.json}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$HERE/target/release/bundle/macos/bancada.app"
+APP="$HERE/target/release/bundle/macos/Bancada.app"
 
 [ -f "$CONFIG" ] || { echo "no configuration at $CONFIG" >&2; exit 1; }
 [ -d "$APP" ] || { echo "no bundle at $APP — run 'bun run --cwd app build'" >&2; exit 1; }
