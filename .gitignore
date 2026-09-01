@@ -6,8 +6,12 @@
 /web/dist
 /app/node_modules
 
-# archwarden keeps a parse cache here; it is machine-local state.
-.archwarden/
+# archwarden keeps a parse cache here; it is machine-local state. The
+# decision documents under it are generated *and* committed — they are the
+# rendering of what the config declares, with a region each that belongs to
+# whoever opens them.
+.archwarden/*
+!.archwarden/decisions/
 
 # lockfiles come from bun; npm must not leave a second, disagreeing one
 package-lock.json

@@ -337,7 +337,7 @@ manager's platform maturity never reaches production.
 ### Context
 
 Two habits crept in while the first milestone was being built: `npm` was used
-to add a package even though ADR-004 chose bun, and every dependency was
+to add a package even though ADR-010 chose bun, and every dependency was
 written as a range — `"react": "^19.0.0"`, `serde = "1"`.
 
 Both are the same mistake wearing different clothes. A range says *some*
@@ -530,3 +530,42 @@ static stylesheet is what `default-src 'self'` requires anyway.
   forbid imports, and a file that imports nothing cannot be told from one the
   rule does not cover. Named here so the gap is known rather than assumed
   closed.
+
+---
+
+## ADR-017 · A Rust file names what it exports and carries its own tests
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+The convention was there from the first crate and had never been written down.
+Auditing the linter's own configuration is what surfaced it: two rules were
+pointed at `crates/*/src/*`, which selects the *directories inside* `src`, of
+which there are none. Both had been reporting nothing since the day they were
+written, and both showed green.
+
+### Decision
+
+**A file names what it exports.** `session_state.rs` exports `SessionState`.
+The rule now points at `crates/*/src` and passes on the tree as it stands.
+
+**Tests live inside the file they test**, in `#[cfg(test)] mod tests`, not in a
+sibling. A test in the file can reach the private function it is testing, and
+moves with it when the file moves — which is the half nobody remembers to
+check in review.
+
+The webview does the opposite, with sibling `.spec.tsx` files, because
+TypeScript gives it no other option. That is not an inconsistency worth
+resolving; it is two languages with different tools for the same intent.
+
+### Consequences
+
+- `rust/every-unit-carries-its-tests` is **deleted** rather than fixed.
+  `spec-pair` is sibling-file shaped, and no glob makes it fit an inline
+  module. A rule that cannot be written is better absent than dead and green.
+- The convention is recorded in the config with `enforcement: none` and the
+  reason, so the gap is known rather than assumed closed. Filed upstream.
+- The audit's real lesson is about the linter, not the rules:
+  `archwarden check` passes on a rule that matches nothing, and only
+  `config doctor` says so. It now runs in the gate list.

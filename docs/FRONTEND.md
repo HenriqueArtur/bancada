@@ -98,5 +98,10 @@ that arrives late is a layout that moves under the reader.
 bun install --cwd web
 bun run --cwd web test      # vitest
 bun run --cwd web build     # tsc -b && vite build
-bunx --bun archwarden@latest check
+bunx --bun archwarden@latest check          # does the tree obey the rules
+bunx --bun archwarden@latest config doctor  # do the rules reach anything
 ```
+
+`check` passes on a rule whose glob matches nothing. Two Rust rules were green
+that way for a fortnight, reporting on directories that do not exist — only
+`config doctor` says so, so it belongs in the same breath.

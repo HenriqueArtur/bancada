@@ -5,6 +5,391 @@
     "rust",
     "ts"
   ],
+  "decisions": [
+    {
+      "id": "ADR-001",
+      "title": "The product supervises the human's attention, not the agents",
+      "why": "This is client work: the decisions are the user's because the responsibility is, and an autonomous supervisor moves risk somewhere nobody looks.",
+      "link": "docs/DECISIONS.md#adr-001--attention-supervision-not-orchestration",
+      "enforcement": "none",
+      "why_not_enforceable": "It is a claim about what the product is for. No import boundary can tell a queue that ranks decisions from one that takes them.",
+      "scope": [
+        "crates/**",
+        "app/**",
+        "web/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Supervisor\u2013worker orchestration",
+          "why_not": "The dominant pattern in every agent framework, and what the comparable tools build. It removes the human from decisions the human wants to make."
+        },
+        {
+          "option": "L3 autonomy, agents deciding for themselves",
+          "why_not": "The goal was never to decide less. It was to decide better, which is the opposite optimisation."
+        },
+        {
+          "option": "Parallel panes with no supervision",
+          "why_not": "Keeps the human in the loop and helps them not at all. Prettier terminals, same cognitive load."
+        }
+      ]
+    },
+    {
+      "id": "ADR-002",
+      "title": "The product informs, you decide; nothing blocks",
+      "why": "A product that dictates workflow gets worked around on the first urgent day, and then the information is lost along with the block.",
+      "link": "docs/DECISIONS.md#adr-002--the-product-informs-you-decide-nothing-blocks",
+      "enforcement": "none",
+      "why_not_enforceable": "A rule can see that code exists, not that it refuses. Whether a check blocks or merely reports is behaviour, not shape.",
+      "scope": [
+        "crates/bancada-rules/**",
+        "web/src/pages/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Blocking on unsatisfied preconditions",
+          "why_not": "False confidence, and it gets disabled. Whoever wants to bypass it opens a terminal."
+        },
+        {
+          "option": "Hard limits on WIP, diff size or resources",
+          "why_not": "The same, plus it punishes legitimate work."
+        }
+      ]
+    },
+    {
+      "id": "ADR-003",
+      "title": "The workspace is the confidentiality boundary, not the machine",
+      "why": "One runtime can host two workspaces and one workspace can span runtimes; treating them as a single axis is the most likely source of a leak.",
+      "link": "docs/DECISIONS.md#adr-003--the-workspace-is-the-boundary-not-the-machine",
+      "enforcement": "none",
+      "why_not_enforceable": "The boundary is a property of configuration at runtime, not of the import graph. What a rule *can* keep is the crate that carries no content, which ADR-004 owns.",
+      "scope": [
+        "crates/bancada-core/**",
+        "crates/bancada-meta/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Runtime as the boundary, one VM per client",
+          "why_not": "Breaks on the first local project and on the first runtime hosting two clients."
+        },
+        {
+          "option": "Per-project confidentiality settings",
+          "why_not": "With twelve projects you configure on autopilot, and the default decides instead of you."
+        }
+      ]
+    },
+    {
+      "id": "ADR-004",
+      "title": "The rules engine has no AI and reads only metadata",
+      "why": "There is no global model reading everything because the global thing is not a model \u2014 so hallucination never enters the ranking of the user's attention.",
+      "link": "docs/DECISIONS.md#adr-004--the-rules-engine-has-no-ai",
+      "enforcement": "none",
+      "why_not_enforceable": "Enforced by construction rather than by a rule: `MetaEvent` has no variant that can hold content, so a leak is unrepresentable rather than forbidden. An import boundary keeping a model client out of `bancada-rules` would be a second, weaker guard on a door that has no opening. Recorded here so the guarantee is known to rest on the type, and would need a rule the day the type softens.",
+      "scope": [
+        "crates/bancada-rules/**",
+        "crates/bancada-meta/**"
+      ],
+      "alternatives": [
+        {
+          "option": "An AI agent doing the triage",
+          "why_not": "Flexible, and it puts hallucination in the most dangerous possible place: the order of the attention queue."
+        },
+        {
+          "option": "Rules only, no AI anywhere in the product",
+          "why_not": "Loses pre-digestion, which is half the value, and cannot distinguish \"finished\" from \"only reported\"."
+        }
+      ]
+    },
+    {
+      "id": "ADR-005",
+      "title": "A file is not memory; only the product writes memory",
+      "why": "Writing a file shows in a diff, passes review and reverts with git. Writing memory does none of those, and it is what the supervisor reads later.",
+      "link": "docs/DECISIONS.md#adr-005--a-file-is-not-memory",
+      "enforcement": "none",
+      "why_not_enforceable": "The distinction is between two writes to the same filesystem. Nothing in the import graph separates them.",
+      "scope": [
+        "crates/**",
+        "app/**"
+      ],
+      "alternatives": [
+        {
+          "option": "An MCP write channel straight into memory",
+          "why_not": "The record would feed itself, and unreviewed memory would accumulate generated content that degrades every future piece of advice."
+        },
+        {
+          "option": "The supervisor writes memory, sessions do not",
+          "why_not": "The supervisor is AI as well. The distinction does not hold."
+        }
+      ]
+    },
+    {
+      "id": "ADR-006",
+      "title": "A plugin returns typed data, never DOM",
+      "why": "A plugin loaded in the webview would see the channel to the core, which talks to every workspace \u2014 crossing every confidentiality boundary at once, through a mechanism the product introduced.",
+      "link": "docs/DECISIONS.md#adr-006--a-plugin-returns-data-never-dom",
+      "scope": [
+        "web/src/plugins/**"
+      ],
+      "alternatives": [
+        {
+          "option": "HTML strings",
+          "why_not": "The previous contract. Stringly typed, no interactivity, and the theme guarantee depends on the plugin obeying documentation.",
+          "refused_by": "plugin/a-plugin-cannot-reach-the-host"
+        },
+        {
+          "option": "A component in the host's framework",
+          "why_not": "Makes React a public API. Swapping it breaks every plugin, and version skew is a known trap.",
+          "refused_by": "plugin/a-plugin-cannot-reach-the-host"
+        },
+        {
+          "option": "Web components",
+          "why_not": "Framework-agnostic and interactive, but shadow DOM isolates styles in both directions and it does not solve the sandbox."
+        }
+      ]
+    },
+    {
+      "id": "ADR-007",
+      "title": "The MCP server runs over stdio, as a child of the harness",
+      "why": "No port, no network, no token: containment by construction rather than by policy.",
+      "link": "docs/DECISIONS.md#adr-007--the-products-mcp-server-runs-over-stdio-as-a-child-of-the-harness",
+      "enforcement": "none",
+      "why_not_enforceable": "A transport choice lives in how a process is spawned, not in what any file imports.",
+      "scope": [
+        "crates/**"
+      ],
+      "alternatives": [
+        {
+          "option": "HTTP per workspace with an ephemeral token",
+          "why_not": "Easier to reach from any runtime \u2014 and *anything* in that runtime reaches the server, not just the agent. Containment by policy, not by construction."
+        },
+        {
+          "option": "No MCP server at all, context injection only",
+          "why_not": "Injection serves what was anticipated; querying serves what was not."
+        }
+      ]
+    },
+    {
+      "id": "ADR-008",
+      "title": "Permission is a named profile, not a mode",
+      "why": "A deny rule survives the most permissive base mode while an allow rule is inert under it, so the permissive mode you actually run can stay and still gate what is irreversible.",
+      "link": "docs/DECISIONS.md#adr-008--permission-is-a-profile-not-a-mode",
+      "enforcement": "none",
+      "why_not_enforceable": "It describes the shape of a configuration the product reads, not the shape of the code that reads it.",
+      "scope": [
+        "crates/bancada-core/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Permission mode per runtime",
+          "why_not": "Leaves the real gap: inside one runtime, irreversible infrastructure work and ordinary code get identical treatment."
+        },
+        {
+          "option": "Mode chosen at session start",
+          "why_not": "Requires predicting what the session will touch. A tool-class policy catches it when it happens."
+        }
+      ]
+    },
+    {
+      "id": "ADR-009",
+      "title": "Computed reach between workspaces, not an abstract badge",
+      "why": "A runtime boundary contains what is inside it and does not protect what is outside \u2014 one direction is guaranteed and the other is not, so an adjective would be a lie.",
+      "link": "docs/DECISIONS.md#adr-009--computed-reach-instead-of-an-abstract-badge",
+      "enforcement": "none",
+      "why_not_enforceable": "It is what the product computes and shows at runtime. No rule about source files can hold it.",
+      "scope": [
+        "crates/bancada-core/**"
+      ],
+      "alternatives": [
+        {
+          "option": "A hard / soft isolation badge",
+          "why_not": "Lies by omitting direction."
+        },
+        {
+          "option": "Formal workspace types",
+          "why_not": "Resolves the symptom with a taxonomy; the computed fact resolves the cause."
+        }
+      ]
+    },
+    {
+      "id": "ADR-010",
+      "title": "Tauri shell, Rust core, React webview, bun for development",
+      "why": "Everything reusable from prior work is presentation and everything new is systems work, so the split falls exactly where the toolchain boundary already is.",
+      "link": "docs/DECISIONS.md#adr-010--tauri-rust-core-react-webview",
+      "scope": [
+        "app/**",
+        "crates/**",
+        "web/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Electron",
+          "why_not": "The weight lands exactly where this machine is already tight, and it would still end in a separate Node daemon."
+        },
+        {
+          "option": "Wails, with Go",
+          "why_not": "Go is a better fit for the concurrent half and cross-compiles beautifully, but v3 is in alpha and v2 is the previous generation."
+        },
+        {
+          "option": "Rust everywhere, WASM frontend",
+          "why_not": "Elegant, and it kills the plugin story: nobody writes a Rust plugin for a personal tool."
+        },
+        {
+          "option": "Elixir and LiveView",
+          "why_not": "OTP supervises BEAM processes beautifully and OS processes awkwardly, and this product's core job is the second. LiveView also conflicts with a client-side plugin contract."
+        },
+        {
+          "option": "Svelte instead of React",
+          "why_not": "Better shape fit for a live-updating queue, but the advantage is theoretical at 5\u201320 items, and mature editor tooling matters twice here."
+        },
+        {
+          "option": "Business logic in the webview",
+          "why_not": "The seam has to stay one folder of commands somebody can read in a sitting, or the Rust core stops being the core.",
+          "refused_by": "seam/commands-live-together"
+        }
+      ]
+    },
+    {
+      "id": "ADR-013",
+      "title": "Exact versions in every manifest, and bun is the only installer",
+      "why": "A range says *some* version and a lockfile pins it for one checkout only, so a fresh `cargo add` or a deleted lockfile resolves differently and the difference shows up as a failure nobody edited into existence.",
+      "link": "docs/DECISIONS.md#adr-013--exact-versions-everywhere-and-bun-is-the-only-installer",
+      "enforcement": "none",
+      "why_not_enforceable": "The claim is about `package.json` and `Cargo.toml`, and archwarden reads source files rather than manifests. A rule shaped like this would be worth having; today the guard is review. Filed upstream as archwarden#177.",
+      "scope": [
+        "web/**",
+        "app/**",
+        "crates/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Caret or tilde ranges, letting patches arrive on their own",
+          "why_not": "A patch that lands without anyone choosing it is also a patch nobody tested. Upgrades should be a commit with a name on them."
+        },
+        {
+          "option": "npm alongside bun",
+          "why_not": "They write different lockfiles from one manifest, and a repository carrying both has two answers to \"what version is this\"."
+        },
+        {
+          "option": "Pinning the whole transitive graph by hand",
+          "why_not": "Fiction. The lockfile owns transitive versions; the pin is on direct dependencies."
+        }
+      ]
+    },
+    {
+      "id": "ADR-014",
+      "title": "The machine bancada runs on registers itself",
+      "why": "The product is already executing there, so its prefix, path mapping and filesystem access are facts rather than claims \u2014 and asking a person to write them down is asking them to restate one.",
+      "link": "docs/DECISIONS.md#adr-014--the-machine-bancada-runs-on-registers-itself",
+      "enforcement": "none",
+      "why_not_enforceable": "It is behaviour at read time: a runtime synthesised before validation and dropped before writing. Nothing in the file layout shows it.",
+      "scope": [
+        "crates/bancada-core/**",
+        "app/src-tauri/src/commands/**"
+      ],
+      "alternatives": [
+        {
+          "option": "Requiring the local machine to be registered like any other runtime",
+          "why_not": "Made the first five minutes absurd: describing your own laptop in JSON, every field of which the product could only have gotten right."
+        },
+        {
+          "option": "Persisting the synthesised runtime into the configuration file",
+          "why_not": "Freezes today's `$HOME` into a file that outlives it, and the copy on disk quietly wins over the fact."
+        },
+        {
+          "option": "A default that cannot be overridden",
+          "why_not": "A default that cannot be overridden is one that eventually lies. An entry somebody edited no longer equals the default and survives."
+        }
+      ]
+    },
+    {
+      "id": "ADR-015",
+      "title": "Warm paper, not a dark cockpit",
+      "why": "A dark cockpit borrows its authority from instrument panels, and this is a place you read prose an agent wrote and decide whether you agree.",
+      "link": "docs/DECISIONS.md#adr-015--warm-paper-not-a-dark-cockpit",
+      "enforcement": "none",
+      "why_not_enforceable": "The rule worth having \u2014 no colour literal outside `theme.css` \u2014 is neither a rendered element nor a callee, so no chokepoint reaches it. Filed upstream as archwarden#177.",
+      "scope": [
+        "web/src/**"
+      ],
+      "supersedes": [],
+      "alternatives": [
+        {
+          "option": "The dark instrument-panel palette",
+          "why_not": "Its principle held \u2014 colour is reserved for things that ask for an action \u2014 and its ground did not. Eight hours of reading on black feels like surveillance rather than work."
+        },
+        {
+          "option": "Web fonts",
+          "why_not": "The app must open with no network at all, and a font that arrives late is a layout that moves under the reader."
+        },
+        {
+          "option": "Monaco's stock themes",
+          "why_not": "Cold. A panel that does not belong to the page around it reads as a different program embedded in this one."
+        }
+      ]
+    },
+    {
+      "id": "ADR-016",
+      "title": "Five layers in the webview, enforced not agreed",
+      "why": "The Rust side's boundaries are crates and a crate that imports what it may not does not compile; the webview had the same kinds of boundary and none of the enforcement.",
+      "link": "docs/DECISIONS.md#adr-016--five-layers-in-the-webview-enforced-not-agreed",
+      "scope": [
+        "web/src/**"
+      ],
+      "alternatives": [
+        {
+          "option": "One flat components folder",
+          "why_not": "Worked at nine files and stopped at thirty. Pages reached into each other and the only thing keeping a component reusable was whoever last edited it remembering that it should be.",
+          "refused_by": "web/the-five-layers"
+        },
+        {
+          "option": "Raw HTML wherever it is convenient",
+          "why_not": "A `<div className=\"flex gap-4\">` in a page is a design decision made outside the design system. Consistency erodes one of those at a time, none wrong on its own.",
+          "refused_by": "web/no-raw-html-above-the-alphabet"
+        },
+        {
+          "option": "Plain CSS with custom properties, no Tailwind",
+          "why_not": "It is what the product had, and it worked. shadcn's components are written in utility classes, and rewriting each one by hand is a fork of upstream you then maintain forever. Tailwind is build-time only here, so nothing about the offline guarantee changes."
+        },
+        {
+          "option": "Radix headless with hand-written CSS",
+          "why_not": "Considered and passed over: the palette was already tokens, but owning the component source is what lets archwarden govern it like anything else."
+        },
+        {
+          "option": "Base UI, the MUI headless successor",
+          "why_not": "The API is still moving, which combines badly with a repository that pins exact versions and treats upgrades as deliberate commits."
+        },
+        {
+          "option": "Writing every primitive ourselves, no dependency",
+          "why_not": "A correct modal is real work \u2014 focus trapped and restored, escape, scroll lock, aria \u2014 and getting it wrong is invisible until somebody uses a keyboard."
+        },
+        {
+          "option": "Testing every view file",
+          "why_not": "Views are arrangement, and arrangement is checked by looking. Eleven standing warnings is how a real one gets missed.",
+          "refused_by": "web/logic-is-tested-where-it-lives"
+        }
+      ]
+    },
+    {
+      "id": "ADR-017",
+      "title": "A Rust file names what it exports and carries its own tests",
+      "why": "A test in the file it tests can read the private function it is testing, and moves with it when the file moves \u2014 which is the half of the convention no reviewer ever remembers to check.",
+      "link": "docs/DECISIONS.md#adr-017--a-rust-file-names-what-it-exports-and-carries-its-own-tests",
+      "scope": [
+        "crates/*/src"
+      ],
+      "alternatives": [
+        {
+          "option": "A sibling spec file, the way the webview does it",
+          "why_not": "It cannot reach anything private, so it tests the crate's surface and calls it unit testing. The webview has sibling specs because TypeScript has no other option; Rust does."
+        },
+        {
+          "option": "A separate `tests/` directory",
+          "why_not": "That is where integration tests belong and they exist too. A unit test put there stops being a unit test the moment it can only see `pub` items."
+        }
+      ],
+      "enforcement": "none",
+      "why_not_enforceable": "`spec-pair` looks for a sibling file, and a Rust unit test lives in `#[cfg(test)] mod tests` inside the file it tests \u2014 there is no sibling to find. The rule that claimed to keep this was deleted rather than fixed: a rule that cannot be written is better absent than dead and green. Filed upstream as archwarden#178."
+    }
+  ],
   "rules": [
     {
       "type": "call-matches-export",
@@ -18,7 +403,8 @@
       "declared_in": [
         "app/src-tauri/src/**"
       ],
-      "attribute": "tauri::command"
+      "attribute": "tauri::command",
+      "decision": "ADR-010"
     },
     {
       "type": "structure",
@@ -30,19 +416,8 @@
       ],
       "allowed_subfolders": [
         "commands"
-      ]
-    },
-    {
-      "type": "spec-pair",
-      "id": "rust/every-unit-carries-its-tests",
-      "level": "error",
-      "why": "The rules engine is pure functions over metadata with an injected clock \u2014 the most testable half of the product, and the half whose correctness decides whether the queue can be trusted at all.",
-      "roots": [
-        "crates/*/src/*"
       ],
-      "subfolders": [
-        "."
-      ]
+      "decision": "ADR-010"
     },
     {
       "type": "naming",
@@ -50,7 +425,7 @@
       "level": "warning",
       "why": "Barrels are exempt by construction, so this asks only of files that declare something of their own.",
       "roots": [
-        "crates/*/src/*"
+        "crates/*/src"
       ],
       "file_pattern": "^(?<name>.+)\\.rs$",
       "must_export": {
@@ -61,7 +436,8 @@
           "trait",
           "enum"
         ]
-      }
+      },
+      "decision": "ADR-017"
     },
     {
       "type": "import-boundary",
@@ -75,7 +451,8 @@
       "forbid_import_from": [
         "web/src/core/**",
         "web/src/ipc/**"
-      ]
+      ],
+      "decision": "ADR-006"
     },
     {
       "type": "structure",
@@ -93,7 +470,8 @@
         "composites",
         "layouts",
         "pages"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -109,7 +487,8 @@
         "web/src/composites/**",
         "web/src/layouts/**",
         "web/src/pages/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -123,7 +502,8 @@
       "only_import_from": [
         "web/src/lib/**",
         "web/src/frame/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -137,7 +517,8 @@
       "forbid_import_from": [
         "web/src/layouts/**",
         "web/src/pages/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -151,7 +532,8 @@
       "forbid_import_from": [
         "web/src/pages/**",
         "web/src/core/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -167,7 +549,8 @@
       ],
       "forbid_import_from": [
         "web/src/pages/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "import-boundary",
@@ -181,7 +564,8 @@
       "only_import_from": [
         "web/src/core/**",
         "web/src/lib/**"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "chokepoint",
@@ -244,7 +628,8 @@
         "strong",
         "em",
         "small"
-      ]
+      ],
+      "decision": "ADR-016"
     },
     {
       "type": "naming",
@@ -264,7 +649,8 @@
           "const"
         ]
       },
-      "why": "A component rendered by name must be findable by name. It is also what keeps a plugin contribution and a host component out of one namespace."
+      "why": "A component rendered by name must be findable by name. It is also what keeps a plugin contribution and a host component out of one namespace.",
+      "decision": "ADR-016"
     },
     {
       "type": "spec-pair",
@@ -288,7 +674,8 @@
         "web/src/pages/_shared/back.tsx",
         "web/src/pages/review/intent.tsx"
       ],
-      "require_non_empty_spec": true
+      "require_non_empty_spec": true,
+      "decision": "ADR-016"
     }
   ]
 }
