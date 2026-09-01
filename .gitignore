@@ -20,3 +20,10 @@ package-lock.json
 /web/coverage/
 *.profraw
 /target/llvm-cov-target/
+
+# tsc's incremental cache. It is written by `tsc --noEmit`, so it reappears
+# on every run of the gate — tracked, it would make a clean tree look dirty.
+web/tsconfig.tsbuildinfo
+
+# tools/ holds a couple of python generators; their bytecode is not ours.
+__pycache__/
