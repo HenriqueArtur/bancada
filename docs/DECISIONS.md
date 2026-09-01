@@ -473,3 +473,60 @@ one.
   of before. Both are defined completely; neither borrows from the other.
 - G0.5 was closed as "dark cockpit". The issue's principle held and its
   palette did not, which is the ordinary way a design decision ages.
+
+---
+
+## ADR-016 · Five layers in the webview, enforced not agreed
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+The webview grew as one folder of components and one root that knew
+everything. It worked at nine files and stopped working at thirty: pages
+reached into each other, spacing was chosen fresh at every call site, and the
+only thing keeping a component reusable was whoever last edited it
+remembering that it should be.
+
+The Rust side never had this problem, because its boundaries are crates and a
+crate that imports what it may not does not compile. The webview had the same
+kinds of boundary and none of the enforcement.
+
+### Decision
+
+Five layers — `frame`, `components`, `composites`, `layouts`, `pages` — over
+`core` (the seam to Rust) and `lib` (one helper). Everything is reusable
+except `pages`, and nothing imports from `pages`.
+
+**Raw HTML stops at `frame` and `components`.** Above them, every element is
+a named thing from the design system. `archwarden`'s `chokepoint` rule with
+`renders` makes this checkable, and it found twenty-two violations the first
+time it ran — all mine, all written the same afternoon as the rule.
+
+**Pages split reasoning from rendering.** `logic.ts` holds the hook and gets
+the test; `view.tsx` arranges. The spec rule is scoped to the files that hold
+reasoning rather than to every file, because eleven standing warnings is how a
+real one gets missed.
+
+**shadcn's idiom, our components.** Radix primitives, `cva` variants, `cn` for
+merging — but the source lives in `components/` and archwarden governs it like
+anything else. Radix earns its place on the parts that are invisible until
+they are missing: focus trapped and restored, escape, scroll lock, aria.
+
+**Tailwind v4**, build-time only, with the palette from ADR-015 as tokens. A
+static stylesheet is what `default-src 'self'` requires anyway.
+
+### Consequences
+
+- Nine of the rules are proved to fire by `archwarden config verify-rules`.
+  A layering nobody can violate by accident is worth more than a document
+  nobody re-reads.
+- A missing primitive is now a named addition instead of a `<div>`. That is
+  slower per change and much faster per month.
+- Settings became a dialog rather than a screen (ADR-017's shape, recorded
+  here because the layering is what made it cheap): sections down the side,
+  the queue still visible through the scrim.
+- The two rules for `frame` and `core` verify as "not verified" — they only
+  forbid imports, and a file that imports nothing cannot be told from one the
+  rule does not cover. Named here so the gap is known rather than assumed
+  closed.

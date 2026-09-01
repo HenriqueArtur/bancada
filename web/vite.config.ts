@@ -1,8 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwind from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwind()],
+  resolve: {
+    // `@/` is what shadcn's own sources import by. Keeping their spelling
+    // means a component pasted from upstream needs no edit to compile.
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   // Tauri serves the built assets from disk; a relative base keeps the
   // same build working in a browser and inside the shell.
   base: "./",
@@ -15,5 +22,5 @@ export default defineConfig({
     // warning that fires on every build is one people stop reading.
     chunkSizeWarningLimit: 4000,
   },
-  test: { environment: "jsdom", globals: true },
+  test: { environment: "jsdom", globals: true, setupFiles: ["src/test-setup.ts"] },
 });

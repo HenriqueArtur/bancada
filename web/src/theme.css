@@ -1,405 +1,103 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
 /* Warm, and quiet at rest.
  *
- * The principle from the first version survives the repaint: at rest the
+ * The principle from the first version survives every repaint: at rest the
  * screen is empty, and colour is reserved for things that ask for an action,
- * so a colour appearing *means* one. What changed is the ground it sits on.
+ * so a colour appearing *means* one. See ADR-015 for why the ground is paper
+ * rather than an instrument panel.
  *
- * A dark cockpit borrows its authority from instrument panels, and this is
- * not an instrument panel — it is a place you read prose an agent wrote and
- * decide whether you agree. Paper is the right metaphor for that, and warm
- * paper does not make eight hours feel like surveillance.
- *
- * The palette is earth: ivory, clay, sage, kraft. One accent, spent sparingly.
+ * These are the only colours in the product. A hex code anywhere else is a
+ * decision made in the dark, and the eighth one is always slightly off.
  */
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  /* --- light: paper ---------------------------------------------------- */
-  --bg: #faf9f5;
+  /* --- paper ------------------------------------------------------------ */
+  --ground: #faf9f5;
   --surface: #f4f2eb;
   --raised: #fffefb;
-  --border: #e6e1d6;
-  --border-soft: #efebe2;
-  --text: #1d1c1a;
-  --muted: #6f6a60;
-  --faint: #979186;
+  --line: #e6e1d6;
+  --line-soft: #efebe2;
+  --ink: #1d1c1a;
+  --ink-muted: #6f6a60;
+  --ink-faint: #979186;
 
   /* Clay. The only colour that means "this wants you". */
-  --accent: #c15f3c;
-  --accent-wash: #f6e9e2;
-  --urgent: #b03f26;
-  --urgent-wash: #f7e5df;
-  --calm: #5d7a4f;
-  --calm-wash: #e9efe4;
+  --clay: #c15f3c;
+  --clay-wash: #f6e9e2;
+  --clay-ink: #ffffff;
+  --alarm: #b03f26;
+  --alarm-wash: #f7e5df;
+  --sage: #5d7a4f;
+  --sage-wash: #e9efe4;
 
-  --shadow: 0 1px 2px rgb(29 28 26 / 4%), 0 4px 14px rgb(29 28 26 / 4%);
-  --radius: 10px;
-
-  --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
-  /* New York on Apple, and a warm transitional serif everywhere else. Zero
-     bytes downloaded: the app must open with no network at all. */
-  --serif: ui-serif, "New York", "Iowan Old Style", Palatino, Georgia, serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-
-  color-scheme: light dark;
-  font-family: var(--sans);
+  --ring: color-mix(in srgb, var(--clay) 35%, transparent);
 }
 
-/* --- dark: the same room with the lights low --------------------------- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #21201d;
-    --surface: #2a2825;
-    --raised: #32302b;
-    --border: #3d3a34;
-    --border-soft: #332f2a;
-    --text: #ece8df;
-    --muted: #a09a8f;
-    --faint: #756f65;
-
-    --accent: #dd8560;
-    --accent-wash: #3a2c25;
-    --urgent: #e0714f;
-    --urgent-wash: #3b2822;
-    --calm: #8ea87c;
-    --calm-wash: #2a3126;
-
-    --shadow: 0 1px 2px rgb(0 0 0 / 22%), 0 4px 14px rgb(0 0 0 / 18%);
-  }
-}
-
-:root[data-theme="dark"] {
-  --bg: #21201d;
+/* The same room with the lights low. */
+.dark {
+  --ground: #21201d;
   --surface: #2a2825;
   --raised: #32302b;
-  --border: #3d3a34;
-  --border-soft: #332f2a;
-  --text: #ece8df;
-  --muted: #a09a8f;
-  --faint: #756f65;
-  --accent: #dd8560;
-  --accent-wash: #3a2c25;
-  --urgent: #e0714f;
-  --urgent-wash: #3b2822;
-  --calm: #8ea87c;
-  --calm-wash: #2a3126;
-  --shadow: 0 1px 2px rgb(0 0 0 / 22%), 0 4px 14px rgb(0 0 0 / 18%);
+  --line: #3d3a34;
+  --line-soft: #332f2a;
+  --ink: #ece8df;
+  --ink-muted: #a09a8f;
+  --ink-faint: #756f65;
+
+  --clay: #dd8560;
+  --clay-wash: #3a2c25;
+  --clay-ink: #21201d;
+  --alarm: #e0714f;
+  --alarm-wash: #3b2822;
+  --sage: #8ea87c;
+  --sage-wash: #2a3126;
 }
 
-* { box-sizing: border-box; }
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-clay: var(--clay);
+  --color-clay-wash: var(--clay-wash);
+  --color-clay-ink: var(--clay-ink);
+  --color-alarm: var(--alarm);
+  --color-alarm-wash: var(--alarm-wash);
+  --color-sage: var(--sage);
+  --color-sage-wash: var(--sage-wash);
+  --color-ring: var(--ring);
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
+  --font-sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  /* New York on Apple, a warm transitional serif elsewhere. Zero bytes
+     downloaded: the app must open with no network at all, and a font that
+     arrives late is a layout that moves under the reader. */
+  --font-serif: ui-serif, "New York", "Iowan Old Style", Palatino, Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
-button, input, select, textarea { font: inherit; color: inherit; }
-
-/* --- shell -------------------------------------------------------------- */
-.app { max-width: 720px; margin: 0 auto; padding: 44px 28px 96px; }
-.app.wide { max-width: 1120px; }
-
-.head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 20px; margin-bottom: 28px;
-  padding-bottom: 16px; border-bottom: 1px solid var(--border-soft);
-}
-.head h1 {
-  font-family: var(--serif); font-size: 27px; font-weight: 400;
-  margin: 0; letter-spacing: -0.015em; line-height: 1.15;
-}
-.head-right { display: flex; align-items: center; gap: 14px; }
-
-h2 {
-  font-family: var(--serif); font-size: 19px; font-weight: 400;
-  margin: 40px 0 14px; letter-spacing: -0.01em;
-  display: flex; align-items: center; gap: 10px;
-}
-h2:first-of-type { margin-top: 26px; }
-
-.quiet { color: var(--muted); font-size: 14px; }
-.mono { font-family: var(--mono); font-size: 12.5px; }
-
-/* --- the queue ---------------------------------------------------------- */
-.group {
-  background: var(--raised); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: var(--shadow);
-  margin-bottom: 14px; overflow: hidden;
-}
-.session {
-  display: flex; align-items: baseline; gap: 10px;
-  padding: 12px 18px 10px; font-family: var(--mono); font-size: 12px;
-  color: var(--muted); border-bottom: 1px solid var(--border-soft);
+  --radius-card: 10px;
+  --shadow-raised: 0 1px 2px rgb(29 28 26 / 4%), 0 4px 14px rgb(29 28 26 / 4%);
+  --shadow-float: 0 8px 40px rgb(29 28 26 / 12%), 0 2px 8px rgb(29 28 26 / 6%);
 }
 
-.item {
-  display: flex; align-items: baseline; gap: 14px; width: 100%;
-  padding: 13px 18px; background: none; border: 0; cursor: pointer;
-  text-align: left; border-bottom: 1px solid var(--border-soft);
+@layer base {
+  * {
+    @apply border-line;
+  }
+  body {
+    @apply bg-ground text-ink font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+    margin: 0;
+  }
+  ::selection {
+    background: var(--clay-wash);
+  }
 }
-.group > div:last-child .item { border-bottom: 0; }
-.item:hover { background: var(--surface); }
-.item .when {
-  min-width: 62px; color: var(--muted); font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.item .what { font-size: 15px; }
-.item .count {
-  margin-left: auto; color: var(--muted); font-size: 12px;
-  padding: 1px 8px; border-radius: 999px; background: var(--surface);
-}
-
-/* --- the empty state ---------------------------------------------------- */
-.empty {
-  padding: 64px 8px; text-align: center;
-}
-.empty p {
-  font-family: var(--serif); font-size: 21px; font-weight: 400;
-  margin: 0 0 8px; color: var(--text);
-}
-.empty .sub { font-family: var(--sans); font-size: 14px; color: var(--muted); }
-
-/* --- buttons ------------------------------------------------------------ */
-.back, .tabs button, .open, .rows button, .actions button, .seen, .link {
-  border-radius: 8px; cursor: pointer; font-size: 13px;
-  transition: background 90ms ease, border-color 90ms ease, color 90ms ease;
-}
-.back {
-  background: none; border: 1px solid transparent; color: var(--muted);
-  padding: 5px 11px 5px 8px;
-}
-.back:hover { color: var(--text); background: var(--surface); }
-
-.tabs { display: flex; gap: 4px; }
-.tabs button {
-  background: none; border: 1px solid transparent; color: var(--muted);
-  padding: 5px 13px;
-}
-.tabs button:hover { color: var(--text); }
-.tabs button.on {
-  color: var(--text); background: var(--raised);
-  border-color: var(--border); box-shadow: var(--shadow);
-}
-
-.open {
-  margin-left: auto; background: none; border: 0; color: var(--muted);
-  font-size: 12px; padding: 2px 6px;
-}
-.open:hover { color: var(--accent); }
-
-.actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
-.actions button {
-  background: var(--accent); border: 1px solid var(--accent); color: #fff;
-  padding: 8px 20px; font-weight: 500;
-}
-.actions button:hover:not(:disabled) { filter: brightness(1.06); }
-.actions button:disabled {
-  background: var(--surface); border-color: var(--border);
-  color: var(--faint); cursor: not-allowed;
-}
-.actions button.secondary {
-  background: var(--raised); border-color: var(--border); color: var(--text);
-}
-.actions button.secondary:hover:not(:disabled) { border-color: var(--accent); }
-
-.link {
-  background: none; border: 0; color: var(--accent); padding: 0;
-  text-decoration: underline; text-underline-offset: 2px;
-}
-
-/* --- badges and counts -------------------------------------------------- */
-.badge {
-  font-size: 11.5px; padding: 2px 9px; border-radius: 999px;
-  border: 1px solid var(--border); color: var(--muted); background: var(--surface);
-  white-space: nowrap;
-}
-.badge.surprise {
-  color: var(--urgent); border-color: transparent; background: var(--urgent-wash);
-}
-.badge.new { color: var(--accent); border-color: transparent; background: var(--accent-wash); }
-
-.count-chip {
-  display: inline-block; margin-left: 8px; min-width: 19px; padding: 0 6px;
-  border-radius: 999px; background: var(--accent); color: #fff;
-  font-size: 11.5px; font-weight: 600; text-align: center; line-height: 19px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- wip ---------------------------------------------------------------- */
-.wip { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); }
-.wip .pips { display: flex; gap: 4px; }
-.wip .pip {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--border); transition: background 140ms ease;
-}
-.wip .pip.on { background: var(--accent); }
-.wip.over { color: var(--urgent); }
-.wip.over .pip.on { background: var(--urgent); }
-
-/* --- score breakdown ---------------------------------------------------- */
-.score {
-  padding: 12px 18px 16px; background: var(--surface);
-  border-bottom: 1px solid var(--border-soft); font-size: 13px;
-}
-.score dl {
-  display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0;
-}
-.score dt { color: var(--muted); }
-.score dd { margin: 0; font-variant-numeric: tabular-nums; }
-.score .total { font-weight: 600; }
-
-/* --- unreachable, mute -------------------------------------------------- */
-.unreachable {
-  margin: 16px 0; padding: 11px 15px; border-radius: var(--radius);
-  background: var(--urgent-wash); color: var(--urgent);
-  border: 1px solid transparent; font-size: 13px;
-}
-
-/* --- not your cockpit --------------------------------------------------- */
-.elsewhere {
-  display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap;
-  margin: -12px 0 22px; padding: 9px 15px; border-radius: var(--radius);
-  background: var(--accent-wash);
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-  font-size: 12.5px;
-}
-.elsewhere strong { color: var(--accent); font-weight: 600; }
-.elsewhere .mono { color: var(--muted); }
-
-/* --- review: intent ----------------------------------------------------- */
-.intent {
-  border-left: 2px solid var(--border); padding: 2px 0 2px 16px;
-  margin-bottom: 20px;
-}
-.intent h3 {
-  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
-  margin: 0 0 5px; font-weight: 400; letter-spacing: .04em; text-transform: uppercase;
-}
-.intent blockquote {
-  margin: 0; font-family: var(--serif); font-size: 15.5px; line-height: 1.6;
-  white-space: pre-wrap; max-height: 9em; overflow: auto;
-}
-
-/* --- review: diff ------------------------------------------------------- */
-.file {
-  background: var(--raised); border: 1px solid var(--border);
-  border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
-  box-shadow: var(--shadow);
-}
-.file.fresh { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-.file > header {
-  display: flex; align-items: center; gap: 10px; padding: 11px 16px;
-  cursor: pointer;
-}
-.file > header:hover { background: var(--surface); }
-.file .path { font-family: var(--mono); font-size: 12.5px; }
-.file .churn {
-  margin-left: auto; color: var(--muted); font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.file .seen {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  font-size: 11.5px; padding: 3px 10px;
-}
-.file .seen:hover { color: var(--text); border-color: var(--accent); }
-
-.hunk {
-  margin: 0; padding: 6px 0; font-family: var(--mono); font-size: 12px;
-  overflow-x: auto; border-top: 1px solid var(--border-soft);
-  background: var(--surface);
-}
-.hunk code { display: block; padding: 0 16px; white-space: pre; line-height: 1.55; }
-.hunk .header { color: var(--faint); padding-bottom: 4px; }
-.hunk .added { background: var(--calm-wash); }
-.hunk .removed { background: var(--urgent-wash); }
-
-/* --- files -------------------------------------------------------------- */
-.explorer {
-  display: grid; grid-template-columns: 250px 1fr; gap: 22px;
-  height: calc(100vh - 170px);
-}
-.tree {
-  overflow: auto; padding-right: 10px; font-size: 13.5px;
-  border-right: 1px solid var(--border-soft);
-}
-.tree ul { list-style: none; margin: 0; padding-left: 13px; }
-.tree > ul { padding-left: 0; }
-.tree button {
-  background: none; border: 0; color: var(--text);
-  cursor: pointer; padding: 3px 7px; width: 100%; text-align: left;
-  border-radius: 6px; font-size: 13.5px;
-}
-.tree button:hover { background: var(--surface); }
-.tree .dir { color: var(--muted); }
-.tree .leaf.selected { background: var(--accent-wash); color: var(--accent); }
-
-.code {
-  height: 100%; min-height: 340px; border-radius: var(--radius);
-  overflow: hidden; border: 1px solid var(--border);
-}
-.plain {
-  font-family: var(--mono); font-size: 12px; overflow: auto; height: 100%;
-  margin: 0; padding: 14px; background: var(--surface);
-  border-radius: var(--radius); border: 1px solid var(--border);
-}
-
-/* --- settings ----------------------------------------------------------- */
-.rows { width: 100%; border-collapse: collapse; font-size: 14px; }
-.rows td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--border-soft); }
-.rows tr:last-child td { border-bottom: 0; }
-.rows .strong { font-weight: 500; }
-.rows .mono { color: var(--muted); }
-.rows button {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  font-size: 11.5px; padding: 3px 10px; margin-right: 7px;
-}
-.rows button:hover { color: var(--text); border-color: var(--accent); }
-
-.card {
-  background: var(--raised); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 22px 24px; margin: 18px 0;
-}
-
-.register { display: grid; gap: 14px 20px; grid-template-columns: 1fr 1fr; }
-.register label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
-.register label > span { color: var(--muted); }
-.register input, .register select {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 8px 11px; font-size: 14px;
-}
-.register input:focus, .register select:focus {
-  outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-wash);
-}
-.register .wide, .register .actions, .register .evidence { grid-column: 1 / -1; }
-
-/* The proof that a registration points at something real. */
-.evidence {
-  display: flex; align-items: baseline; gap: 9px; font-size: 13px;
-  padding: 10px 14px; border-radius: 8px; background: var(--surface);
-}
-.evidence.found { background: var(--calm-wash); color: var(--calm); }
-.evidence.empty { background: var(--surface); color: var(--muted); }
-.evidence.missing { background: var(--urgent-wash); color: var(--urgent); }
-.evidence .mono { color: inherit; opacity: .75; }
-
-details.advanced { grid-column: 1 / -1; }
-details.advanced summary {
-  cursor: pointer; color: var(--muted); font-size: 13px; list-style: none;
-  padding: 4px 0;
-}
-details.advanced summary::-webkit-details-marker { display: none; }
-details.advanced summary::before { content: "▸ "; }
-details.advanced[open] summary::before { content: "▾ "; }
-details.advanced > div {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px;
-  padding-top: 12px;
-}
-
-/* A title with its way back sitting above it, rather than beside. */
-.head-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.head-stack .back { margin-left: -8px; font-size: 12.5px; }

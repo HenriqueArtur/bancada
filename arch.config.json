@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/HenriqueArtur/archwarden/main/schema/v0.json",
   "version": 0,
   "languages": [
-    "rust"
+    "rust",
+    "ts"
   ],
   "rules": [
     {
@@ -35,7 +36,7 @@
       "type": "spec-pair",
       "id": "rust/every-unit-carries-its-tests",
       "level": "error",
-      "why": "The rules engine is pure functions over metadata with an injected clock — the most testable half of the product, and the half whose correctness decides whether the queue can be trusted at all.",
+      "why": "The rules engine is pure functions over metadata with an injected clock \u2014 the most testable half of the product, and the half whose correctness decides whether the queue can be trusted at all.",
       "roots": [
         "crates/*/src/*"
       ],
@@ -63,38 +64,6 @@
       }
     },
     {
-      "type": "spec-pair",
-      "id": "web/a-component-has-a-test-beside-it",
-      "level": "warning",
-      "why": "Warning rather than error: the logic lives in the core and components are meant to be dumb. A component that needs a test is a signal that logic leaked upward.",
-      "roots": [
-        "web/src/components",
-        "web/src/components/**"
-      ],
-      "subfolders": [
-        "."
-      ],
-      "skip_type_only": true
-    },
-    {
-      "type": "naming",
-      "id": "web/a-component-file-names-its-component",
-      "level": "error",
-      "roots": [
-        "web/src/components",
-        "web/src/components/**"
-      ],
-      "file_pattern": "^(?<name>[a-z0-9-]+)\\.tsx$",
-      "must_export": {
-        "name": "{{pascal(name)}}",
-        "kind": [
-          "function",
-          "const"
-        ]
-      },
-      "why": "A component the host renders by name must be findable by name. This is also what keeps a plugin contribution and a host component from drifting into the same namespace."
-    },
-    {
       "type": "import-boundary",
       "id": "plugin/a-plugin-cannot-reach-the-host",
       "level": "error",
@@ -107,6 +76,219 @@
         "web/src/core/**",
         "web/src/ipc/**"
       ]
+    },
+    {
+      "type": "structure",
+      "id": "web/the-five-layers",
+      "level": "error",
+      "why": "Five layers and no sixth. A folder that is not one of these is a place the import rules do not reach, and an ungoverned folder becomes the one everything ends up in.",
+      "roots": [
+        "web/src"
+      ],
+      "allowed_subfolders": [
+        "lib",
+        "core",
+        "frame",
+        "components",
+        "composites",
+        "layouts",
+        "pages"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/components-know-nothing-about-the-product",
+      "level": "error",
+      "why": "A component that has heard of a queue or a project can only be used once. The alphabet has to stay an alphabet.",
+      "from": [
+        "web/src/components",
+        "web/src/components/**"
+      ],
+      "forbid_import_from": [
+        "web/src/core/**",
+        "web/src/composites/**",
+        "web/src/layouts/**",
+        "web/src/pages/**"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/the-frame-holds-nothing",
+      "level": "error",
+      "why": "The frame says how things sit, never what they are. A Stack that imports a Button has stopped being spacing and become a component.",
+      "from": [
+        "web/src/frame",
+        "web/src/frame/**"
+      ],
+      "only_import_from": [
+        "web/src/lib/**",
+        "web/src/frame/**"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/composites-compose-downward-only",
+      "level": "error",
+      "why": "A composite knows how its parts fit together and still knows nothing about the product. Reaching up to a layout or a page would make it un-reusable, which is the one thing it exists to be.",
+      "from": [
+        "web/src/composites",
+        "web/src/composites/**"
+      ],
+      "forbid_import_from": [
+        "web/src/layouts/**",
+        "web/src/pages/**"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/layouts-arrange-and-do-not-fetch",
+      "level": "error",
+      "why": "A layout takes children and arranges them; it never knows what they are, and never goes looking for them. That is what lets the cockpit and the review share one shell.",
+      "from": [
+        "web/src/layouts",
+        "web/src/layouts/**"
+      ],
+      "forbid_import_from": [
+        "web/src/pages/**",
+        "web/src/core/**"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/nothing-reaches-into-a-page",
+      "level": "error",
+      "why": "Pages are the only layer that is not reusable. Anything importing one is trying to reuse it, and what it wants belongs in a lower layer or in `pages/_shared`.",
+      "from": [
+        "web/src/components/**",
+        "web/src/composites/**",
+        "web/src/layouts/**",
+        "web/src/frame/**",
+        "web/src/core/**"
+      ],
+      "forbid_import_from": [
+        "web/src/pages/**"
+      ]
+    },
+    {
+      "type": "import-boundary",
+      "id": "web/the-core-is-the-seam-and-nothing-else",
+      "level": "error",
+      "why": "`core` is what the Rust side hands over and the pure functions over it. A core module that imports a component has put rendering behind the seam, where no test can see it.",
+      "from": [
+        "web/src/core",
+        "web/src/core/**"
+      ],
+      "only_import_from": [
+        "web/src/core/**",
+        "web/src/lib/**"
+      ]
+    },
+    {
+      "type": "chokepoint",
+      "id": "web/no-raw-html-above-the-alphabet",
+      "level": "error",
+      "why": "Raw HTML in a layout or a page is a design decision made outside the design system, and consistency erodes one `<div className=...>` at a time \u2014 none of them wrong on their own. Everything above `components` and `frame` composes from what is already there, or adds to it.",
+      "roots": [
+        "web/src/composites/**",
+        "web/src/layouts/**",
+        "web/src/pages/**"
+      ],
+      "only_in": [
+        "web/src/components/**",
+        "web/src/frame/**"
+      ],
+      "renders": [
+        "div",
+        "span",
+        "p",
+        "section",
+        "article",
+        "header",
+        "footer",
+        "nav",
+        "main",
+        "aside",
+        "ul",
+        "ol",
+        "li",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "td",
+        "th",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "button",
+        "input",
+        "select",
+        "option",
+        "textarea",
+        "label",
+        "form",
+        "a",
+        "img",
+        "hr",
+        "pre",
+        "code",
+        "blockquote",
+        "dl",
+        "dt",
+        "dd",
+        "details",
+        "summary",
+        "strong",
+        "em",
+        "small"
+      ]
+    },
+    {
+      "type": "naming",
+      "id": "web/a-file-names-what-it-renders",
+      "level": "error",
+      "roots": [
+        "web/src/components",
+        "web/src/frame",
+        "web/src/composites",
+        "web/src/layouts"
+      ],
+      "file_pattern": "^(?<name>[a-z0-9-]+)\\.tsx$",
+      "must_export": {
+        "name": "{{pascal(name)}}",
+        "kind": [
+          "function",
+          "const"
+        ]
+      },
+      "why": "A component rendered by name must be findable by name. It is also what keeps a plugin contribution and a host component out of one namespace."
+    },
+    {
+      "type": "spec-pair",
+      "id": "web/logic-is-tested-where-it-lives",
+      "level": "error",
+      "why": "An error, not a warning, because it is scoped to the files that hold reasoning: the seam to Rust and each page's `logic`. Views are arrangement, and arrangement is checked by looking \u2014 a rule that warned about every one of them would be eleven warnings nobody reads, which is how a real one gets missed.",
+      "roots": [
+        "web/src/core",
+        "web/src/pages/**"
+      ],
+      "subfolders": [
+        "."
+      ],
+      "skip_type_only": true,
+      "ignore_files": [
+        "web/src/core/queue.ts",
+        "web/src/pages/**/view.tsx",
+        "web/src/pages/**/index.ts",
+        "web/src/pages/settings/projects.tsx",
+        "web/src/pages/settings/machines.tsx",
+        "web/src/pages/_shared/back.tsx",
+        "web/src/pages/review/intent.tsx"
+      ],
+      "require_non_empty_spec": true
     }
   ]
 }
