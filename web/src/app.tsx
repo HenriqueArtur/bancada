@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { apply, remember, resolve, stored, systemIsDark, type Theme } from "@/core/appearance";
+import {
+  current,
+  remember as rememberLanguage,
+  stored as storedLanguage,
+  type Language,
+} from "@/core/language";
+import { Speaks } from "@/lib/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { Row } from "@/frame";
@@ -9,6 +16,7 @@ import { CockpitView, FilesPage, ReviewPage, SettingsPage, WorkPage, useCockpit 
 import { Button } from "@/components";
 
 import type { Origin } from "@/pages/_shared";
+import { useText } from "@/lib/language";
 
 type Where =
   | { at: "cockpit" }
@@ -24,10 +32,37 @@ type Where =
 /// Deliberately the only place that knows all the screens exist. Each page
 /// owns its own data; this owns the queue, because the queue is what the
 /// badge, the notification and every screen's header are made of.
+/// The window, speaking whatever it was told to.
+///
+/// Split from `Cockpit` so the language sits *above* everything that reads
+/// it: `useText` is a context, and a provider that lived inside the screens
+/// could not change what the screens already rendered.
 export function App() {
+  const [language, setLanguage] = useState<Language | null>(storedLanguage);
+  const speaking = language ?? current(navigator.languages ?? [navigator.language]);
+
+  useEffect(() => {
+    if (language) rememberLanguage(language);
+  }, [language]);
+
+  return (
+    <Speaks language={speaking}>
+      <Cockpit language={language} onChooseLanguage={setLanguage} />
+    </Speaks>
+  );
+}
+
+function Cockpit({
+  language,
+  onChooseLanguage,
+}: {
+  language: Language | null;
+  onChooseLanguage: (l: Language | null) => void;
+}) {
   const { queue, failed, mute } = useCockpit();
   const [where, setWhere] = useState<Where>({ at: "cockpit" });
   const [settings, setSettings] = useState(false);
+  const t = useText();
   const [theme, setTheme] = useState<Theme>(stored);
 
   useEffect(() => {
@@ -37,8 +72,8 @@ export function App() {
 
   if (failed) {
     return (
-      <AppShell title="Needs you">
-        <Banner label="Could not reach the core" tone="alarm">
+      <AppShell title={t("Needs you")}>
+        <Banner label={t("Could not reach the core")} tone="alarm">
           <Text as="span" size="sm" tone="alarm">
             {failed}
           </Text>
@@ -46,7 +81,7 @@ export function App() {
       </AppShell>
     );
   }
-  if (!queue) return <AppShell title="Needs you">{null}</AppShell>;
+  if (!queue) return <AppShell title={t("Needs you")}>{null}</AppShell>;
 
   const dialog = (
     <SettingsPage
@@ -55,6 +90,8 @@ export function App() {
       onChanged={() => setWhere({ at: "cockpit" })}
       theme={theme}
       onChooseTheme={setTheme}
+      language={language}
+      onChooseLanguage={onChooseLanguage}
     />
   );
 
@@ -94,14 +131,14 @@ export function App() {
         size="sm"
         onClick={() => setWhere({ at: "review", project: where.project, from: where.from })}
       >
-        What changed
+        {t("What changed")}
       </Button>
       <Button
         tone={where.at === "files" ? "outline" : "ghost"}
         size="sm"
         onClick={() => setWhere({ at: "files", project: where.project, from: where.from })}
       >
-        Files
+        {t("Files")}
       </Button>
     </Row>
   );

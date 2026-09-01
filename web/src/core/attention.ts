@@ -1,5 +1,6 @@
 /// Deciding what is worth interrupting a person for.
 import { invoke } from "@tauri-apps/api/core";
+import type { Translate } from "@/core/language";
 import { label, type Grouped, type Queue, type Ranked } from "@/core/queue";
 
 export interface Announce {
@@ -32,23 +33,24 @@ export function newcomers(before: Set<string> | null, now: Grouped[]): Ranked[] 
 }
 
 /// What to say, in as few words as a notification can hold.
-export function phrase(fresh: Ranked[]): Announce | null {
+export function phrase(fresh: Ranked[], t: Translate): Announce | null {
   if (fresh.length === 0) return null;
 
   const first = fresh[0];
   const session = first.item.session.slice(0, 8);
   const title =
     fresh.length === 1
-      ? `${first.item.project} · ${label(first.item.kind)}`
-      : `${first.item.project} · ${fresh.length} things need you`;
+      ? `${first.item.project} · ${label(first.item.kind, t)}`
+      : `${first.item.project} · ${t("{n} things need you", { n: fresh.length })}`;
 
   const body =
     fresh.length === 1
-      ? `session ${session}`
+      ? t("session {id}", { id: session })
       : fresh
           .slice(0, 3)
-          .map((r) => label(r.item.kind))
-          .join(", ") + (fresh.length > 3 ? `, and ${fresh.length - 3} more` : "");
+          .map((r) => label(r.item.kind, t))
+          .join(", ") +
+        (fresh.length > 3 ? t(", and {n} more", { n: fresh.length - 3 }) : "");
 
   return { title, body };
 }

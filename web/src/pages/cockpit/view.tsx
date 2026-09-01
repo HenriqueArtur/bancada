@@ -6,6 +6,7 @@ import { Row, Stack } from "@/frame";
 import { AppShell } from "@/layouts";
 import { Elsewhere, WipBar } from "@/pages/_shared";
 import { Group } from "@/pages/cockpit/group";
+import { useText } from "@/lib/language";
 
 /// What needs you, and nothing else.
 ///
@@ -25,18 +26,19 @@ export function CockpitView({
   /// The other surface: everything being watched, waiting or not.
   onOpenWork: () => void;
 }) {
+  const t = useText();
   return (
     <AppShell
-      title="Needs you"
+      title={t("Needs you")}
       banner={<Elsewhere path={queue.elsewhere} />}
       aside={
         <Row gap="normal">
           <Button tone="ghost" size="sm" onClick={onOpenWork}>
             <StackIcon size={14} />
-            Your work
+            {t("Your work")}
           </Button>
           <WipBar wip={queue.wip} />
-          <Button tone="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings">
+          <Button tone="ghost" size="icon" onClick={onOpenSettings} aria-label={t("Settings")}>
             <GearSixIcon size={16} />
           </Button>
         </Row>
@@ -45,11 +47,15 @@ export function CockpitView({
       <Stack gap="snug">
         {queue.groups.length === 0 ? (
           <EmptyState
-            headline="Nothing needs you."
+            headline={t("Nothing needs you.")}
             detail={
               queue.watching === 0
-                ? "No projects registered yet."
-                : `Watching ${queue.watching} project${queue.watching === 1 ? "" : "s"}.`
+                ? t("No projects registered yet.")
+                : t.plural(
+                    queue.watching,
+                    "Watching {n} project.",
+                    "Watching {n} projects.",
+                  )
             }
             action={
               // With nothing registered the action is to register. With
@@ -57,11 +63,11 @@ export function CockpitView({
               // working — the only thing left to offer is a look at it.
               queue.watching === 0 ? (
                 <Button tone="primary" onClick={onOpenSettings}>
-                  Register one
+                  {t("Register one")}
                 </Button>
               ) : (
                 <Button tone="outline" onClick={onOpenWork}>
-                  See what is being watched
+                  {t("See what is being watched")}
                 </Button>
               )
             }
@@ -78,7 +84,7 @@ export function CockpitView({
         )}
 
         {mute ? (
-          <Banner label="Cannot reach you outside this window" tone="alarm">
+          <Banner label={t("Cannot reach you outside this window")} tone="alarm">
             <Text as="span" size="sm" tone="alarm">
               {mute}
             </Text>
@@ -86,7 +92,7 @@ export function CockpitView({
         ) : null}
 
         {queue.unreachable.length > 0 ? (
-          <Banner label="Could not read" tone="alarm">
+          <Banner label={t("Could not read")} tone="alarm">
             <Text as="span" size="sm" tone="alarm">
               {queue.unreachable.join(", ")}
             </Text>

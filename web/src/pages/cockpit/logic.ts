@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Queue } from "@/core/queue";
 import { idsOf, newcomers, phrase, raise, waiting } from "@/core/attention";
+import { useText } from "@/lib/language";
 
 /// Polling rather than watching, for now.
 ///
@@ -25,6 +26,7 @@ export interface Cockpit {
 /// and the error handling can be read — and changed — without a DOM in the
 /// way.
 export function useCockpit(): Cockpit {
+  const t = useText();
   const [queue, setQueue] = useState<Queue | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [mute, setMute] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function useCockpit(): Cockpit {
       // operating system that will not take the message is not a reason to
       // lose the queue that was already read — but it is not a reason to
       // stay quiet either.
-      await raise(waiting(q), phrase(fresh)).then(
+      await raise(waiting(q), phrase(fresh, t)).then(
         () => setMute(null),
         (e) => setMute(String(e)),
       );

@@ -12,7 +12,8 @@ describe("IntentPanel", () => {
 
   it("says plainly when a session changed files without announcing", () => {
     render(<IntentPanel sessions={[{ session: "abc12345", intent: null, touched: ["a.rs", "b.rs"] }]} />);
-    expect(screen.getByText(/Changed 2 file\(s\) without saying/)).toBeTruthy();
+    // The plural is chosen before the lookup, so the phrase is whole.
+    expect(screen.getByText("Changed 2 files without saying it would.")).toBeTruthy();
   });
 
   it("distinguishes an empty project from a silent one", () => {

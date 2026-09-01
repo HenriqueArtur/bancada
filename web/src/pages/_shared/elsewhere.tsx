@@ -1,5 +1,6 @@
 import { Mono } from "@/components";
 import { Banner } from "@/composites";
+import { useText } from "@/lib/language";
 
 /// Says out loud that this is not your cockpit.
 ///
@@ -11,9 +12,10 @@ import { Banner } from "@/composites";
 /// Absent for the default configuration, so it costs nothing to the case
 /// that matters: a warning that is always on is a warning nobody reads.
 export function Elsewhere({ path }: { path: string | null }) {
+  const t = useText();
   if (!path) return null;
   return (
-    <Banner label="Not your cockpit">
+    <Banner label={t("Not your cockpit")}>
       <Mono>{path}</Mono>
     </Banner>
   );

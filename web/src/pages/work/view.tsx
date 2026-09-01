@@ -8,6 +8,7 @@ import { Divider, Row, Stack } from "@/frame";
 import { AppShell } from "@/layouts";
 import { Elsewhere, WipBar } from "@/pages/_shared";
 import { useWork, waitingOn } from "@/pages/work/logic";
+import { useText } from "@/lib/language";
 
 /// Everything being watched, grouped by the boundary it belongs to.
 ///
@@ -25,45 +26,48 @@ export function WorkPage({
   onOpenSettings: () => void;
   onOpenQueue: () => void;
 }) {
+  const t = useText();
   const { work, failed } = useWork();
   const now = Date.now();
 
   return (
     <AppShell
-      title="Your work"
+      title={t("Your work")}
       banner={<Elsewhere path={queue.elsewhere} />}
       aside={
         <Row gap="normal">
           <Button tone="ghost" size="sm" onClick={onOpenQueue}>
-            Needs you
+            {t("Needs you")}
             {queue.wip.sessions_waiting > 0 ? (
               <Badge tone="count">{queue.wip.sessions_waiting}</Badge>
             ) : null}
           </Button>
           <WipBar wip={queue.wip} />
-          <Button tone="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings">
+          <Button tone="ghost" size="icon" onClick={onOpenSettings} aria-label={t("Settings")}>
             <GearSixIcon size={16} />
           </Button>
         </Row>
       }
     >
       {failed ? (
-        <Banner label="Could not read the configuration" tone="alarm">
+        <Banner label={t("Could not read the configuration")} tone="alarm">
           <Text as="span" size="sm" tone="alarm">
             {failed}
           </Text>
         </Banner>
       ) : !work ? (
         <Text tone="muted" size="sm">
-          Reading…
+          {t("Reading…")}
         </Text>
       ) : work.workspaces.length === 0 ? (
         <EmptyState
-          headline="Nothing is being watched."
-          detail="A workspace holds the projects that share a confidentiality boundary. Make one, then register a project in it."
+          headline={t("Nothing is being watched.")}
+          detail={t(
+            "A workspace holds the projects that share a confidentiality boundary. Make one, then register a project in it.",
+          )}
           action={
             <Button tone="primary" onClick={onOpenSettings}>
-              Open settings
+              {t("Open settings")}
             </Button>
           }
         />
@@ -74,7 +78,7 @@ export function WorkPage({
           ))}
 
           {work.orphans.length > 0 ? (
-            <Banner label="Belongs to no workspace" tone="alarm">
+            <Banner label={t("Belongs to no workspace")} tone="alarm">
               <Text as="span" size="sm" tone="alarm">
                 {work.orphans.map((s) => s.project.id).join(", ")}
               </Text>
@@ -97,6 +101,7 @@ function WorkspaceBlock({
   now: number;
   onOpen: (project: string) => void;
 }) {
+  const t = useText();
   return (
     <Stack gap="snug">
       <Row gap="snug" align="baseline" justify="between">
@@ -104,18 +109,18 @@ function WorkspaceBlock({
           <Heading level={2}>{group.workspace.id}</Heading>
           {/* The policy beside the name, because the workspace is where it
               lives and every project under it inherits exactly this. */}
-          <Badge>{exportsAs(group.workspace)}</Badge>
+          <Badge>{exportsAs(group.workspace, t)}</Badge>
         </Row>
         <Text as="span" size="sm" tone="faint">
           {group.projects.length === 0
-            ? "No projects"
-            : `${group.projects.length} project${group.projects.length === 1 ? "" : "s"}`}
+            ? t("No projects")
+            : t.plural(group.projects.length, "{n} project", "{n} projects")}
         </Text>
       </Row>
 
       {group.projects.length === 0 ? (
         <Text tone="muted" size="sm">
-          Nothing registered in this workspace yet.
+          {t("Nothing registered in this workspace yet.")}
         </Text>
       ) : (
         <Card>
@@ -142,6 +147,7 @@ function ProjectRow({
   now: number;
   onOpen: (project: string) => void;
 }) {
+  const t = useText();
   const { project } = standing;
   return (
     <RowButton
@@ -155,14 +161,14 @@ function ProjectRow({
           </Heading>
           {waiting > 0 ? (
             <Badge tone="clay">
-              {waiting} waiting
+              {t("{n} waiting", { n: waiting })}
             </Badge>
           ) : null}
         </Row>
         <Mono className="break-all">{project.path}</Mono>
         <Text size="sm" tone={standing.unreachable ? "alarm" : "faint"}>
-          {project.runtime === "this-machine" ? "This machine" : project.runtime} ·{" "}
-          {aliveness(standing, now)}
+          {project.runtime === "this-machine" ? t("This machine") : project.runtime} ·{" "}
+          {aliveness(standing, now, t)}
         </Text>
       </Stack>
       <ArrowRightIcon size={14} className="mt-1 shrink-0 text-ink-faint" />

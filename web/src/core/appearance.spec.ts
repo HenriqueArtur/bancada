@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { nameOf, remember, resolve, stored, THEMES } from "@/core/appearance";
+import { translator } from "@/core/language";
+
+/// English, so every assertion reads as the phrase itself.
+const t = translator({});
 
 describe("resolve", () => {
   it("takes the machine's word when told to follow it", () => {
@@ -38,10 +42,10 @@ describe("what is remembered", () => {
 describe("nameOf", () => {
   it("says what following the system means, rather than naming it", () => {
     // "System" is a label; "Follow the system" is what the option does.
-    expect(nameOf("system")).toBe("Follow the system");
+    expect(nameOf("system", t)).toBe("Follow the system");
   });
 
   it("names every theme, so none can render blank", () => {
-    for (const t of THEMES) expect(nameOf(t).length).toBeGreaterThan(0);
+    for (const theme of THEMES) expect(nameOf(theme, t).length).toBeGreaterThan(0);
   });
 });

@@ -11,6 +11,10 @@ import {
   type Config,
   type Project,
 } from "@/core/settings";
+import { translator } from "@/core/language";
+
+/// English, so every assertion reads as the phrase itself.
+const t = translator({});
 
 const config: Config = {
   workspaces: [{ id: "personal" }],
@@ -47,32 +51,32 @@ const good: Project = {
 
 describe("whyNot", () => {
   it("lets a complete registration through", () => {
-    expect(whyNot(good, config)).toBeNull();
+    expect(whyNot(good, config, t)).toBeNull();
   });
 
   it("asks for one thing at a time, in the order the form is filled", () => {
     // Everything is missing here; the first answer must be the first field.
-    expect(whyNot(BLANK, config)).toBe("give it a name");
+    expect(whyNot(BLANK, config, t)).toBe("give it a name");
   });
 
   it("insists the path is the guest's absolute spelling", () => {
-    expect(whyNot({ ...good, path: "dev/thing" }, config)).toMatch(/absolute/);
+    expect(whyNot({ ...good, path: "dev/thing" }, config, t)).toMatch(/absolute/);
   });
 
   it("refuses a runtime nobody registered", () => {
-    expect(whyNot({ ...good, runtime: "sunne" }, config)).toBe(
+    expect(whyNot({ ...good, runtime: "sunne" }, config, t)).toBe(
       "no runtime registered as sunne",
     );
   });
 
   it("refuses a workspace nobody registered", () => {
-    expect(whyNot({ ...good, workspace: "client-x" }, config)).toBe(
+    expect(whyNot({ ...good, workspace: "client-x" }, config, t)).toBe(
       "no workspace registered as client-x",
     );
   });
 
   it("refuses weight zero, which would erase the project from the order", () => {
-    expect(whyNot({ ...good, weight: 0 }, config)).toMatch(/erase/);
+    expect(whyNot({ ...good, weight: 0 }, config, t)).toMatch(/erase/);
   });
 });
 
@@ -98,7 +102,7 @@ describe("the machine bancada runs on", () => {
 
   it("still needs the rest of the form", () => {
     // Preselecting a runtime must not make an empty form look complete.
-    expect(whyNot(BLANK, config)).toBe("give it a name");
+    expect(whyNot(BLANK, config, t)).toBe("give it a name");
   });
 });
 
@@ -123,25 +127,25 @@ describe("evidenceOf", () => {
   });
 
   it("says nothing before there is anything to say", () => {
-    expect(evidenceOf(null)).toBeNull();
+    expect(evidenceOf(null, t)).toBeNull();
   });
 
   it("counts what is already there", () => {
-    expect(evidenceOf(p({ sessions: 4 }))!.says).toBe("4 sessions already recorded here");
+    expect(evidenceOf(p({ sessions: 4 }), t)!.says).toBe("4 sessions already recorded here");
   });
 
   it("says one session in the singular, because it will happen constantly", () => {
-    expect(evidenceOf(p({ sessions: 1 }))!.says).toBe("1 session already recorded here");
+    expect(evidenceOf(p({ sessions: 1 }), t)!.says).toBe("1 session already recorded here");
   });
 
   it("distinguishes an empty folder from an unreachable one", () => {
     // These look identical without saying so, and one of them is a typo.
-    expect(evidenceOf(p())!.tone).toBe("empty");
-    expect(evidenceOf(p({ reachable: false, why: "no such directory" }))!.tone).toBe("missing");
+    expect(evidenceOf(p(), t)!.tone).toBe("empty");
+    expect(evidenceOf(p({ reachable: false, why: "no such directory" }), t)!.tone).toBe("missing");
   });
 
   it("passes on the runtime's own words for why it failed", () => {
-    expect(evidenceOf(p({ reachable: false, why: "permission denied" }))!.says).toBe(
+    expect(evidenceOf(p({ reachable: false, why: "permission denied" }), t)!.says).toBe(
       "permission denied",
     );
   });
@@ -151,19 +155,19 @@ describe("whyNotRuntime", () => {
   const vm = { ...BLANK_RUNTIME, id: "sunne", configDir: "/state/claude", prefix: ["limactl"] };
 
   it("lets a complete one through", () => {
-    expect(whyNotRuntime(vm, config)).toBeNull();
+    expect(whyNotRuntime(vm, config, t)).toBeNull();
   });
 
   it("refuses the name reserved for the machine bancada runs on", () => {
-    expect(whyNotRuntime({ ...vm, id: THIS_MACHINE }, config)).toMatch(/belongs to the machine/);
+    expect(whyNotRuntime({ ...vm, id: THIS_MACHINE }, config, t)).toMatch(/belongs to the machine/);
   });
 
   it("refuses a name already taken", () => {
-    expect(whyNotRuntime({ ...vm, id: "devbox" }, config)).toBe("devbox is already registered");
+    expect(whyNotRuntime({ ...vm, id: "devbox" }, config, t)).toBe("devbox is already registered");
   });
 
   it("insists on a prefix, since without one it is this machine twice", () => {
-    expect(whyNotRuntime({ ...vm, prefix: [] }, config)).toMatch(/in front of every command/);
+    expect(whyNotRuntime({ ...vm, prefix: [] }, config, t)).toMatch(/in front of every command/);
   });
 });
 
@@ -179,7 +183,7 @@ describe("whyNot, editing rather than creating", () => {
   it("refuses a name another project already has", () => {
     // Registering over it would replace that project and quietly take its
     // path, weight and workspace with it.
-    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken)).toBe(
+    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken, t)).toBe(
       "neo-gitmoji is already registered",
     );
   });
@@ -187,11 +191,11 @@ describe("whyNot, editing rather than creating", () => {
   it("lets a project keep its own name while being edited", () => {
     // A thing is not a collision with itself, and the form that edits is
     // the same form that creates.
-    expect(whyNot({ ...good, id: "bancada" }, taken, "bancada")).toBeNull();
+    expect(whyNot({ ...good, id: "bancada" }, taken, t, "bancada")).toBeNull();
   });
 
   it("still refuses renaming onto a name somebody else has", () => {
-    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken, "bancada")).toBe(
+    expect(whyNot({ ...good, id: "neo-gitmoji" }, taken, t, "bancada")).toBe(
       "neo-gitmoji is already registered",
     );
   });

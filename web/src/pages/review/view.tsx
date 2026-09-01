@@ -4,14 +4,16 @@ import { Stack } from "@/frame";
 import { useReview } from "@/pages/review/logic";
 import { IntentPanel } from "@/pages/review/intent";
 import { DiffView } from "@/pages/review/diff";
+import { useText } from "@/lib/language";
 
 /// The diff, beside the claim it is supposed to honour.
 export function ReviewPage({ project }: { project: string }) {
+  const t = useText();
   const { data, failed, vouch } = useReview(project);
 
   if (failed) {
     return (
-      <Banner label="Could not read" tone="alarm">
+      <Banner label={t("Could not read")} tone="alarm">
         <Text as="span" size="sm" tone="alarm">
           {failed}
         </Text>
@@ -21,27 +23,27 @@ export function ReviewPage({ project }: { project: string }) {
   if (!data) {
     return (
       <Text tone="muted" size="sm">
-        Reading the tree…
+        {t("Reading the tree…")}
       </Text>
     );
   }
 
   return (
     <Stack gap="loose">
-      <Section title="What it said it would do">
+      <Section title={t("What it said it would do")}>
         <IntentPanel sessions={data.sessions} />
       </Section>
 
       <Section
-        title="What changed"
+        title={t("What changed")}
         aside={
           data.unannounced.length > 0 ? (
-            <Badge tone="alarm">{data.unannounced.length} unannounced</Badge>
+            <Badge tone="alarm">{t("{n} unannounced", { n: data.unannounced.length })}</Badge>
           ) : undefined
         }
       >
         {data.unreachable ? (
-          <Banner label="Could not read the tree" tone="alarm">
+          <Banner label={t("Could not read the tree")} tone="alarm">
             <Text as="span" size="sm" tone="alarm">
               {data.unreachable}
             </Text>

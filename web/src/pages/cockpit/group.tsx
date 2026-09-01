@@ -3,6 +3,7 @@ import { age, detail, label, type Glance, type Grouped } from "@/core/queue";
 import { Badge, Button, Card, Mono, RowButton, Text } from "@/components";
 import { Row, Stack } from "@/frame";
 import { Score } from "@/pages/cockpit/score";
+import { useText } from "@/lib/language";
 
 /// One session's pending things, together.
 ///
@@ -21,6 +22,7 @@ export function Group({
   glance?: Glance;
   onOpen?: (project: string) => void;
 }) {
+  const t = useText();
   const [open, setOpen] = useState<number | null>(null);
   const rows = collapse(group);
   const project = group.items[0]?.item.project ?? "";
@@ -38,7 +40,7 @@ export function Group({
           <Mono tone="faint">{group.session.slice(0, 8)}</Mono>
           {onOpen && project ? (
             <Button tone="link" size="sm" className="ml-auto" onClick={() => onOpen(project)}>
-              Open
+              {t("Open")}
             </Button>
           ) : null}
         </Row>
@@ -56,15 +58,15 @@ export function Group({
             className="items-baseline gap-3.5 rounded-none border-b border-line-soft px-4 py-3"
           >
             <Text as="span" size="sm" tone="muted" className="min-w-[58px] shrink-0 tabular-nums">
-              {age(row.first.age_ms)}
+              {age(row.first.age_ms, t)}
             </Text>
             <Text as="span" size="sm" tone="clay" className="min-w-[92px] shrink-0">
-              {label(row.first.item.kind)}
+              {label(row.first.item.kind, t)}
             </Text>
             {/* What the decision actually is. Without it every row has to be
                 opened before you know whether it matters. */}
             <Text as="span" className="truncate">
-              {detail(row.first, glance) ?? ""}
+              {detail(row.first, t, glance) ?? ""}
             </Text>
             {row.count > 1 ? (
               <Badge className="ml-auto shrink-0">×{row.count}</Badge>

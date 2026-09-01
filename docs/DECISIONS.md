@@ -677,3 +677,67 @@ one.
 - Deliberately absent: pending diffs and machine resources per project. Both
   cost a process per project per open, and a screen you go to in order to find
   something has to be there before you finish deciding to look.
+
+---
+
+## ADR-020 · The palette and the language are choices, and a phrase is its own key
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+Two settings that had never been settings: the window followed the system's
+dark mode with no way to override it, and every string was English nailed into
+the component that rendered it.
+
+### Decision
+
+**Three theme states, not two.** Light and dark are the ones people ask for;
+*keep following the machine* is the third and it is the default. Applied
+before the first paint — a window that corrects itself a frame later shows a
+flash of the theme nobody chose — and the media query stays subscribed,
+because "system" means keeps following.
+
+**Both are kept in the webview, not in `config.json`.** The configuration is
+the product's declaration of what it watches: projects, machines, boundaries.
+A palette and a language are facts about whoever is reading, and mixing the
+two puts a preference somewhere a backup or a shared configuration carries it.
+
+**A phrase is its own key.** `t("Nothing needs you.")` looks the English up
+and, finding nothing, returns what it was given.
+
+- English needs no catalogue and can never be incomplete.
+- The call site still reads as the sentence. This matters here more than
+  usual: the interface text *is* the product's voice, and
+  `t("cockpit.empty.headline")` hides it in a repository that spends its
+  effort on code that reads like prose.
+- A second language is one file. A phrase it lacks falls back to English *in
+  place*, so a half-done translation shows the half it has rather than
+  reverting the screen.
+
+Rejected: a **typed catalogue with generated keys**, which gets completeness
+from the compiler for free and would be genuinely safer — at the cost of
+trading every sentence in the source for an identifier. **Lingui**, which
+gets both, for a build macro in a Vite that has none. **i18next**, which is
+right for ten languages and a translation team, and is machinery for a problem
+two hundred phrases and one person do not have.
+
+### Consequences
+
+- The compiler cannot check completeness, so `bun run --cwd web text:check`
+  extracts every phrase and diffs it against each catalogue. It joins the gate
+  list. The tool proves it rather than anybody promising — the same move as
+  `archwarden config verify-rules`.
+- **Every phrase must be a literal inside a `t(…)`.** A phrase assembled at
+  runtime is invisible to any extractor. Pure functions that produce text take
+  the translator instead of returning a key: `label(kind, t)`. That is churn
+  across the core, and it is what makes the check honest.
+- The check fails on a **stale** phrase and not on a missing one. A catalogue
+  carrying a phrase the source stopped saying is a translation of something
+  nobody reads, and it hides that whatever replaced it is untranslated.
+- Plurals are two literals chosen before the lookup. English and Portuguese
+  both have two forms; a language with more needs this replaced, and that is
+  written down rather than discovered.
+- Portuguese ships registered and empty, and the interface says so — *0 of 174
+  phrases*. The honest state, visible, rather than a language that silently
+  does nothing.

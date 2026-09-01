@@ -1,5 +1,6 @@
 /// Everything registered, grouped the way the boundary actually runs.
 import { invoke } from "@tauri-apps/api/core";
+import type { Translate } from "@/core/language";
 import type { Config, Project, Workspace } from "@/core/settings";
 
 /// One project, and whether it is alive.
@@ -36,36 +37,36 @@ export const forgetWorkspace = (id: string): Promise<Config> =>
 /// `metadata` is where a workspace is born and it is the closed one, which
 /// the word does not say on its own — a label nobody can read is a boundary
 /// nobody checks.
-export function exportsAs(w: Workspace): string {
+export function exportsAs(w: Workspace, t: Translate): string {
   switch (w.export) {
     case "summary":
-      return "Exports summaries";
+      return t("Exports summaries");
     case "full":
-      return "Exports everything";
+      return t("Exports everything");
     // A workspace is born here and rises by a deliberate act, never by
     // default — so an absent level and `metadata` are the same closed thing.
     default:
-      return "Sealed · metadata only";
+      return t("Sealed · metadata only");
   }
 }
 
 /// How long ago, in the words a person uses. `null` when nothing happened.
-export function since(at: number | null, now: number): string | null {
+export function since(at: number | null, now: number, t: Translate): string | null {
   if (at === null) return null;
   const m = Math.floor((now - at) / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min ago`;
+  if (m < 1) return t("just now");
+  if (m < 60) return t("{n} min ago", { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return t("{n}h ago", { n: h });
   const d = Math.floor(h / 24);
-  return d === 1 ? "yesterday" : `${d} days ago`;
+  return d === 1 ? t("yesterday") : t("{n} days ago", { n: d });
 }
 
 /// What to say about a project's activity, including when there is none.
-export function aliveness(s: Standing, now: number): string {
+export function aliveness(s: Standing, now: number, t: Translate): string {
   if (s.unreachable) return s.unreachable;
-  if (s.sessions === 0) return "Nothing recorded yet";
-  const ago = since(s.lastActivity, now);
-  const sessions = `${s.sessions} session${s.sessions === 1 ? "" : "s"}`;
-  return ago ? `${sessions} · last ${ago}` : sessions;
+  if (s.sessions === 0) return t("Nothing recorded yet");
+  const ago = since(s.lastActivity, now, t);
+  const sessions = t.plural(s.sessions, "{n} session", "{n} sessions");
+  return ago ? t("{sessions} · last {ago}", { sessions, ago }) : sessions;
 }

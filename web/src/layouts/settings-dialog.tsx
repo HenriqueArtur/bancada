@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Dialog, DialogFrame, Heading, RowButton, Text } from "@/components";
 import { Divider, Inset, Region, Scroller, Stack } from "@/frame";
+import { useText } from "@/lib/language";
 
 export interface SettingsSection {
   id: string;
@@ -30,15 +31,16 @@ export function SettingsDialog({
   active: string;
   onSelect: (id: string) => void;
 }) {
+  const t = useText();
   const current = sections.find((s) => s.id === active) ?? sections[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogFrame title="Settings" description="What the product was told.">
-        <Region label="Settings sections" className="w-[212px] shrink-0 border-r border-line bg-surface">
+      <DialogFrame title={t("Settings")} description={t("What the product was told.")}>
+        <Region label={t("Settings sections")} className="w-[212px] shrink-0 border-r border-line bg-surface">
           <Inset pad="snug">
             <Text as="div" size="xs" tone="faint" className="px-2 pb-1.5 uppercase tracking-wider">
-              Settings
+              {t("Settings")}
             </Text>
             <Stack gap="none">
               {sections.map((s) => (

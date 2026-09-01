@@ -1,5 +1,6 @@
 /// What the product was told, and nothing it guessed.
 import { invoke } from "@tauri-apps/api/core";
+import type { Translate } from "@/core/language";
 
 export interface Workspace {
   id: string;
@@ -102,22 +103,27 @@ export const BLANK: Project = {
 ///
 /// Returned rather than thrown, and one reason at a time: a form that
 /// lights up four errors at once is one people stop reading.
-export function whyNot(p: Project, config: Config, previous?: string): string | null {
-  if (!p.id.trim()) return "give it a name";
+export function whyNot(
+  p: Project,
+  config: Config,
+  t: Translate,
+  previous?: string,
+): string | null {
+  if (!p.id.trim()) return t("give it a name");
   if (p.id !== previous && config.projects.some((x) => x.id === p.id)) {
-    return `${p.id} is already registered`;
+    return t("{id} is already registered", { id: p.id });
   }
-  if (!p.path.trim()) return "where does it live, as the guest spells it?";
-  if (!p.path.startsWith("/")) return "the path must be absolute";
-  if (!p.runtime) return "which runtime runs it?";
-  if (!p.workspace) return "whose work is this?";
+  if (!p.path.trim()) return t("where does it live, as the guest spells it?");
+  if (!p.path.startsWith("/")) return t("the path must be absolute");
+  if (!p.runtime) return t("which runtime runs it?");
+  if (!p.workspace) return t("whose work is this?");
   if (!config.runtimes.some((r) => r.id === p.runtime)) {
-    return `no runtime registered as ${p.runtime}`;
+    return t("no runtime registered as {id}", { id: p.runtime });
   }
   if (!config.workspaces.some((w) => w.id === p.workspace)) {
-    return `no workspace registered as ${p.workspace}`;
+    return t("no workspace registered as {id}", { id: p.workspace });
   }
-  if (p.weight < 1) return "weight 0 would erase the project from the order";
+  if (p.weight < 1) return t("weight 0 would erase the project from the order");
   return null;
 }
 
@@ -140,23 +146,30 @@ export function nameFrom(path: string): string {
 }
 
 /// What the evidence line says, and how loudly.
-export function evidenceOf(p: Preview | null): {
+export function evidenceOf(
+  p: Preview | null,
+  t: Translate,
+): {
   tone: "found" | "empty" | "missing";
   says: string;
 } | null {
   if (!p) return null;
   if (!p.reachable) {
-    return { tone: "missing", says: p.why ?? "cannot reach that folder" };
+    return { tone: "missing", says: p.why ?? t("cannot reach that folder") };
   }
   if (p.sessions === 0) {
     return {
       tone: "empty",
-      says: "reachable, and no sessions recorded here yet",
+      says: t("reachable, and no sessions recorded here yet"),
     };
   }
   return {
     tone: "found",
-    says: `${p.sessions} session${p.sessions === 1 ? "" : "s"} already recorded here`,
+    says: t.plural(
+      p.sessions,
+      "{n} session already recorded here",
+      "{n} sessions already recorded here",
+    ),
   };
 }
 
@@ -171,15 +184,15 @@ export const BLANK_RUNTIME: RuntimeSpec = {
 };
 
 /// Why this runtime cannot be registered yet.
-export function whyNotRuntime(r: RuntimeSpec, config: Config): string | null {
+export function whyNotRuntime(r: RuntimeSpec, config: Config, t: Translate): string | null {
   // Worded apart from the project's own "give it a name" on purpose: both
   // forms are on one screen, and two identical complaints leave you looking
   // for which field is unhappy.
-  if (!r.id.trim()) return "give the machine a name";
-  if (r.id === THIS_MACHINE) return "that name belongs to the machine bancada runs on";
-  if (config.runtimes.some((x) => x.id === r.id)) return `${r.id} is already registered`;
-  if (!r.configDir.trim()) return "where does the harness keep its state, as this machine spells it?";
-  if (!r.configDir.startsWith("/")) return "that path must be absolute";
-  if (r.prefix.length === 0) return "what goes in front of every command?";
+  if (!r.id.trim()) return t("give the machine a name");
+  if (r.id === THIS_MACHINE) return t("that name belongs to the machine bancada runs on");
+  if (config.runtimes.some((x) => x.id === r.id)) return t("{id} is already registered", { id: r.id });
+  if (!r.configDir.trim()) return t("where does the harness keep its state, as this machine spells it?");
+  if (!r.configDir.startsWith("/")) return t("that path must be absolute");
+  if (r.prefix.length === 0) return t("what goes in front of every command?");
   return null;
 }

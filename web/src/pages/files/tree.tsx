@@ -4,6 +4,7 @@ import type { Entry } from "@/core/review";
 import { loadTree } from "@/core/review";
 import { RowButton, Text } from "@/components";
 import { Listing, ListingItem, Region } from "@/frame";
+import { useText } from "@/lib/language";
 
 interface Props {
   project: string;
@@ -17,14 +18,16 @@ interface Props {
 /// back a hundred thousand entries, and a pane that stalls on open has
 /// stopped being part of a cockpit.
 export function FileTree(props: Props) {
+  const t = useText();
   return (
-    <Region label="Project files" className="text-[13.5px]">
+    <Region label={t("Project files")} className="text-[13.5px]">
       <Level {...props} sub="" />
     </Region>
   );
 }
 
 function Level({ project, sub, onOpen, selected }: Props & { sub: string }) {
+  const t = useText();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -49,7 +52,7 @@ function Level({ project, sub, onOpen, selected }: Props & { sub: string }) {
   if (!entries) {
     return (
       <Text tone="muted" size="sm">
-        Reading…
+        {t("Reading…")}
       </Text>
     );
   }

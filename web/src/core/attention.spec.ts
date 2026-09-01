@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { idsOf, newcomers, phrase, waiting } from "@/core/attention";
 import type { Grouped, DecisionKind, Ranked, Queue } from "@/core/queue";
+import { translator } from "@/core/language";
+
+/// English, so every assertion reads as the phrase itself.
+const t = translator({});
 
 const ranked = (
   kind: DecisionKind,
@@ -64,24 +68,24 @@ describe("newcomers", () => {
 
 describe("phrase", () => {
   it("says nothing when nothing is new", () => {
-    expect(phrase([])).toBeNull();
+    expect(phrase([], t)).toBeNull();
   });
 
   it("names the project and what it wants", () => {
-    const a = phrase([ranked("Question", 1)])!;
+    const a = phrase([ranked("Question", 1)], t)!;
     expect(a.title).toBe("bancada · a question");
     expect(a.body).toContain("s1");
   });
 
   it("counts rather than listing when several land at once", () => {
-    const a = phrase([ranked("Question", 1), ranked("Review", 2), ranked("Permission", 3)])!;
+    const a = phrase([ranked("Question", 1), ranked("Review", 2), ranked("Permission", 3)], t)!;
     expect(a.title).toBe("bancada · 3 things need you");
     expect(a.body).toBe("a question, review, permission");
   });
 
   it("stops listing after three", () => {
     const many = [1, 2, 3, 4, 5].map((n) => ranked("Permission", n));
-    expect(phrase(many)!.body).toMatch(/and 2 more$/);
+    expect(phrase(many, t)!.body).toMatch(/and 2 more$/);
   });
 });
 

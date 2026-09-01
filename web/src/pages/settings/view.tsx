@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { DesktopTowerIcon, PaletteIcon, ShieldIcon, StackIcon } from "@phosphor-icons/react";
+import {
+  DesktopTowerIcon,
+  PaletteIcon,
+  ShieldIcon,
+  StackIcon,
+  TranslateIcon,
+} from "@phosphor-icons/react";
 import type { Theme } from "@/core/appearance";
+import type { Language } from "@/core/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { SettingsDialog } from "@/layouts";
@@ -9,6 +16,8 @@ import { ProjectsPanel } from "@/pages/settings/projects";
 import { MachinesPanel } from "@/pages/settings/machines";
 import { WorkspacesPanel } from "@/pages/settings/workspaces";
 import { AppearancePanel } from "@/pages/settings/appearance";
+import { LanguagePanel } from "@/pages/settings/language";
+import { useText } from "@/lib/language";
 
 /// What the product was told, in a window over what it is telling you.
 export function SettingsPage({
@@ -17,26 +26,31 @@ export function SettingsPage({
   onChanged,
   theme,
   onChooseTheme,
+  language,
+  onChooseLanguage,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
   theme: Theme;
   onChooseTheme: (t: Theme) => void;
+  language: Language | null;
+  onChooseLanguage: (l: Language | null) => void;
 }) {
   const { config, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
     useSettings(onChanged);
+  const t = useText();
   const [active, setActive] = useState("projects");
 
   const body = failed ? (
-    <Banner label="Could not read the configuration" tone="alarm">
+    <Banner label={t("Could not read the configuration")} tone="alarm">
       <Text as="span" size="sm" tone="alarm">
         {failed}
       </Text>
     </Banner>
   ) : !config ? (
     <Text tone="muted" size="sm">
-      Reading the configuration…
+      {t("Reading the configuration…")}
     </Text>
   ) : null;
 
@@ -49,9 +63,9 @@ export function SettingsPage({
       sections={[
         {
           id: "projects",
-          label: "Projects",
+          label: t("Projects"),
           icon: <StackIcon size={15} />,
-          blurb: "The bodies of content this cockpit is watching.",
+          blurb: t("The bodies of content this cockpit is watching."),
           panel:
             body ??
             (config ? (
@@ -60,9 +74,9 @@ export function SettingsPage({
         },
         {
           id: "workspaces",
-          label: "Workspaces",
+          label: t("Workspaces"),
           icon: <ShieldIcon size={15} />,
-          blurb: "Who each project belongs to, and what its supervisor may let out.",
+          blurb: t("Who each project belongs to, and what its supervisor may let out."),
           panel: config ? (
             <WorkspacesPanel
               config={config}
@@ -76,18 +90,25 @@ export function SettingsPage({
         },
         {
           id: "machines",
-          label: "Machines",
+          label: t("Machines"),
           icon: <DesktopTowerIcon size={15} />,
-          blurb: "Where sessions run, and what each one turned out to have.",
+          blurb: t("Where sessions run, and what each one turned out to have."),
           panel:
             body ?? (config ? <MachinesPanel config={config} onRegister={addRuntime} /> : null),
         },
         {
           id: "appearance",
-          label: "Appearance",
+          label: t("Appearance"),
           icon: <PaletteIcon size={15} />,
-          blurb: "How the window looks while you read in it.",
+          blurb: t("How the window looks while you read in it."),
           panel: <AppearancePanel theme={theme} onChoose={onChooseTheme} />,
+        },
+        {
+          id: "language",
+          label: t("Language"),
+          icon: <TranslateIcon size={15} />,
+          blurb: t("Which language the interface speaks."),
+          panel: <LanguagePanel language={language} onChoose={onChooseLanguage} />,
         },
       ]}
     />

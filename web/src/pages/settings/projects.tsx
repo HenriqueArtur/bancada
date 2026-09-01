@@ -8,6 +8,7 @@ import { ChoiceField, Field, NewThing, Notice, Section } from "@/composites";
 import { Full, Grid, Inset, Row, Stack } from "@/frame";
 import { Disclosure } from "@/components";
 import { useDraftProject } from "@/pages/settings/logic";
+import { useText } from "@/lib/language";
 
 export function ProjectsPanel({
   config,
@@ -18,11 +19,12 @@ export function ProjectsPanel({
   onRegister: (p: Project, previous?: string) => void;
   onForget: (id: string) => void;
 }) {
+  const t = useText();
   const [editing, setEditing] = useState<Project | null>(null);
 
   return (
     <Stack gap="loose">
-      <Section title="Watched">
+      <Section title={t("Watched")}>
         <Registered config={config} onForget={onForget} onEdit={setEditing} />
       </Section>
       <ProjectForm
@@ -53,10 +55,11 @@ function Registered({
   onForget: (id: string) => void;
   onEdit: (p: Project) => void;
 }) {
+  const t = useText();
   if (config.projects.length === 0) {
     return (
       <Text tone="muted" size="sm">
-        None yet.
+        {t("None yet.")}
       </Text>
     );
   }
@@ -72,10 +75,10 @@ function Registered({
                 </Heading>
                 <Row gap="tight">
                   <Button tone="ghost" size="sm" onClick={() => onEdit(p)}>
-                    Edit
+                    {t("Edit")}
                   </Button>
                   <Button tone="ghost" size="sm" onClick={() => onForget(p.id)}>
-                    Forget
+                    {t("Forget")}
                   </Button>
                 </Row>
               </Row>
@@ -86,13 +89,13 @@ function Registered({
               <Mono className="break-all leading-relaxed">{p.path}</Mono>
 
               <Row gap="tight" wrap>
-                <Badge>{p.runtime === THIS_MACHINE ? "This machine" : p.runtime}</Badge>
+                <Badge>{p.runtime === THIS_MACHINE ? t("This machine") : p.runtime}</Badge>
                 <Badge>{p.workspace}</Badge>
-                <Badge title="How fast waiting hurts here. Scales time, never the kind of decision.">
-                  Weight ×{p.weight}
+                <Badge title={t("How fast waiting hurts here. Scales time, never the kind of decision.")}>
+                  {t("Weight ×{n}", { n: p.weight })}
                 </Badge>
-                <Badge title="How long a finished turn stays quiet before it is worth your eyes">
-                  Quiet {p.idleAfterMinutes} min
+                <Badge title={t("How long a finished turn stays quiet before it is worth your eyes")}>
+                  {t("Quiet {n} min", { n: p.idleAfterMinutes })}
                 </Badge>
               </Row>
             </Stack>
@@ -119,6 +122,7 @@ function ProjectForm({
   onSubmit: (p: Project, previous?: string) => void;
   onCancel: () => void;
 }) {
+  const t = useText();
   const { draft, setDraft, setPath, preview, clear, load } = useDraftProject();
   const [picking, setPicking] = useState(false);
 
@@ -129,8 +133,8 @@ function ProjectForm({
   }, [editing, load]);
 
   const local = draft.runtime === THIS_MACHINE;
-  const blocked = whyNot(draft, config, editing?.id);
-  const evidence = evidenceOf(preview);
+  const blocked = whyNot(draft, config, t, editing?.id);
+  const evidence = evidenceOf(preview, t);
 
   const browse = async () => {
     setPicking(true);
@@ -144,18 +148,18 @@ function ProjectForm({
 
   return (
     <NewThing
-      title="Watch a project"
-      blurb="Pick a folder and bancada will say what it found there."
+      title={t("Watch a project")}
+      blurb={t("Pick a folder and bancada will say what it found there.")}
       editing={editing?.id}
     >
       <Stack gap="normal">
           <Grid columns={2}>
             <Full>
               <Field
-                label="Where does it live?"
+                label={t("Where does it live?")}
                 value={draft.path}
                 onChange={setPath}
-                placeholder={local ? "/Users/you/dev/thing" : "The path as the guest spells it"}
+                placeholder={local ? "/Users/you/dev/thing" : t("The path as the guest spells it")}
                 after={
                   // Only for this machine. A guest path cannot be browsed
                   // from here, and a picker that quietly returned the host's
@@ -164,7 +168,7 @@ function ProjectForm({
                   local ? (
                     <Button tone="outline" onClick={browse} disabled={picking} type="button">
                       <FolderOpenIcon size={15} />
-                      {picking ? "…" : "Browse"}
+                      {picking ? "…" : t("Browse")}
                     </Button>
                   ) : undefined
                 }
@@ -176,52 +180,52 @@ function ProjectForm({
                 <Notice tone={evidence.tone}>
                   {evidence.says}
                   {preview && preview.reachable && !preview.versioned
-                    ? " · Not a git repository, so there will be no diff to review."
+                    ? ` · ${t("Not a git repository, so there will be no diff to review.")}`
                     : ""}
                 </Notice>
               </Full>
             ) : null}
 
             <Field
-              label="Call it"
+              label={t("Call it")}
               value={draft.id}
               onChange={(id) => setDraft({ ...draft, id })}
-              placeholder="From the folder name"
+              placeholder={t("From the folder name")}
             />
             <ChoiceField
-              label="Runs on"
+              label={t("Runs on")}
               value={draft.runtime}
               onChange={(runtime) => setDraft({ ...draft, runtime })}
               choices={config.runtimes.map((r) => ({
                 value: r.id,
-                label: r.id === THIS_MACHINE ? "This machine" : r.id,
+                label: r.id === THIS_MACHINE ? t("This machine") : r.id,
               }))}
             />
 
             <Full>
-              <Disclosure summary="Whose it is, and how fast waiting hurts">
+              <Disclosure summary={t("Whose it is, and how fast waiting hurts")}>
                 <Grid columns={2}>
                   <ChoiceField
-                    label="Workspace"
+                    label={t("Workspace")}
                     value={draft.workspace}
                     onChange={(workspace) => setDraft({ ...draft, workspace })}
                     choices={config.workspaces.map((w) => ({ value: w.id, label: w.id }))}
                   />
                   <Field
-                    label="Weight"
+                    label={t("Weight")}
                     value={String(draft.weight)}
                     onChange={(v) => setDraft({ ...draft, weight: Number(v) || 1 })}
-                    hint="Scales how fast waiting hurts. Never overrides the kind of decision."
+                    hint={t("Scales how fast waiting hurts. Never overrides the kind of decision.")}
                   />
                   <Field
-                    label="Quiet for (minutes) before it counts"
+                    label={t("Quiet for (minutes) before it counts")}
                     value={String(draft.idleAfterMinutes)}
                     onChange={(v) => setDraft({ ...draft, idleAfterMinutes: Number(v) || 1 })}
                   />
                   {draft.path ? (
                     <Stack gap="tight" justify="end">
                       <Text size="sm" tone="faint">
-                        Logs
+                        {t("Logs")}
                       </Text>
                       <Mono tone="faint">projects/{logDirName(draft.path)}</Mono>
                     </Stack>
@@ -242,7 +246,7 @@ function ProjectForm({
                 }
               }}
             >
-              {editing ? "Save changes" : "Watch it"}
+              {editing ? t("Save changes") : t("Watch it")}
             </Button>
             {editing ? (
               <Button
@@ -252,7 +256,7 @@ function ProjectForm({
                   onCancel();
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
             ) : null}
             {blocked ? (

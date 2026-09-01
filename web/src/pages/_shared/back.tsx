@@ -1,6 +1,7 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import type { Queue } from "@/core/queue";
 import { Badge, Button } from "@/components";
+import { useText } from "@/lib/language";
 
 /// Where a project screen was opened from.
 export type Origin = "cockpit" | "work";
@@ -24,11 +25,12 @@ export function BackToQueue({
   from?: Origin;
   onBack: () => void;
 }) {
+  const t = useText();
   const n = queue.wip.sessions_waiting;
   return (
     <Button tone="ghost" size="sm" onClick={onBack} className="-ml-2.5">
       <ArrowLeftIcon size={13} />
-      {from === "work" ? "Your work" : "Needs you"}
+      {from === "work" ? t("Your work") : t("Needs you")}
       {n > 0 ? <Badge tone="count">{n}</Badge> : null}
     </Button>
   );

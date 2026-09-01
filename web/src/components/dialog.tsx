@@ -2,6 +2,7 @@ import * as Primitive from "@radix-ui/react-dialog";
 import { XIcon } from "@phosphor-icons/react";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { useText } from "@/lib/language";
 
 /// A window over the page.
 ///
@@ -24,6 +25,7 @@ export function DialogFrame({
   description?: string;
   children: ReactNode;
 }) {
+  const t = useText();
   return (
     <Primitive.Portal>
       <Primitive.Overlay
@@ -53,7 +55,7 @@ export function DialogFrame({
         ) : null}
         {children}
         <Primitive.Close
-          aria-label="Close"
+          aria-label={t("Close")}
           className={cn(
             "absolute right-3.5 top-3.5 grid size-7 place-items-center rounded-lg",
             "text-ink-faint hover:bg-surface hover:text-ink transition-colors outline-none",

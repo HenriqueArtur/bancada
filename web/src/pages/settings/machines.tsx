@@ -6,6 +6,7 @@ import { Badge, Button, Card, Disclosure, Heading, Mono, Text } from "@/componen
 import { ChoiceField, Field } from "@/composites";
 import { Grid, Inset, Row, Stack } from "@/frame";
 import { useDiscovery } from "@/pages/settings/logic";
+import { useText } from "@/lib/language";
 
 export function MachinesPanel({
   config,
@@ -14,6 +15,7 @@ export function MachinesPanel({
   config: Config;
   onRegister: (r: RuntimeSpec) => void;
 }) {
+  const t = useText();
   const { found, probing, probe } = useDiscovery();
 
   return (
@@ -25,20 +27,20 @@ export function MachinesPanel({
               <Stack gap="snug">
                 <Row gap="snug" align="baseline" justify="between">
                   <Heading level={3} as="h3">
-                    {r.id === THIS_MACHINE ? "This machine" : r.id}
+                    {r.id === THIS_MACHINE ? t("This machine") : r.id}
                   </Heading>
                   {r.id === THIS_MACHINE ? (
                     // Not a proposal and not a declaration: the product is
                     // already executing here, so there is nothing to be
                     // wrong about and nothing to register.
-                    <Badge>Always here</Badge>
+                    <Badge>{t("Always here")}</Badge>
                   ) : (
                     <Badge>{r.kind}</Badge>
                   )}
                 </Row>
 
                 <Mono className="break-all leading-relaxed">
-                  {r.prefix.join(" ") || "No prefix — commands run directly"}
+                  {r.prefix.join(" ") || t("No prefix — commands run directly")}
                 </Mono>
 
                 <Probed d={found.get(r.id)} />
@@ -50,10 +52,10 @@ export function MachinesPanel({
         <Row gap="normal" wrap>
           <Button tone="outline" onClick={probe} disabled={probing}>
             <BinocularsIcon size={15} />
-            {probing ? "Probing…" : "Ask them what they have"}
+            {probing ? t("Probing…") : t("Ask them what they have")}
           </Button>
           <Text tone="muted" size="sm">
-            Discovery proposes; registering is yours.
+            {t("Discovery proposes; registering is yours.")}
           </Text>
         </Row>
       </Stack>
@@ -65,6 +67,7 @@ export function MachinesPanel({
 
 /// What one machine turned out to have, once it was asked.
 function Probed({ d }: { d?: Discovery }) {
+  const t = useText();
   if (!d) return null;
   if (d.error) {
     return (
@@ -76,7 +79,7 @@ function Probed({ d }: { d?: Discovery }) {
   if (!d.harness) {
     return (
       <Text as="span" size="sm" tone="muted">
-        No harness installed
+        {t("No harness installed")}
       </Text>
     );
   }
@@ -84,7 +87,7 @@ function Probed({ d }: { d?: Discovery }) {
   return (
     <Text as="span" size="sm" tone="muted">
       {d.harness.version}
-      {d.harness.loggedIn ? "" : " · logged out"}
+      {d.harness.loggedIn ? "" : ` · ${t("logged out")}`}
       {who ? ` · ${who.email}` : ""}
     </Text>
   );
@@ -102,40 +105,45 @@ function AddRuntime({
   config: Config;
   onRegister: (r: RuntimeSpec) => void;
 }) {
+  const t = useText();
   const [draft, setDraft] = useState<RuntimeSpec>(BLANK_RUNTIME);
-  const blocked = whyNotRuntime(draft, config);
+  const blocked = whyNotRuntime(draft, config, t);
 
   return (
     <Card>
       <Inset pad="loose">
-        <Disclosure summary="Describe another machine">
+        <Disclosure summary={t("Describe another machine")}>
           <Stack gap="normal">
             <Grid columns={2}>
-              <Field label="Call it" value={draft.id} onChange={(id) => setDraft({ ...draft, id })} />
+              <Field
+                label={t("Call it")}
+                value={draft.id}
+                onChange={(id) => setDraft({ ...draft, id })}
+              />
               <ChoiceField
-                label="What kind"
+                label={t("What kind")}
                 value={draft.kind}
                 onChange={(kind) => setDraft({ ...draft, kind })}
                 choices={["vm", "container", "ssh", "local"].map((v) => ({ value: v, label: v }))}
               />
               <Field
-                label="What runs in front of every command"
+                label={t("What runs in front of every command")}
                 value={draft.prefix.join(" ")}
                 onChange={(v) => setDraft({ ...draft, prefix: v.split(/\s+/).filter(Boolean) })}
-                hint="For a Lima VM: limactl shell devbox --"
+                hint={t("For a Lima VM: limactl shell devbox --")}
               />
               <Field
-                label="Where the harness keeps state, as this machine spells it"
+                label={t("Where the harness keeps state, as this machine spells it")}
                 value={draft.configDir}
                 onChange={(configDir) => setDraft({ ...draft, configDir })}
               />
               <Field
-                label="Its tree, as this machine spells it"
+                label={t("Its tree, as this machine spells it")}
                 value={draft.hostRoot}
                 onChange={(hostRoot) => setDraft({ ...draft, hostRoot })}
               />
               <Field
-                label="The same tree, as it spells it"
+                label={t("The same tree, as it spells it")}
                 value={draft.guestRoot}
                 onChange={(guestRoot) => setDraft({ ...draft, guestRoot })}
               />
@@ -151,7 +159,7 @@ function AddRuntime({
                   }
                 }}
               >
-                Register it
+                {t("Register it")}
               </Button>
               {blocked ? (
                 <Text tone="muted" size="sm">

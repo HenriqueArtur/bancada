@@ -1,6 +1,7 @@
 import type { SessionReview } from "@/core/review";
 import { Mono, Quote, Text } from "@/components";
 import { Stack } from "@/frame";
+import { useText } from "@/lib/language";
 
 /// What each session said it would do, in its own words.
 ///
@@ -8,10 +9,11 @@ import { Stack } from "@/frame";
 /// and the whole point of the panel is to hand the reviewer the original to
 /// hold the diff against.
 export function IntentPanel({ sessions }: { sessions: SessionReview[] }) {
+  const t = useText();
   if (sessions.length === 0) {
     return (
       <Text tone="muted" size="sm">
-        No session in this project has written anything.
+        {t("No session in this project has written anything.")}
       </Text>
     );
   }
@@ -24,7 +26,11 @@ export function IntentPanel({ sessions }: { sessions: SessionReview[] }) {
             <Quote>{s.intent}</Quote>
           ) : (
             <Text tone="alarm" size="sm">
-              Changed {s.touched.length} file(s) without saying it would.
+              {t.plural(
+                s.touched.length,
+                "Changed {n} file without saying it would.",
+                "Changed {n} files without saying it would.",
+              )}
             </Text>
           )}
         </Stack>

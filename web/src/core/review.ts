@@ -1,5 +1,6 @@
 /// The review half of the cockpit: what changed, beside what was promised.
 import { invoke } from "@tauri-apps/api/core";
+import type { Translate } from "@/core/language";
 
 export type LineKind = "added" | "removed" | "context";
 
@@ -101,7 +102,7 @@ export const loadFile = (project: string, path: string): Promise<string> =>
   invoke<string>("file", { project, path });
 
 /// `+12 −3`, or the honest words for a file with no line changes.
-export function churn(f: Pick<FileDiff, "added" | "removed">): string {
-  if (f.added === 0 && f.removed === 0) return "no lines";
+export function churn(f: Pick<FileDiff, "added" | "removed">, t: Translate): string {
+  if (f.added === 0 && f.removed === 0) return t("no lines");
   return `+${f.added} −${f.removed}`;
 }

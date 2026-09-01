@@ -1,3 +1,5 @@
+import type { Translate } from "@/core/language";
+
 /// Which palette the window wears.
 ///
 /// Three states, not two. "Dark" and "light" are choices; *following the
@@ -55,13 +57,13 @@ export function apply(dark: boolean): void {
   document.documentElement.classList.toggle("dark", dark);
 }
 
-export function nameOf(theme: Theme): string {
+export function nameOf(theme: Theme, t: Translate): string {
   switch (theme) {
     case "light":
-      return "Light";
+      return t("Light");
     case "dark":
-      return "Dark";
+      return t("Dark");
     default:
-      return "Follow the system";
+      return t("Follow the system");
   }
 }

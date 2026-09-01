@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import type { Config, Workspace } from "@/core/settings";
+import type { Translate } from "@/core/language";
 import { exportsAs } from "@/core/work";
 import { Badge, Button, Card, Heading, Text } from "@/components";
 import { ChoiceField, Field, NewThing, Notice, Section } from "@/composites";
 import { Grid, Inset, Row, Stack } from "@/frame";
+import { useText } from "@/lib/language";
 
-const LEVELS = [
-  { value: "metadata", label: "Sealed · metadata only" },
-  { value: "summary", label: "Exports summaries" },
-  { value: "full", label: "Exports everything" },
-];
+function levels(t: Translate) {
+  return [
+    { value: "metadata", label: t("Sealed · metadata only") },
+    { value: "summary", label: t("Exports summaries") },
+    { value: "full", label: t("Exports everything") },
+  ];
+}
 
 type Level = NonNullable<Workspace["export"]>;
 
@@ -31,16 +35,17 @@ export function WorkspacesPanel({
   /// is the case, and the message names what it holds.
   failed: string | null;
 }) {
+  const t = useText();
   const [editing, setEditing] = useState<Workspace | null>(null);
 
   return (
     <Stack gap="loose">
       {failed ? <Notice tone="missing">{failed}</Notice> : null}
 
-      <Section title="Registered">
+      <Section title={t("Registered")}>
         {config.workspaces.length === 0 ? (
           <Text tone="muted" size="sm">
-            None yet. A project has to belong to one.
+            {t("None yet. A project has to belong to one.")}
           </Text>
         ) : (
           <Stack gap="snug">
@@ -55,16 +60,16 @@ export function WorkspacesPanel({
                         </Heading>
                         <Row gap="tight">
                           <Button tone="ghost" size="sm" onClick={() => setEditing(w)}>
-                            Edit
+                            {t("Edit")}
                           </Button>
                           <Button tone="ghost" size="sm" onClick={() => onForget(w.id)}>
-                            Forget
+                            {t("Forget")}
                           </Button>
                         </Row>
                       </Row>
                       <Row gap="tight" wrap>
-                        <Badge>{exportsAs(w)}</Badge>
-                        <Badge>{held(config, w.id)}</Badge>
+                        <Badge>{exportsAs(w, t)}</Badge>
+                        <Badge>{held(config, w.id, t)}</Badge>
                       </Row>
                     </Stack>
                   </Inset>
@@ -88,9 +93,9 @@ export function WorkspacesPanel({
   );
 }
 
-function held(config: Config, id: string): string {
+function held(config: Config, id: string, t: Translate): string {
   const n = config.projects.filter((p) => p.workspace === id).length;
-  return n === 0 ? "No projects" : `${n} project${n === 1 ? "" : "s"}`;
+  return n === 0 ? t("No projects") : t.plural(n, "{n} project", "{n} projects");
 }
 
 /// A workspace is born sealed. It rises by a deliberate act, never by
@@ -108,6 +113,7 @@ function WorkspaceForm({
   onSubmit: (w: Workspace, previous?: string) => void;
   onCancel: () => void;
 }) {
+  const t = useText();
   const [draft, setDraft] = useState<Workspace>(BLANK);
 
   /// Copied in once, then owned here.
@@ -122,22 +128,22 @@ function WorkspaceForm({
 
   return (
     <NewThing
-      title="New workspace"
-      blurb="Projects that share this name share a supervisor's reading."
+      title={t("New workspace")}
+      blurb={t("Projects that share this name share a supervisor's reading.")}
       editing={editing?.id}
     >
       <Grid columns={2}>
         <Field
-          label="Whose work is this?"
+          label={t("Whose work is this?")}
           value={draft.id}
           onChange={(id) => setDraft({ ...draft, id })}
-          placeholder="A client, or personal"
+          placeholder={t("A client, or personal")}
         />
         <ChoiceField
-          label="What its supervisors may let out"
+          label={t("What its supervisors may let out")}
           value={draft.export ?? "metadata"}
           onChange={(level) => setDraft({ ...draft, export: level as Level })}
-          choices={LEVELS}
+          choices={levels(t)}
         />
       </Grid>
 
@@ -151,11 +157,11 @@ function WorkspaceForm({
             setDraft(BLANK);
           }}
         >
-          {editing ? "Save changes" : "Make it"}
+          {editing ? t("Save changes") : t("Make it")}
         </Button>
         {editing ? (
           <Button tone="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
         ) : null}
         {blocked ? (

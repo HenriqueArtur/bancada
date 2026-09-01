@@ -92,12 +92,50 @@ that arrives late is a layout that moves under the reader.
 - **Tailwind v4** through `@tailwindcss/vite`. Build-time only: the output is
   a static stylesheet, which is what `default-src 'self'` requires.
 
+## Language
+
+**A phrase is its own key.**
+
+```tsx
+{t("Nothing needs you.")}
+{t("{n} unannounced", { n: 3 })}
+{t.plural(n, "{n} file changed", "{n} files changed")}
+```
+
+A lookup that finds nothing returns what it was given, so English needs no
+catalogue and can never be incomplete. It also keeps the call site readable —
+the interface text *is* the product's voice, and `t("cockpit.empty.headline")`
+hides it.
+
+**Every phrase must be a literal inside a `t(…)`.** A phrase assembled at
+runtime cannot be extracted by any tool and must not exist. Pure functions
+that produce text take the translator rather than returning a key, for the
+same reason: `label(kind, t)`, `aliveness(standing, now, t)`.
+
+What that costs is a completeness check the compiler cannot do, so a script
+does it:
+
+```sh
+bun run --cwd web text:check
+```
+
+It fails on a **stale** phrase — one a catalogue still carries after the
+source stopped saying it — because that is a translation of something nobody
+reads, and it hides that whatever replaced it is untranslated. A **missing**
+phrase is not a failure: a language is allowed to be half done, and each
+phrase it lacks falls back to English in place.
+
+Plurals are two literals chosen before the lookup, not ICU. English and
+Portuguese both have two forms; a language with more needs this replaced, and
+that is written here rather than discovered.
+
 ## Commands
 
 ```sh
 bun install --cwd web
 bun run --cwd web test      # vitest
 bun run --cwd web build     # tsc -b && vite build
+bun run --cwd web text:check                # is every phrase accounted for
 bunx --bun archwarden@latest check          # does the tree obey the rules
 bunx --bun archwarden@latest config doctor  # do the rules reach anything
 ```

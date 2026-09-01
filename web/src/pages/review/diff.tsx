@@ -5,6 +5,7 @@ import { Badge, Button, Card, CodeBlock, Mono, RowButton, Text } from "@/compone
 import { Stack } from "@/frame";
 import { readingOrder } from "@/pages/review/logic";
 import { cn } from "@/lib/cn";
+import { useText } from "@/lib/language";
 
 export function DiffView({
   diff,
@@ -17,10 +18,11 @@ export function DiffView({
   unannounced: string[];
   onVouch: (f: FileDiff) => void;
 }) {
+  const t = useText();
   if (diff.files.length === 0) {
     return (
       <Text tone="muted" size="sm">
-        The tree matches its last commit.
+        {t("The tree matches its last commit.")}
       </Text>
     );
   }
@@ -43,6 +45,7 @@ function FileBlock({
   unannounced: boolean;
   onVouch: (f: FileDiff) => void;
 }) {
+  const t = useText();
   // A file already reviewed opens collapsed. Nothing is hidden — the header
   // still names it — but the pane opens on what moved.
   const [open, setOpen] = useState(file.fresh);
@@ -52,13 +55,13 @@ function FileBlock({
       <RowButton onClick={() => setOpen(!open)} className="gap-2.5 rounded-none px-4 py-2.5">
         <Mono tone="normal">{file.path}</Mono>
         {unannounced ? (
-          <Badge tone="alarm" title="No session announced this file">
-            Unannounced
+          <Badge tone="alarm" title={t("No session announced this file")}>
+            {t("Unannounced")}
           </Badge>
         ) : null}
-        {file.fresh ? <Badge tone="clay">New to you</Badge> : null}
+        {file.fresh ? <Badge tone="clay">{t("New to you")}</Badge> : null}
         <Text as="span" size="sm" tone="muted" className="ml-auto tabular-nums">
-          {churn(file)}
+          {churn(file, t)}
         </Text>
         <Button
           tone="outline"
@@ -68,7 +71,7 @@ function FileBlock({
             onVouch(file);
           }}
         >
-          {file.fresh ? "Mark reviewed" : "Reviewed"}
+          {file.fresh ? t("Mark reviewed") : t("Reviewed")}
         </Button>
       </RowButton>
 

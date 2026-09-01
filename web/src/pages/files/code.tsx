@@ -3,6 +3,7 @@ import { loadFile } from "@/core/review";
 import { THEME, definition, paletteFor } from "@/core/monaco-theme";
 import { PlainText, Text } from "@/components";
 import { Inset, Mount } from "@/frame";
+import { useText } from "@/lib/language";
 
 /// Whether the document is currently in the dark.
 ///
@@ -39,6 +40,7 @@ export function CodeView({ project, path }: { project: string; path: string | nu
   const host = useRef<HTMLDivElement>(null);
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const t = useText();
   const [plain, setPlain] = useState(false);
   const dark = useDark();
 
@@ -108,9 +110,9 @@ export function CodeView({ project, path }: { project: string; path: string | nu
     // performs twice a day.
   }, [text, path, dark]);
 
-  if (!path) return <Aside>Pick a file.</Aside>;
+  if (!path) return <Aside>{t("Pick a file.")}</Aside>;
   if (failed) return <Aside tone="alarm">{failed}</Aside>;
-  if (text === null) return <Aside>Reading…</Aside>;
+  if (text === null) return <Aside>{t("Reading…")}</Aside>;
   if (plain) return <PlainText text={text} />;
   // No border and no radius: the pane *is* the editor, and a card around
   // it would be a frame around a window.
