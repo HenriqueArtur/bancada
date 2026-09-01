@@ -12,6 +12,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::queue::queue,
             commands::review::review,
+            commands::setup::settings,
+            commands::setup::discover,
+            commands::setup::register_project,
+            commands::setup::forget_project,
+            commands::setup::register_runtime,
             commands::tree::tree,
             commands::tree::file
         ])

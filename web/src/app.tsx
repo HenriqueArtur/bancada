@@ -10,6 +10,7 @@ import { DiffView } from "./components/diff-view";
 import { IntentPanel } from "./components/intent-panel";
 import { FileTree } from "./components/file-tree";
 import { CodeView } from "./components/code-view";
+import { SettingsScreen } from "./components/settings-screen";
 
 /// Polling rather than watching, for now.
 ///
@@ -18,27 +19,32 @@ import { CodeView } from "./components/code-view";
 /// uses, so nothing visible waits on it.
 const EVERY_MS = 10_000;
 
-type View = { at: "cockpit" } | { at: "review"; project: string } | { at: "files"; project: string };
+type View =
+  | { at: "cockpit" }
+  | { at: "settings" }
+  | { at: "review"; project: string }
+  | { at: "files"; project: string };
 
 export function App() {
   const [queue, setQueue] = useState<Queue | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [view, setView] = useState<View>({ at: "cockpit" });
 
+  const reload = async () => {
+    try {
+      setQueue(await invoke<Queue>("queue"));
+      setFailed(null);
+    } catch (e) {
+      // Named rather than a blank screen: a product that cannot reach its
+      // own core must not look like a product with nothing to show.
+      setFailed(String(e));
+    }
+  };
+
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      try {
-        const q = await invoke<Queue>("queue");
-        if (alive) {
-          setQueue(q);
-          setFailed(null);
-        }
-      } catch (e) {
-        // Named rather than a blank screen: a product that cannot reach
-        // its own core must not look like a product with nothing to show.
-        if (alive) setFailed(String(e));
-      }
+      if (alive) await reload();
     };
     void load();
     const t = setInterval(load, EVERY_MS);
@@ -56,6 +62,23 @@ export function App() {
     );
   }
   if (!queue) return <main className="app" />;
+
+  if (view.at === "settings") {
+    return (
+      <main className="app">
+        <header className="head">
+          <button type="button" className="back" onClick={() => setView({ at: "cockpit" })}>
+            ← needs you
+          </button>
+          <h1>what the product was told</h1>
+        </header>
+        {/* Reloading the queue on every change is what makes registering a
+            project feel like it did something: the empty screen changes
+            from "nothing registered" to "watching 1". */}
+        <SettingsScreen onChanged={() => void reload()} />
+      </main>
+    );
+  }
 
   if (view.at !== "cockpit") {
     return (
@@ -94,11 +117,16 @@ export function App() {
     <main className="app">
       <header className="head">
         <h1>needs you</h1>
-        <WipBar wip={queue.wip} />
+        <div className="head-right">
+          <WipBar wip={queue.wip} />
+          <button type="button" className="back" onClick={() => setView({ at: "settings" })}>
+            settings
+          </button>
+        </div>
       </header>
 
       {queue.groups.length === 0 ? (
-        <EmptyCockpit watching={queue.watching} />
+        <EmptyCockpit watching={queue.watching} onRegister={() => setView({ at: "settings" })} />
       ) : (
         queue.groups.map((g) => (
           <QueueGroup

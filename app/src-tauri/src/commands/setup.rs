@@ -1,0 +1,86 @@
+// Same boundary as `queue`: the filesystem is read *and written* here, at
+// the edge. This is the only command that writes anything at all.
+#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
+
+use bancada_core::{Config, Discovery, Project, RuntimeSpec};
+
+/// Everything registered, as the product currently sees it.
+#[tauri::command]
+pub fn settings() -> Result<Config, String> {
+    super::queue::load_config()
+}
+
+/// Probe every registered runtime for a harness and an account.
+///
+/// A separate command from [`settings`] on purpose: probing shells into
+/// every VM, which is slow and can hang on a machine that is asleep. The
+/// settings screen must open whether or not any of that answers.
+#[tauri::command]
+pub fn discover() -> Result<Vec<Discovery>, String> {
+    let config = super::queue::load_config()?;
+    Ok(config
+        .runtimes
+        .iter()
+        .map(|spec| Discovery::probe(spec, &spec.open()))
+        .collect())
+}
+
+/// Register a project, or replace the one with the same id.
+///
+/// Replacing rather than refusing: the screen that calls this is also the
+/// screen that edits, and two paths for "write this row" is one more than
+/// the shape needs.
+#[tauri::command]
+pub fn register_project(project: Project) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    config.projects.retain(|p| p.id != project.id);
+    config.projects.push(project);
+    config.projects.sort_by(|a, b| a.id.cmp(&b.id));
+    save(config)
+}
+
+#[tauri::command]
+pub fn forget_project(id: String) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    config.projects.retain(|p| p.id != id);
+    save(config)
+}
+
+/// Register a runtime, or replace the one with the same id.
+///
+/// Discovery **proposes**; this is the act that registers. Nothing probed
+/// reaches the queue on its own — forty containers would hide the three
+/// that matter.
+#[tauri::command]
+pub fn register_runtime(runtime: RuntimeSpec) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    config.runtimes.retain(|r| r.id != runtime.id);
+    config.runtimes.push(runtime);
+    config.runtimes.sort_by(|a, b| a.id.cmp(&b.id));
+    save(config)
+}
+
+/// Write the configuration back, and refuse to write one we could not read.
+///
+/// The round-trip through `Config::parse` is the check: it re-runs the same
+/// validation the product uses at startup, so a write can never leave the
+/// cockpit in a state that will not open. A dangling runtime reference is
+/// caught here, with the human still looking at the form.
+fn save(config: Config) -> Result<Config, String> {
+    let text = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    let checked = Config::parse(&text).map_err(|e| format!("{e:?}"))?;
+
+    let path = super::queue::config_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    }
+
+    // Written beside the target and renamed over it. A half-written config
+    // is a cockpit that will not open, and the crash that produces one
+    // always happens to somebody who was mid-edit.
+    let tmp = path.with_extension("json.writing");
+    std::fs::write(&tmp, format!("{text}\n")).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))?;
+
+    Ok(checked)
+}

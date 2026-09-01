@@ -5,4 +5,5 @@
 // silently hides it.
 pub mod queue;
 pub mod review;
+pub mod setup;
 pub mod tree;
