@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How the product is meant to work
+    url: https://github.com/HenriqueArtur/bancada/blob/main/docs/CONCEPTS.md
+    about: Workspace, runtime, project, session — what each word means here.
+  - name: Why it works that way
+    url: https://github.com/HenriqueArtur/bancada/blob/main/docs/DECISIONS.md
+    about: Every decision with the options it rejected and why they lost.
