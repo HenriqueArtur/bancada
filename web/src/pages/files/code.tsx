@@ -49,9 +49,13 @@ export function CodeView({ project, path }: { project: string; path: string | nu
           language: languageOf(path),
           readOnly: true,
           theme: THEME,
-          fontSize: 12.5,
+          fontSize: 13,
           lineHeight: 20,
           padding: { top: 12, bottom: 12 },
+          // Rainbow brackets are a separate feature from the token rules, and
+          // they ship their own primaries. Punctuation is deliberately not
+          // coloured here — colouring it is how a file starts looking busy.
+          bracketPairColorization: { enabled: false },
           renderLineHighlight: "none",
           overviewRulerLanes: 0,
           minimap: { enabled: false },

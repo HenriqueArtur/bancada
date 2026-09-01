@@ -100,4 +100,24 @@
   ::selection {
     background: var(--clay-wash);
   }
+
+  /* Tailwind v4's reset gives buttons `cursor: default`, on the argument
+     that a native button is not a link. Every button in this product *is* a
+     thing you click, and a pointer is the only feedback a surface gives
+     before you commit to pressing it. Restored here rather than sprinkled
+     through the components, so a new one cannot forget. */
+  button:not(:disabled),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
