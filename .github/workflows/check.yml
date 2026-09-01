@@ -37,7 +37,19 @@ jobs:
       - name: nothing was written into the repository
         # A test that writes where the source lives will one day write over
         # it. `.gitignore` would hide that rather than catch it.
-        run: git diff --exit-code && git status --porcelain --untracked-files=all | tee /dev/stderr | wc -l | grep -qx 0
+        #
+        # Written out rather than piped through `wc`: BSD `wc` pads its count
+        # with spaces, so `grep -qx 0` never matched and this failed on every
+        # run against a clean tree. A check that cannot pass is worse than no
+        # check, because it teaches people to ignore a red job.
+        run: |
+          git status --porcelain --untracked-files=all > /tmp/dirty
+          if [ -s /tmp/dirty ]; then
+            echo "these appeared while the checks ran:"
+            cat /tmp/dirty
+            exit 1
+          fi
+          git diff --exit-code
 
   web:
     name: web
@@ -50,7 +62,21 @@ jobs:
       - run: bun install --frozen-lockfile --cwd web
       - run: make web
       - name: nothing was written into the repository
-        run: git diff --exit-code && git status --porcelain --untracked-files=all | tee /dev/stderr | wc -l | grep -qx 0
+        # A test that writes where the source lives will one day write over
+        # it. `.gitignore` would hide that rather than catch it.
+        #
+        # Written out rather than piped through `wc`: BSD `wc` pads its count
+        # with spaces, so `grep -qx 0` never matched and this failed on every
+        # run against a clean tree. A check that cannot pass is worse than no
+        # check, because it teaches people to ignore a red job.
+        run: |
+          git status --porcelain --untracked-files=all > /tmp/dirty
+          if [ -s /tmp/dirty ]; then
+            echo "these appeared while the checks ran:"
+            cat /tmp/dirty
+            exit 1
+          fi
+          git diff --exit-code
 
   arch:
     name: architecture
