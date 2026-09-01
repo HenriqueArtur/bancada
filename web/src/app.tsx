@@ -31,6 +31,8 @@ export function App() {
   const [queue, setQueue] = useState<Queue | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [view, setView] = useState<View>({ at: "cockpit" });
+  /// Why the product cannot get your attention, when it cannot.
+  const [mute, setMute] = useState<string | null>(null);
 
   /// What the last reading held, so the next one can tell what is new.
   ///
@@ -51,10 +53,14 @@ export function App() {
       // The badge every time, the notification only for what arrived. A
       // window you have to remember to open does not answer "I cannot keep
       // track of what is happening".
-      void raise(waiting(q), phrase(fresh)).catch(() => {
-        // An operating system that will not take the message is not a
-        // reason to lose the queue that was already read.
-      });
+      // An operating system that will not take the message is not a reason
+      // to lose the queue that was already read — but it is not a reason to
+      // stay quiet either. A supervisor that silently stopped supervising
+      // is worse than one that says it cannot.
+      void raise(waiting(q), phrase(fresh)).then(
+        () => setMute(null),
+        (e) => setMute(String(e)),
+      );
     } catch (e) {
       // Named rather than a blank screen: a product that cannot reach its
       // own core must not look like a product with nothing to show.
@@ -156,6 +162,12 @@ export function App() {
           />
         ))
       )}
+
+      {mute ? (
+        <div className="unreachable">
+          cannot reach you outside this window — {mute}
+        </div>
+      ) : null}
 
       {queue.unreachable.length > 0 ? (
         <div className="unreachable">

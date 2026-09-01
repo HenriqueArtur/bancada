@@ -26,20 +26,42 @@ pub fn attention(
     waiting: usize,
     announce: Option<Announce>,
 ) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        // `None` rather than `Some(0)`: a badge showing zero is a badge
-        // saying something, and nothing is what an empty queue means.
-        let count = (waiting > 0).then_some(waiting as i64);
-        window.set_badge_count(count).map_err(|e| e.to_string())?;
+    // The badge first, and its failure does not stop the notification. They
+    // fail for different reasons — one is the window, the other is a system
+    // daemon with its own opinion about which apps may speak — and losing
+    // both because one broke is how a product ends up mute for a reason
+    // nobody can name.
+    let mut trouble = Vec::new();
+
+    match app.get_webview_window("main") {
+        Some(window) => {
+            // `None` rather than `Some(0)`: a badge showing zero is a badge
+            // saying something, and nothing is what an empty queue means.
+            let count = (waiting > 0).then_some(waiting as i64);
+            if let Err(e) = window.set_badge_count(count) {
+                trouble.push(format!("badge: {e}"));
+            }
+        }
+        None => trouble.push("badge: no window to put it on".to_owned()),
     }
 
-    if let Some(a) = announce {
-        app.notification()
+    if let Some(a) = announce
+        && let Err(e) = app
+            .notification()
             .builder()
             .title(a.title)
             .body(a.body)
             .show()
-            .map_err(|e| e.to_string())?;
+    {
+        // Most often this is macOS refusing an app it does not consider
+        // installed. Named rather than swallowed: silence here looks
+        // exactly like a quiet queue.
+        trouble.push(format!("notification: {e}"));
     }
-    Ok(())
+
+    if trouble.is_empty() {
+        Ok(())
+    } else {
+        Err(trouble.join(" · "))
+    }
 }
