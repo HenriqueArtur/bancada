@@ -11,7 +11,6 @@ export { Badge } from "@/components/badge";
 export { Dialog, DialogTrigger, DialogClose, DialogFrame } from "@/components/dialog";
 export { Select, type Choice } from "@/components/select";
 export { Disclosure } from "@/components/disclosure";
-export { Table, TableBody, TableRow, TableCell } from "@/components/table";
 export { Label } from "@/components/label";
 export { Pips } from "@/components/pips";
 export { RowButton } from "@/components/row-button";

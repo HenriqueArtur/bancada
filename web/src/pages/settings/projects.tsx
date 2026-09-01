@@ -3,7 +3,7 @@ import { useState } from "react";
 import { FolderOpenIcon } from "@phosphor-icons/react";
 import type { Config, Project } from "@/core/settings";
 import { THIS_MACHINE, evidenceOf, logDirName, whyNot } from "@/core/settings";
-import { Badge, Button, Card, Mono, Table, TableBody, TableCell, TableRow, Text } from "@/components";
+import { Badge, Button, Card, Heading, Mono, Text } from "@/components";
 import { ChoiceField, Field, Notice } from "@/composites";
 import { Full, Grid, Inset, Row, Stack } from "@/frame";
 import { Disclosure } from "@/components";
@@ -26,6 +26,12 @@ export function ProjectsPanel({
   );
 }
 
+/// One registered project, with room to read it.
+///
+/// A table put five columns and a forty-character path into six hundred
+/// pixels, and every one of them lost. A card gives the path its own line
+/// and turns the rest into what it actually is: a handful of facts about
+/// one thing, not a row of a spreadsheet with four other things.
 function Registered({ config, onForget }: { config: Config; onForget: (id: string) => void }) {
   if (config.projects.length === 0) {
     return (
@@ -35,31 +41,40 @@ function Registered({ config, onForget }: { config: Config; onForget: (id: strin
     );
   }
   return (
-    <Table>
-      <TableBody>
-        {config.projects.map((p) => (
-          <TableRow key={p.id}>
-            <TableCell className="font-medium">{p.id}</TableCell>
-            <TableCell>
-              <Mono>{p.path}</Mono>
-            </TableCell>
-            <TableCell>
-              <Text as="span" size="sm" tone="muted">
-                {p.runtime === THIS_MACHINE ? "This machine" : p.runtime}
-              </Text>
-            </TableCell>
-            <TableCell className="w-0">
-              <Badge title="How fast waiting hurts here">×{p.weight}</Badge>
-            </TableCell>
-            <TableCell className="w-0">
-              <Button tone="ghost" size="sm" onClick={() => onForget(p.id)}>
-                Forget
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <Stack gap="snug">
+      {config.projects.map((p) => (
+        <Card key={p.id}>
+          <Inset pad="normal">
+            <Stack gap="snug">
+              <Row gap="snug" align="baseline" justify="between">
+                <Heading level={3} as="h3">
+                  {p.id}
+                </Heading>
+                <Button tone="ghost" size="sm" onClick={() => onForget(p.id)}>
+                  Forget
+                </Button>
+              </Row>
+
+              {/* Its own line, and allowed to wrap. A truncated path is a
+                  path you cannot check, which is the only reason it is on
+                  the screen. */}
+              <Mono className="break-all leading-relaxed">{p.path}</Mono>
+
+              <Row gap="tight" wrap>
+                <Badge>{p.runtime === THIS_MACHINE ? "This machine" : p.runtime}</Badge>
+                <Badge>{p.workspace}</Badge>
+                <Badge title="How fast waiting hurts here. Scales time, never the kind of decision.">
+                  Weight ×{p.weight}
+                </Badge>
+                <Badge title="How long a finished turn stays quiet before it is worth your eyes">
+                  Quiet {p.idleAfterMinutes} min
+                </Badge>
+              </Row>
+            </Stack>
+          </Inset>
+        </Card>
+      ))}
+    </Stack>
   );
 }
 

@@ -2,18 +2,7 @@ import { useState } from "react";
 import { BinocularsIcon } from "@phosphor-icons/react";
 import type { Config, Discovery, RuntimeSpec } from "@/core/settings";
 import { BLANK_RUNTIME, THIS_MACHINE, whyNotRuntime } from "@/core/settings";
-import {
-  Badge,
-  Button,
-  Card,
-  Disclosure,
-  Mono,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  Text,
-} from "@/components";
+import { Badge, Button, Card, Disclosure, Heading, Mono, Text } from "@/components";
 import { ChoiceField, Field } from "@/composites";
 import { Grid, Inset, Row, Stack } from "@/frame";
 import { useDiscovery } from "@/pages/settings/logic";
@@ -30,33 +19,33 @@ export function MachinesPanel({
   return (
     <Stack gap="loose">
       <Stack gap="snug">
-        <Table>
-          <TableBody>
-            {config.runtimes.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.id}</TableCell>
-                <TableCell className="w-0">
+        {config.runtimes.map((r) => (
+          <Card key={r.id}>
+            <Inset pad="normal">
+              <Stack gap="snug">
+                <Row gap="snug" align="baseline" justify="between">
+                  <Heading level={3} as="h3">
+                    {r.id === THIS_MACHINE ? "This machine" : r.id}
+                  </Heading>
                   {r.id === THIS_MACHINE ? (
                     // Not a proposal and not a declaration: the product is
                     // already executing here, so there is nothing to be
                     // wrong about and nothing to register.
                     <Badge>Always here</Badge>
                   ) : (
-                    <Text as="span" size="sm" tone="muted">
-                      {r.kind}
-                    </Text>
+                    <Badge>{r.kind}</Badge>
                   )}
-                </TableCell>
-                <TableCell>
-                  <Mono>{r.prefix.join(" ") || "No prefix"}</Mono>
-                </TableCell>
-                <TableCell>
-                  <Probed d={found.get(r.id)} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </Row>
+
+                <Mono className="break-all leading-relaxed">
+                  {r.prefix.join(" ") || "No prefix — commands run directly"}
+                </Mono>
+
+                <Probed d={found.get(r.id)} />
+              </Stack>
+            </Inset>
+          </Card>
+        ))}
 
         <Row gap="normal" wrap>
           <Button tone="outline" onClick={probe} disabled={probing}>
@@ -74,6 +63,7 @@ export function MachinesPanel({
   );
 }
 
+/// What one machine turned out to have, once it was asked.
 function Probed({ d }: { d?: Discovery }) {
   if (!d) return null;
   if (d.error) {
