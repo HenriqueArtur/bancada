@@ -67,8 +67,15 @@ pub fn register_runtime(runtime: RuntimeSpec) -> Result<Config, String> {
 /// cockpit in a state that will not open. A dangling runtime reference is
 /// caught here, with the human still looking at the form.
 fn save(config: Config) -> Result<Config, String> {
-    let text = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    let checked = Config::parse(&text).map_err(|e| format!("{e:?}"))?;
+    let home = super::queue::home();
+    // Written without the machine bancada runs on. Persisting it would
+    // freeze today's `$HOME` into a file that outlives it, and the copy on
+    // disk would quietly win over the fact. An entry somebody *edited* is no
+    // longer the default and stays.
+    let stored = config.without_this_machine(&home);
+
+    let text = serde_json::to_string_pretty(&stored).map_err(|e| e.to_string())?;
+    let checked = Config::parse_with_home(&text, &home).map_err(|e| format!("{e:?}"))?;
 
     let path = super::queue::config_path();
     if let Some(dir) = path.parent() {

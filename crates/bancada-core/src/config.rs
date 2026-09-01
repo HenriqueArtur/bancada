@@ -34,6 +34,19 @@ impl Config {
         Ok(cfg)
     }
 
+    /// Parse, with the machine bancada is running on already present.
+    ///
+    /// The default is added **before** the check, not after: a project may
+    /// name `this-machine` in a file that never mentions it, and validating
+    /// first would reject a configuration that is complete.
+    pub fn parse_with_home(text: &str, home: &std::path::Path) -> Result<Self, ConfigError> {
+        let cfg: Self =
+            serde_json::from_str(text).map_err(|e| ConfigError::Malformed(e.to_string()))?;
+        let cfg = cfg.with_this_machine(home);
+        cfg.check()?;
+        Ok(cfg)
+    }
+
     fn check(&self) -> Result<(), ConfigError> {
         for p in &self.projects {
             if !self.runtimes.iter().any(|r| r.id == p.runtime) {
@@ -55,11 +68,44 @@ impl Config {
     pub fn runtime_of(&self, project: &Project) -> Option<&RuntimeSpec> {
         self.runtimes.iter().find(|r| r.id == project.runtime)
     }
+
+    /// Add the machine bancada is running on, unless it was written down.
+    ///
+    /// Called after reading, never before writing. An explicit entry with
+    /// the reserved id wins: somebody whose harness keeps its state
+    /// somewhere unusual must be able to say so, and a default that cannot
+    /// be overridden is a default that eventually lies.
+    #[must_use]
+    pub fn with_this_machine(mut self, home: &std::path::Path) -> Self {
+        if !self
+            .runtimes
+            .iter()
+            .any(|r| r.id == RuntimeSpec::THIS_MACHINE)
+        {
+            self.runtimes.push(RuntimeSpec::this_machine(home));
+            self.runtimes.sort_by(|a, b| a.id.cmp(&b.id));
+        }
+        self
+    }
+
+    /// Drop the machine bancada is running on, if it is still the default.
+    ///
+    /// The counterpart of [`Config::with_this_machine`], and the reason
+    /// writing is safe: persisting the synthesised entry would freeze
+    /// today's `$HOME` into a file that outlives it, and the copy on disk
+    /// would quietly win over the fact.
+    #[must_use]
+    pub fn without_this_machine(mut self, home: &std::path::Path) -> Self {
+        let default = RuntimeSpec::this_machine(home);
+        self.runtimes.retain(|r| r != &default);
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     const GOOD: &str = r#"{
       "workspaces": [{"id":"personal"}],
@@ -99,5 +145,76 @@ mod tests {
     #[test]
     fn malformed_json_is_named_rather_than_defaulted() {
         assert!(matches!(Config::parse("{"), Err(ConfigError::Malformed(_))));
+    }
+
+    #[test]
+    fn the_machine_it_runs_on_is_there_without_being_written_down() {
+        let c = Config::parse("{}")
+            .unwrap()
+            .with_this_machine(Path::new("/Users/h"));
+        let this = c
+            .runtimes
+            .iter()
+            .find(|r| r.id == RuntimeSpec::THIS_MACHINE)
+            .expect("the machine bancada runs on");
+        assert_eq!(this.config_dir, "/Users/h/.claude");
+        assert!(this.prefix.is_empty(), "there is nothing to run through");
+    }
+
+    #[test]
+    fn an_explicit_entry_wins_over_the_default() {
+        // Somebody whose harness keeps its state somewhere unusual must be
+        // able to say so. A default that cannot be overridden is one that
+        // eventually lies.
+        let text = r#"{"runtimes":[{"id":"this-machine","kind":"local",
+                       "configDir":"/opt/claude","sharedFs":true}]}"#;
+        let c = Config::parse(text)
+            .unwrap()
+            .with_this_machine(Path::new("/Users/h"));
+        assert_eq!(c.runtimes.len(), 1);
+        assert_eq!(c.runtimes[0].config_dir, "/opt/claude");
+    }
+
+    #[test]
+    fn adding_it_twice_does_not_produce_two() {
+        let home = Path::new("/Users/h");
+        let c = Config::parse("{}")
+            .unwrap()
+            .with_this_machine(home)
+            .with_this_machine(home);
+        assert_eq!(c.runtimes.len(), 1);
+    }
+
+    #[test]
+    fn the_default_is_dropped_again_before_writing() {
+        // Persisting it would freeze today's `$HOME` into a file that
+        // outlives it, and the copy on disk would quietly win over the fact.
+        let home = Path::new("/Users/h");
+        let c = Config::parse("{}").unwrap().with_this_machine(home);
+        assert!(c.without_this_machine(home).runtimes.is_empty());
+    }
+
+    #[test]
+    fn an_edited_entry_survives_the_write() {
+        let home = Path::new("/Users/h");
+        let mut c = Config::parse("{}").unwrap().with_this_machine(home);
+        c.runtimes[0].config_dir = "/opt/claude".into();
+        assert_eq!(
+            c.without_this_machine(home).runtimes.len(),
+            1,
+            "a runtime somebody changed is no longer the default"
+        );
+    }
+
+    #[test]
+    fn a_project_may_name_it_without_the_file_mentioning_it() {
+        let text = r#"{"workspaces":[{"id":"personal"}],
+                       "projects":[{"id":"p","workspace":"personal",
+                                    "runtime":"this-machine","path":"/x"}]}"#;
+        // Parsed alone this is dangling; the default is what makes it whole,
+        // so the injection has to happen before the check that rejects it.
+        assert!(matches!(Config::parse(text), Err(ConfigError::Dangling(_))));
+        let c = Config::parse_with_home(text, Path::new("/Users/h")).unwrap();
+        assert_eq!(c.runtime_of(&c.projects[0]).unwrap().id, "this-machine");
     }
 }

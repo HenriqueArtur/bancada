@@ -377,3 +377,51 @@ Upgrades are a deliberate commit that changes the number, with a name on it.
   from the lockfile — pinning the whole graph by hand would be fiction.
 - `cargo update` becomes a no-op for pinned crates, which is the intended
   behaviour, not a bug to work around.
+
+---
+
+## ADR-014 · The machine bancada runs on registers itself
+
+**Status:** accepted · 2026-08-31
+
+### Context
+
+Every runtime is a declaration. That is deliberate: discovery **proposes** and
+registration is a human act, because forty containers found on a machine would
+hide the three that matter (ADR-005, G6.9).
+
+Applied without exception, the rule made the first five minutes absurd. To
+watch a project on the very laptop the window was open on, you had to open a
+JSON file and describe that laptop to the product — an empty prefix, an
+identity path mapping, a shared filesystem — all of which the product could
+only have gotten right.
+
+### Decision
+
+A runtime with the reserved id `this-machine` is **always present**, and is
+never written to the configuration file.
+
+```rust
+RuntimeSpec::this_machine(home)   // prefix: [], roots: "/", configDir: $HOME/.claude
+```
+
+- `Config::parse_with_home` adds it **before** validation, so a project may
+  name `this-machine` in a file that never mentions it.
+- `Config::without_this_machine` removes it before writing. An entry somebody
+  *edited* no longer equals the default and survives — which is the override.
+- `$HOME` is read at the edge, beside the clock. Nothing in the core asks the
+  environment.
+
+### Consequences
+
+- Registering a local project is one form and no file.
+- The default cannot go stale, because it is recomputed every read rather than
+  stored. Persisting it would freeze one `$HOME` into a file that outlives it,
+  and the copy on disk would quietly win over the fact.
+- The principle survives where it earns its keep. This is not discovery
+  proposing something: the product is *already executing* there, so there is
+  nothing to be wrong about. A VM, a container or a host reached over ssh is
+  still a claim about somewhere else, and still has to be made by a person.
+- Anyone whose harness keeps its state somewhere unusual writes an entry with
+  that id and wins. A default that cannot be overridden is a default that
+  eventually lies.

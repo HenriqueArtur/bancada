@@ -75,14 +75,26 @@ pub(super) fn config_path() -> PathBuf {
         })
 }
 
+/// This machine's home directory.
+///
+/// The one ambient fact the configuration needs, read here beside the clock
+/// for the same reason: nothing below the edge asks the environment, so the
+/// core stays a pure function of what it was handed.
+pub(super) fn home() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
+}
+
 pub(super) fn load_config() -> Result<Config, String> {
     let path = config_path();
     // A missing configuration is not a failure: it is a cockpit nobody has
-    // pointed at anything yet, and the empty screen says so.
+    // pointed at anything yet, and the empty screen says so. It still knows
+    // the machine it is running on — that much needs no telling.
     let Ok(text) = std::fs::read_to_string(&path) else {
-        return Ok(Config::default());
+        return Ok(Config::default().with_this_machine(&home()));
     };
-    Config::parse(&text).map_err(|e| format!("{}: {e:?}", path.display()))
+    Config::parse_with_home(&text, &home()).map_err(|e| format!("{}: {e:?}", path.display()))
 }
 
 fn millis_now() -> i64 {

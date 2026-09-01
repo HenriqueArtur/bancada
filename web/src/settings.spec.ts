@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { BLANK, logDirName, whyNot, type Config, type Project } from "./settings";
+import {
+  BLANK,
+  THIS_MACHINE,
+  logDirName,
+  whyNot,
+  type Config,
+  type Project,
+} from "./settings";
 
 const config: Config = {
   workspaces: [{ id: "personal" }],
   runtimes: [
+    {
+      id: THIS_MACHINE,
+      kind: "local",
+      prefix: [],
+      hostRoot: "/",
+      guestRoot: "/",
+      configDir: "/Users/h/.claude",
+      sharedFs: true,
+    },
     {
       id: "devbox",
       kind: "vm",
@@ -66,5 +82,18 @@ describe("logDirName", () => {
     // original from the name, so the registration has to be checked by
     // eye against what the harness actually wrote.
     expect(logDirName("/x/a.b")).toBe(logDirName("/x/a-b"));
+  });
+});
+
+describe("the machine bancada runs on", () => {
+  it("is what a blank registration already points at", () => {
+    // The product is executing there, so offering it is never wrong — and
+    // it is the right answer most of the time.
+    expect(BLANK.runtime).toBe(THIS_MACHINE);
+  });
+
+  it("still needs the rest of the form", () => {
+    // Preselecting a runtime must not make an empty form look complete.
+    expect(whyNot(BLANK, config)).toBe("give it a name");
   });
 });

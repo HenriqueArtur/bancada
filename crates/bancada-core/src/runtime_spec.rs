@@ -34,6 +34,33 @@ fn root() -> String {
 }
 
 impl RuntimeSpec {
+    /// The reserved id of the machine bancada is running on.
+    pub const THIS_MACHINE: &'static str = "this-machine";
+
+    /// The machine bancada is running on, described without being told.
+    ///
+    /// A runtime is normally a declaration, because discovery proposing
+    /// forty containers would hide the three that matter. This one is not a
+    /// proposal: the product is *already* executing here, so its prefix is
+    /// empty, its path mapping is the identity, and its filesystem is
+    /// shared. There is nothing to be wrong about, and asking a person to
+    /// write it down is asking them to restate a fact.
+    ///
+    /// `home` is passed in rather than read: nothing in this crate touches
+    /// the environment, so the one ambient fact enters at the edge with the
+    /// clock.
+    pub fn this_machine(home: &std::path::Path) -> Self {
+        Self {
+            id: Self::THIS_MACHINE.to_owned(),
+            kind: "local".to_owned(),
+            prefix: Vec::new(),
+            host_root: "/".to_owned(),
+            guest_root: "/".to_owned(),
+            config_dir: home.join(".claude").display().to_string(),
+            shared_fs: true,
+        }
+    }
+
     pub fn open(&self) -> HostRuntime {
         HostRuntime::prefixed(
             self.id.clone(),

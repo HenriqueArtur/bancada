@@ -61,10 +61,18 @@ export const registerProject = (project: Project): Promise<Config> =>
 export const forgetProject = (id: string): Promise<Config> =>
   invoke<Config>("forget_project", { id });
 
+/// The reserved id of the machine bancada is running on.
+///
+/// Always present, never written to the configuration file. Persisting it
+/// would freeze today's `$HOME` into a file that outlives it.
+export const THIS_MACHINE = "this-machine";
+
 export const BLANK: Project = {
   id: "",
   workspace: "",
-  runtime: "",
+  // Preselected because it is the answer most of the time and it is never
+  // wrong to *offer*: the product is already running there.
+  runtime: THIS_MACHINE,
   path: "",
   weight: 1,
   idleAfterMinutes: 2,

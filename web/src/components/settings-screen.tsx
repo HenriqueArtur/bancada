@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Config, Discovery, Project } from "../settings";
 import {
   BLANK,
+  THIS_MACHINE,
   discover,
   forgetProject,
   loadSettings,
@@ -147,7 +148,16 @@ function RuntimePanel({ config }: { config: Config }) {
             return (
               <tr key={r.id}>
                 <td className="strong">{r.id}</td>
-                <td>{r.kind}</td>
+                <td>
+                  {r.id === THIS_MACHINE ? (
+                    // Not a proposal and not a declaration: the product is
+                    // already executing here, so there is nothing to be
+                    // wrong about and nothing to register.
+                    <span className="badge">always here</span>
+                  ) : (
+                    r.kind
+                  )}
+                </td>
                 <td className="mono">{r.prefix.join(" ") || "no prefix"}</td>
                 <td>{r.sharedFs ? "shared fs" : "piped"}</td>
                 <td>{d ? <Probed d={d} /> : null}</td>

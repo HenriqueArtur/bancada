@@ -23,7 +23,13 @@ fn main() {
         )
     });
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let cockpit = Cockpit::new(Config::parse(&text).expect("configuration"));
+    let cockpit = Cockpit::new(
+        Config::parse_with_home(
+            &text,
+            std::path::Path::new(&std::env::var("HOME").unwrap_or_default()),
+        )
+        .expect("configuration"),
+    );
 
     let wanted = std::env::args().nth(1);
     let host = HostRuntime::local();

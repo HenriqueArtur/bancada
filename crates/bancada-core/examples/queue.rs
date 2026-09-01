@@ -17,7 +17,13 @@ fn main() {
         )
     });
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let cockpit = Cockpit::new(Config::parse(&text).expect("config"));
+    let cockpit = Cockpit::new(
+        Config::parse_with_home(
+            &text,
+            std::path::Path::new(&std::env::var("HOME").unwrap_or_default()),
+        )
+        .expect("config"),
+    );
     let host = HostRuntime::local();
     let now = Timestamp::from_millis(
         std::time::SystemTime::now()
