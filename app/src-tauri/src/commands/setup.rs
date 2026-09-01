@@ -66,7 +66,7 @@ pub fn register_runtime(runtime: RuntimeSpec) -> Result<Config, String> {
 /// validation the product uses at startup, so a write can never leave the
 /// cockpit in a state that will not open. A dangling runtime reference is
 /// caught here, with the human still looking at the form.
-fn save(config: Config) -> Result<Config, String> {
+pub(super) fn save(config: Config) -> Result<Config, String> {
     let home = super::queue::home();
     // Written without the machine bancada runs on. Persisting it would
     // freeze today's `$HOME` into a file that outlives it, and the copy on

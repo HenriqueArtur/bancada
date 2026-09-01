@@ -31,6 +31,14 @@ pub trait Runtime {
     /// Read a file, addressed in the guest's spelling.
     fn read_file(&self, guest_path: &Path) -> Result<Vec<u8>, RuntimeError>;
 
+    /// When a path was last written, in milliseconds since the epoch.
+    ///
+    /// `None` rather than an error for a path that has none: a runtime that
+    /// cannot answer and a file that was never written are the same answer
+    /// to the only question anybody asks it — *is this alive?* — and an
+    /// error here would force every caller to invent that equivalence.
+    fn modified(&self, guest_path: &Path) -> Option<i64>;
+
     /// List a directory's entries, addressed in the guest's spelling.
     ///
     /// Returned in a stable order, because a queue that reorders itself
@@ -62,6 +70,9 @@ mod tests {
         }
         fn exec(&self, cmd: &[String]) -> Result<String, RuntimeError> {
             Ok(cmd.join(" "))
+        }
+        fn modified(&self, _guest_path: &Path) -> Option<i64> {
+            None
         }
         fn read_dir(&self, guest_path: &Path) -> Result<Vec<std::path::PathBuf>, RuntimeError> {
             Err(RuntimeError::NotFound(guest_path.display().to_string()))

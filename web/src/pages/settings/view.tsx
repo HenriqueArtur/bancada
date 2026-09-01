@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { DesktopTowerIcon, StackIcon } from "@phosphor-icons/react";
+import { DesktopTowerIcon, ShieldIcon, StackIcon } from "@phosphor-icons/react";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { SettingsDialog } from "@/layouts";
 import { useSettings } from "@/pages/settings/logic";
 import { ProjectsPanel } from "@/pages/settings/projects";
 import { MachinesPanel } from "@/pages/settings/machines";
+import { WorkspacesPanel } from "@/pages/settings/workspaces";
 
 /// What the product was told, in a window over what it is telling you.
 export function SettingsPage({
@@ -17,7 +18,8 @@ export function SettingsPage({
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
 }) {
-  const { config, failed, register, forget, addRuntime } = useSettings(onChanged);
+  const { config, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
+    useSettings(onChanged);
   const [active, setActive] = useState("projects");
 
   const body = failed ? (
@@ -49,6 +51,22 @@ export function SettingsPage({
             (config ? (
               <ProjectsPanel config={config} onRegister={register} onForget={forget} />
             ) : null),
+        },
+        {
+          id: "workspaces",
+          label: "Workspaces",
+          icon: <ShieldIcon size={15} />,
+          blurb: "Who each project belongs to, and what its supervisor may let out.",
+          panel: config ? (
+            <WorkspacesPanel
+              config={config}
+              onRegister={addWorkspace}
+              onForget={dropWorkspace}
+              failed={failed}
+            />
+          ) : (
+            body
+          ),
         },
         {
           id: "machines",

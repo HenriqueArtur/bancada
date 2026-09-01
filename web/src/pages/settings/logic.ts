@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Config, Preview, Project, RuntimeSpec } from "@/core/settings";
+import type { Config, Preview, Project, RuntimeSpec, Workspace } from "@/core/settings";
+import { forgetWorkspace, registerWorkspace } from "@/core/work";
 import {
   BLANK,
   discover,
@@ -18,6 +19,8 @@ export interface Settings {
   register: (p: Project) => void;
   forget: (id: string) => void;
   addRuntime: (r: RuntimeSpec) => void;
+  addWorkspace: (w: Workspace) => void;
+  dropWorkspace: (id: string) => void;
 }
 
 export function useSettings(onChanged?: () => void): Settings {
@@ -43,6 +46,8 @@ export function useSettings(onChanged?: () => void): Settings {
     register: (p) => void apply(registerProject(p)),
     forget: (id) => void apply(forgetProject(id)),
     addRuntime: (r) => void apply(registerRuntime(r)),
+    addWorkspace: (w) => void apply(registerWorkspace(w)),
+    dropWorkspace: (id) => void apply(forgetWorkspace(id)),
   };
 }
 

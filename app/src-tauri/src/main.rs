@@ -22,7 +22,10 @@ fn main() {
             commands::setup::forget_project,
             commands::setup::register_runtime,
             commands::tree::tree,
-            commands::tree::file
+            commands::tree::file,
+            commands::work::work,
+            commands::work::register_workspace,
+            commands::work::forget_workspace
         ])
         .run(tauri::generate_context!())
         .expect("bancada failed to start");

@@ -4,11 +4,12 @@ import { Banner } from "@/composites";
 import { Row } from "@/frame";
 import { AppShell } from "@/layouts";
 import { BackToQueue, Elsewhere, WipBar } from "@/pages/_shared";
-import { CockpitView, FilesPage, ReviewPage, SettingsPage, useCockpit } from "@/pages";
+import { CockpitView, FilesPage, ReviewPage, SettingsPage, WorkPage, useCockpit } from "@/pages";
 import { Button } from "@/components";
 
 type Where =
   | { at: "cockpit" }
+  | { at: "work" }
   | { at: "review"; project: string }
   | { at: "files"; project: string };
 
@@ -47,6 +48,21 @@ export function App() {
           mute={mute}
           onOpenProject={(project) => setWhere({ at: "review", project })}
           onOpenSettings={() => setSettings(true)}
+          onOpenWork={() => setWhere({ at: "work" })}
+        />
+        {dialog}
+      </>
+    );
+  }
+
+  if (where.at === "work") {
+    return (
+      <>
+        <WorkPage
+          queue={queue}
+          onOpen={(project) => setWhere({ at: "review", project })}
+          onOpenSettings={() => setSettings(true)}
+          onOpenQueue={() => setWhere({ at: "cockpit" })}
         />
         {dialog}
       </>

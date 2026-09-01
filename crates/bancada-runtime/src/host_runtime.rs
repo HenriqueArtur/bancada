@@ -100,6 +100,23 @@ impl Runtime for HostRuntime {
         }
     }
 
+    fn modified(&self, guest_path: &Path) -> Option<i64> {
+        // Only where the tree is on this machine. Asking a piped runtime
+        // would mean spawning a process per file, which is a price nobody
+        // agreed to for a timestamp.
+        if self.fs_access != FsAccess::Shared {
+            return None;
+        }
+        let host = self.paths.to_host(guest_path)?;
+        std::fs::metadata(host)
+            .ok()?
+            .modified()
+            .ok()?
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_millis() as i64)
+    }
+
     fn read_dir(&self, guest_path: &Path) -> Result<Vec<std::path::PathBuf>, RuntimeError> {
         match self.fs_access {
             FsAccess::Shared => {

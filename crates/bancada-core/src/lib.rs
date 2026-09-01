@@ -12,6 +12,7 @@ mod glance;
 mod project;
 mod review;
 mod runtime_spec;
+mod work;
 mod workspace;
 
 pub use cockpit::Cockpit;
@@ -22,4 +23,5 @@ pub use glance::Glance;
 pub use project::Project;
 pub use review::Review;
 pub use runtime_spec::RuntimeSpec;
-pub use workspace::Workspace;
+pub use work::{Grouped, Standing, Work};
+pub use workspace::{Export, Workspace};

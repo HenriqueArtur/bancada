@@ -1,4 +1,4 @@
-import { GearSixIcon } from "@phosphor-icons/react";
+import { GearSixIcon, StackIcon } from "@phosphor-icons/react";
 import type { Queue } from "@/core/queue";
 import { Button, Text } from "@/components";
 import { Banner, EmptyState } from "@/composites";
@@ -16,11 +16,14 @@ export function CockpitView({
   mute,
   onOpenProject,
   onOpenSettings,
+  onOpenWork,
 }: {
   queue: Queue;
   mute: string | null;
   onOpenProject: (project: string) => void;
   onOpenSettings: () => void;
+  /// The other surface: everything being watched, waiting or not.
+  onOpenWork: () => void;
 }) {
   return (
     <AppShell
@@ -28,6 +31,10 @@ export function CockpitView({
       banner={<Elsewhere path={queue.elsewhere} />}
       aside={
         <Row gap="normal">
+          <Button tone="ghost" size="sm" onClick={onOpenWork}>
+            <StackIcon size={14} />
+            Your work
+          </Button>
           <WipBar wip={queue.wip} />
           <Button tone="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings">
             <GearSixIcon size={16} />
@@ -45,14 +52,18 @@ export function CockpitView({
                 : `Watching ${queue.watching} project${queue.watching === 1 ? "" : "s"}.`
             }
             action={
-              // Only when there is nothing to watch. An empty cockpit that
-              // *is* watching is the product working, and a call to action
-              // there would make the good state look like a problem.
+              // With nothing registered the action is to register. With
+              // something registered and nothing waiting, the product is
+              // working — the only thing left to offer is a look at it.
               queue.watching === 0 ? (
                 <Button tone="primary" onClick={onOpenSettings}>
                   Register one
                 </Button>
-              ) : undefined
+              ) : (
+                <Button tone="outline" onClick={onOpenWork}>
+                  See what is being watched
+                </Button>
+              )
             }
           />
         ) : (

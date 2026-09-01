@@ -264,6 +264,9 @@ mod tests {
                 .map(|(_, b)| b.clone())
                 .ok_or_else(|| RuntimeError::NotFound(p.display().to_string()))
         }
+        fn modified(&self, _: &Path) -> Option<i64> {
+            None
+        }
         fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
             Err(RuntimeError::NotFound(p.display().to_string()))
         }
@@ -306,6 +309,9 @@ mod tests {
             }
             fn read_file(&self, p: &Path) -> Result<Vec<u8>, RuntimeError> {
                 Err(RuntimeError::NotFound(p.display().to_string()))
+            }
+            fn modified(&self, _: &Path) -> Option<i64> {
+                None
             }
             fn read_dir(&self, p: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
                 Err(RuntimeError::NotFound(p.display().to_string()))

@@ -3,7 +3,13 @@ import { invoke } from "@tauri-apps/api/core";
 
 export interface Workspace {
   id: string;
-  export?: "sealed" | "summary" | "full";
+  /// What the *other* workspaces' supervisors may read from this one.
+  ///
+  /// Spelled the way the core serialises it. This said `sealed` once, which
+  /// is the word a person would choose and not a word the configuration has
+  /// ever contained — so nothing matched and the level always read as its
+  /// default.
+  export?: "metadata" | "summary" | "full";
 }
 
 export interface RuntimeSpec {

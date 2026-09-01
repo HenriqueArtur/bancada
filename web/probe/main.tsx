@@ -18,8 +18,9 @@ import { createRoot } from "react-dom/client";
 import { useEffect, useRef } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
-import { Mono, RowButton, Text } from "../src/components";
-import { Listing, ListingItem, Mount, Row } from "../src/frame";
+import { Badge, Card, Heading, Mono, RowButton, Text } from "../src/components";
+import { aliveness, exportsAs } from "../src/core/work";
+import { Divider, Listing, ListingItem, Mount, Page, Row, Stack } from "../src/frame";
 import { Workbench } from "../src/layouts";
 import { THEME, definition, paletteFor } from "../src/core/monaco-theme";
 
@@ -62,6 +63,89 @@ impl SessionState {
 
 const plain = q.has("plain");
 
+/// A second thing to look at: the work surface, with invented standing.
+///
+/// Its data comes from a command, so the probe hands it a fake rather than
+/// mounting the page — the point is the shape of the screen, and a screen
+/// that cannot render without a backend cannot be looked at at all.
+function Work() {
+  const workspaces = [
+    {
+      workspace: { id: "personal", export: "metadata" as const },
+      projects: [
+        {
+          project: { id: "bancada", workspace: "personal", runtime: "this-machine",
+            path: "/Users/henrique/Documents/dev/personal/bancada", weight: 1, idleAfterMinutes: 2 },
+          sessions: 7, lastActivity: Date.now() - 4 * 60_000, unreachable: null,
+        },
+        {
+          project: { id: "neo-gitmoji", workspace: "personal", runtime: "devbox",
+            path: "/mnt/dev/neo-gitmoji.nvim", weight: 1, idleAfterMinutes: 2 },
+          sessions: 0, lastActivity: null, unreachable: null,
+        },
+      ],
+    },
+    {
+      workspace: { id: "client-x", export: "summary" as const },
+      projects: [
+        {
+          project: { id: "api", workspace: "client-x", runtime: "devbox",
+            path: "/mnt/dev/api", weight: 3, idleAfterMinutes: 2 },
+          sessions: 3, lastActivity: Date.now() - 26 * 3_600_000, unreachable: null,
+        },
+      ],
+    },
+  ];
+  const waiting: Record<string, number> = { bancada: 2 };
+  const now = Date.now();
+  return (
+    <Page>
+      <Stack gap="loose">
+        <Row justify="between" align="end" className="border-b border-line-soft pb-4">
+          <Heading level={1} as="h1">Your work</Heading>
+          <Text as="span" size="sm" tone="muted">2 waiting</Text>
+        </Row>
+        <Stack gap="airy">
+          {workspaces.map((g) => (
+            <Stack gap="snug" key={g.workspace.id}>
+              <Row gap="snug" align="baseline" justify="between">
+                <Row gap="snug" align="baseline">
+                  <Heading level={2}>{g.workspace.id}</Heading>
+                  <Badge>{exportsAs(g.workspace)}</Badge>
+                </Row>
+                <Text as="span" size="sm" tone="faint">{g.projects.length} project{g.projects.length === 1 ? "" : "s"}</Text>
+              </Row>
+              <Card>
+                {g.projects.map((s, i) => (
+                  <Stack gap="none" key={s.project.id}>
+                    {i > 0 ? <Divider soft /> : null}
+                    <RowButton className="items-start gap-3 rounded-none px-4 py-3.5">
+                      <Stack gap="tight" className="min-w-0 flex-1">
+                        <Row gap="snug" align="baseline">
+                          <Heading level={3} as="h3">{s.project.id}</Heading>
+                          {waiting[s.project.id] ? (
+                            <Badge tone="clay">{waiting[s.project.id]} waiting</Badge>
+                          ) : null}
+                        </Row>
+                        <Mono className="break-all">{s.project.path}</Mono>
+                        <Text size="sm" tone="faint">
+                          {s.project.runtime === "this-machine" ? "This machine" : s.project.runtime}
+                          {" · "}
+                          {aliveness(s, now)}
+                        </Text>
+                      </Stack>
+                    </RowButton>
+                  </Stack>
+                ))}
+              </Card>
+            </Stack>
+          ))}
+        </Stack>
+      </Stack>
+    </Page>
+  );
+}
+
 function Editor() {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -95,6 +179,7 @@ function Editor() {
 const FILES = ["Cargo.toml", "LICENSE-MIT", "README.md", "arch.config.json", "rust-toolchain.toml"];
 
 createRoot(document.getElementById("root")!).render(
+  q.has("work") ? <Work /> : (
   <Workbench
     bar={
       <>
@@ -121,5 +206,6 @@ createRoot(document.getElementById("root")!).render(
       </Listing>
     }
     subject={<Editor />}
-  />,
+  />
+  ),
 );

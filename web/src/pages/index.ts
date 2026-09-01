@@ -7,3 +7,4 @@ export { useCockpit } from "@/pages/cockpit/logic";
 export { ReviewPage } from "@/pages/review/view";
 export { FilesPage } from "@/pages/files/view";
 export { SettingsPage } from "@/pages/settings/view";
+export { WorkPage } from "@/pages/work/view";

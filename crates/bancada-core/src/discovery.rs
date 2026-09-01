@@ -142,6 +142,9 @@ mod tests {
                 _ => String::new(),
             })
         }
+        fn modified(&self, _: &Path) -> Option<i64> {
+            None
+        }
         fn read_dir(&self, _: &Path) -> Result<Vec<PathBuf>, RuntimeError> {
             Ok(Vec::new())
         }

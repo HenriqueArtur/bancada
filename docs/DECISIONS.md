@@ -617,3 +617,63 @@ loosening is there, and that it is still only this one.
   production build with the header attached and render it in headless Chrome.
   `web/probe/` builds with `PROBE=1`, and the difference between "works over
   HTTP" and "works under the app's CSP" is now one command apart.
+
+---
+
+## ADR-019 · Two surfaces: what needs you, and what you have
+
+**Status:** accepted · 2026-09-01
+
+### Context
+
+A project with nothing waiting was invisible. The only way to reach one was
+for it to have raised a decision, and the only way to confirm it was being
+watched at all was to open settings — which shows the registration, not the
+state. And the workspace, which ADR-003 calls *the* confidentiality boundary,
+appeared nowhere in the interface except as a dropdown when registering.
+
+Putting a project list on the cockpit was the obvious fix and the wrong one.
+At rest that screen is empty, and everything on it means *act*. A list of
+projects sitting beside the queue makes an empty cockpit stop being empty, and
+the queue stop meaning anything.
+
+### Decision
+
+Two surfaces, from the four the plan already declared.
+
+**Needs you** — the queue. Unchanged: empty at rest, everything on it an
+action.
+
+**Your work** — everything registered, grouped by workspace, each project
+carrying whether it is alive: how many sessions, how long since the last one,
+and how many decisions are waiting. Opening one goes where the queue's own
+button goes.
+
+The workspace is the **grouping**, not a label on each row, and it carries its
+export level beside its name. A boundary rendered as a small word on three
+separate cards is a boundary nobody checks; rendered as the thing that divides
+the page, it is the first thing you see.
+
+Workspaces can now be made, renamed and re-levelled in settings. Until this,
+a fresh install could not register its first project without hand-editing
+JSON, because a project must name a workspace and there was no way to make
+one.
+
+### Consequences
+
+- The queue count on a project comes from the queue, not from a second
+  computation. Two numbers derived two ways are two numbers that can disagree.
+- Forgetting a workspace that still holds projects is refused, and the message
+  names them. Cascading would forget the client work inside it, which is not
+  what anybody means by removing a label.
+- **A quiet project and an unreadable one no longer look alike.** That pair
+  has been the product's blind spot three times now — in the queue, in the
+  badge, and here — and it is the same mistake each time: silence used to mean
+  two things.
+- `Runtime` gained `modified`, which is how "last activity" is answered
+  without reading a log. `None` rather than an error, because a runtime that
+  cannot say and a file that was never written are the same answer to the only
+  question anybody asks.
+- Deliberately absent: pending diffs and machine resources per project. Both
+  cost a process per project per open, and a screen you go to in order to find
+  something has to be there before you finish deciding to look.
