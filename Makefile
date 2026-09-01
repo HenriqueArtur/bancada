@@ -71,7 +71,7 @@ cover: cover-rust cover-web  ## Coverage, held to the floors in tools/coverage-g
 
 # ── the disk ─────────────────────────────────────────────────────────────
 clean: ## Build output and coverage, keeping the dependencies
-	rm -rf target/debug target/release web/dist web/coverage $(COV)
+	rm -rf target/debug target/release web/dist web/coverage tools/__pycache__ web/tsconfig.tsbuildinfo $(COV)
 
 sweep: clean ## Everything that can be rebuilt, including the dependencies
 	@echo "before: $$(du -sh target web/node_modules app/node_modules 2>/dev/null | tr '\n' ' ')"
