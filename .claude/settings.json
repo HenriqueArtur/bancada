@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archwarden hook claude-code"
+          }
+        ],
+        "matcher": "Write|Edit|MultiEdit"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archwarden hook claude-code"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archwarden hook claude-code"
+          }
+        ]
+      }
+    ]
+  }
+}

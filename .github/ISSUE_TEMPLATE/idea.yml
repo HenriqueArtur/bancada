@@ -1,0 +1,46 @@
+name: An idea
+description: Something the product should do, or should do differently
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: `archwarden decisions find <a word for your idea>`
+        searches the decisions **and the options they rejected**. If yours is
+        in there, the reason it lost is there too — and arguing with that
+        reason is a far stronger proposal than the idea alone.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is hard today
+      description: >
+        The situation, not the solution. A feature described without the
+        problem it solves can only be judged on whether it sounds nice.
+      placeholder: |
+        With four agents running I cannot tell which of them is waiting on me
+        without switching to each terminal.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+
+  - type: textarea
+    id: instead
+    attributes:
+      label: What you considered and dropped
+      description: >
+        Optional, and the most valuable box on this form. An option with no
+        argument against it is a name nobody can disagree with.
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Already decided?
+      options:
+        - label: I searched the rejected options with `archwarden decisions find`

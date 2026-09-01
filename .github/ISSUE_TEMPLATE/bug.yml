@@ -1,0 +1,64 @@
+name: Something is wrong
+description: The product did something other than what it says it does
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful bug report says what you expected, because that is the
+        half the code cannot tell us.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: |
+        Opening a file showed every line stacked in one place, then they
+        separated. I expected the file.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to see it again
+      description: >
+        The smallest sequence that produces it. If it only happens sometimes,
+        say that — "sometimes" is information, not a gap in the report.
+      placeholder: |
+        1. Register a project on this machine
+        2. Open it, then Files
+        3. Click LICENSE-MIT
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Which build
+      description: The version in the window's About, or the commit you built.
+      placeholder: 0.1.0, or 4c6362b
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: >
+        A screenshot if it is visual. If a project would not load, the output
+        of `cargo run -p bancada-core --example queue` says what the core saw.
+        **Redact paths and session content you would not publish** — this is a
+        public repository.

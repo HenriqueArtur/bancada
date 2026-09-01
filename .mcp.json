@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "archwarden": {
+      "command": "archwarden",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}
