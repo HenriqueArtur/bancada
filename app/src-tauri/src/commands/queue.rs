@@ -4,7 +4,7 @@
 // not a place it was meant to apply.
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
-use bancada_core::{Cockpit, Config};
+use bancada_core::{Cockpit, Config, Glance};
 use bancada_rules::{Grouped, Wip};
 use bancada_runtime::{HostRuntime, Runtime};
 use serde::Serialize;
@@ -23,6 +23,15 @@ pub struct Queue {
     /// Named rather than silent: a project the product could not read
     /// looks exactly like a project with nothing pending.
     unreachable: Vec<String>,
+    /// What each session is *about*, by session id.
+    ///
+    /// Read after the ranking is settled and merged in here, at the edge.
+    /// The order comes from metadata alone — that is hard rule 2 and the
+    /// reason hallucination can never reach it — but a row that says
+    /// `Review` beside a uuid has to be opened before you know whether it
+    /// matters, and triage you cannot do without opening is not triage.
+    /// Nothing in `bancada-rules` sees a word of this.
+    glances: std::collections::BTreeMap<String, Glance>,
     /// Set only when the configuration came from somewhere other than the
     /// default path.
     ///
@@ -46,6 +55,7 @@ pub fn queue() -> Result<Queue, String> {
 
     let mut items = Vec::new();
     let mut unreachable = Vec::new();
+    let mut glances = std::collections::BTreeMap::new();
 
     for project in &cockpit.config().projects {
         let scan = cockpit.scan(project, &host);
@@ -56,8 +66,16 @@ pub fn queue() -> Result<Queue, String> {
         for log in scan.logs {
             match host.read_file(&log) {
                 Ok(bytes) => {
-                    let facts = Cockpit::facts(&String::from_utf8_lossy(&bytes));
-                    items.extend(Cockpit::queue_of(project, &facts, now));
+                    let text = String::from_utf8_lossy(&bytes);
+                    let facts = Cockpit::facts(&text);
+                    let raised = Cockpit::queue_of(project, &facts, now);
+                    // Read only for sessions that ended up in the queue. A
+                    // project with forty finished logs should not cost forty
+                    // content reads every ten seconds to say nothing.
+                    if let Some(session) = raised.first().map(|i| i.session.as_str().to_owned()) {
+                        glances.insert(session, Glance::of(&text));
+                    }
+                    items.extend(raised);
                 }
                 Err(e) => unreachable.push(format!("{}: {e:?}", log.display())),
             }
@@ -71,6 +89,7 @@ pub fn queue() -> Result<Queue, String> {
         wip,
         watching,
         unreachable,
+        glances,
         elsewhere: overridden_config(),
     })
 }

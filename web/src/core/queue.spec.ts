@@ -1,0 +1,78 @@
+import { describe, expect, it } from "vitest";
+import { age, detail, label, type Glance, type Ranked } from "@/core/queue";
+
+const ranked = (over: Partial<Ranked["item"]> = {}): Ranked => ({
+  item: {
+    session: "s",
+    kind: "Review",
+    raised_at: 0,
+    blocking: 0,
+    project_weight: 1,
+    project: "bancada",
+    raised_by: null,
+    ...over,
+  },
+  score: 1,
+  age_ms: 0,
+  kind_factor: 1,
+  weighted_age_ms: 0,
+  blocking_factor: 1,
+});
+
+const glance = (over: Partial<Glance> = {}): Glance => ({
+  title: null,
+  says: {},
+  touched: 0,
+  unannounced: 0,
+  ...over,
+});
+
+describe("detail", () => {
+  it("says what a question actually asked", () => {
+    const g = glance({ says: { t1: "Which icon set?" } });
+    expect(detail(ranked({ kind: "Question", raised_by: "t1" }), g)).toBe("Which icon set?");
+  });
+
+  it("counts the files a finished turn left behind", () => {
+    expect(detail(ranked(), glance({ touched: 12 }))).toBe("12 files changed");
+  });
+
+  it("says the singular, because one file will happen constantly", () => {
+    expect(detail(ranked(), glance({ touched: 1 }))).toBe("1 file changed");
+  });
+
+  it("puts the deviation in the row, where it can be triaged", () => {
+    // The short list worth reading is the one nobody announced. Making you
+    // open the row to find that out is what this whole line exists to stop.
+    expect(detail(ranked(), glance({ touched: 12, unannounced: 3 }))).toBe(
+      "12 files changed · 3 unannounced",
+    );
+  });
+
+  it("adds nothing rather than something empty", () => {
+    // A row that says `Review ·` reads as a rendering bug.
+    expect(detail(ranked(), glance())).toBeNull();
+    expect(detail(ranked({ kind: "Question", raised_by: "t9" }), glance())).toBeNull();
+  });
+
+  it("survives a session the glance never reached", () => {
+    expect(detail(ranked())).toBeNull();
+  });
+});
+
+describe("age", () => {
+  it("reads the way a person says it", () => {
+    expect(age(30_000)).toBe("just now");
+    expect(age(11 * 60_000)).toBe("11min");
+    expect(age(3 * 3_600_000 + 4 * 60_000)).toBe("3h04");
+    expect(age(50 * 3_600_000)).toBe("2d");
+  });
+});
+
+describe("label", () => {
+  it("names every kind, so none can render blank", () => {
+    for (const k of ["Question", "PlanApproval", "Permission", "Review", "ScopeEscape", "Stalled"] as const) {
+      expect(label(k).length).toBeGreaterThan(0);
+    }
+  });
+});

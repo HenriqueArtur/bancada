@@ -8,7 +8,15 @@ const ranked = (
   session = "s1",
   project = "bancada",
 ): Ranked => ({
-  item: { session, kind, raised_at: raised, blocking: 0, project_weight: 1, project },
+  item: {
+    session,
+    kind,
+    raised_at: raised,
+    blocking: 0,
+    project_weight: 1,
+    project,
+    raised_by: null,
+  },
   score: 1,
   age_ms: 0,
   kind_factor: 1,

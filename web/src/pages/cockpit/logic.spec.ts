@@ -17,6 +17,7 @@ const queue = (over: Partial<Queue> = {}): Queue => ({
   wip: { sessions_waiting: 0, items: 0, limit: 4 },
   watching: 1,
   unreachable: [],
+  glances: {},
   elsewhere: null,
   ...over,
 });
@@ -35,6 +36,7 @@ const waiting = (n: number) =>
             blocking: 0,
             project_weight: 1,
             project: "p",
+            raised_by: null,
           },
           score: 1,
           age_ms: 0,

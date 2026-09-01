@@ -90,7 +90,7 @@ impl SessionState {
             // The unit is the decision: two pending things in one session
             // are two items, and neither may hide behind the other.
             for p in &s.pending {
-                items.push(QueueItem::new(s.session.clone(), p.kind, p.at));
+                items.push(QueueItem::new(s.session.clone(), p.kind, p.at).raised_by(&p.id));
             }
             if !s.pending.is_empty() {
                 continue;

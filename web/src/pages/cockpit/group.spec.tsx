@@ -3,7 +3,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { Group, collapse } from "@/pages/cockpit/group";
 import type { Grouped, DecisionKind, Ranked } from "@/core/queue";
 
-const ranked = (kind: DecisionKind, ageMin: number, raised = ageMin): Ranked => ({
+const ranked = (
+  kind: DecisionKind,
+  ageMin: number,
+  raised = ageMin,
+  raisedBy: string | null = null,
+): Ranked => ({
   item: {
     session: "s",
     kind,
@@ -11,6 +16,7 @@ const ranked = (kind: DecisionKind, ageMin: number, raised = ageMin): Ranked => 
     blocking: 3,
     project_weight: 5,
     project: "bancada",
+    raised_by: raisedBy,
   },
   score: 42,
   age_ms: ageMin * 60_000,
@@ -38,15 +44,44 @@ describe("collapse", () => {
 });
 
 describe("Group", () => {
-  it("names the session the items belong to", () => {
+  it("leads with the project and keeps the short id beside it", () => {
+    // The project is what you triage by; the id is the only thing that says
+    // which of four terminals to switch to, so it is demoted, not dropped.
     render(<Group group={group([ranked("Question", 5)])} />);
-    expect(screen.getByText("sunne/api")).toBeTruthy();
+    expect(screen.getByText("bancada")).toBeTruthy();
+    expect(screen.getByText("sunne/ap")).toBeTruthy();
+  });
+
+  it("titles the session with what was asked of it", () => {
+    render(
+      <Group
+        group={group([ranked("Question", 5)])}
+        glance={{ title: "Add a folder picker", says: {}, touched: 0, unannounced: 0 }}
+      />,
+    );
+    expect(screen.getByText("Add a folder picker")).toBeTruthy();
+  });
+
+  it("says what the decision is, not only its kind", () => {
+    render(
+      <Group
+        group={group([ranked("Question", 5, 5, "t1")])}
+        glance={{ title: null, says: { t1: "Which icon set?" }, touched: 0, unannounced: 0 }}
+      />,
+    );
+    expect(screen.getByText("Which icon set?")).toBeTruthy();
+  });
+
+  it("works for a session whose log could not be read", () => {
+    // No glance is a normal state, and the row still has to be usable.
+    render(<Group group={group([ranked("Review", 5)])} />);
+    expect(screen.getByText("review")).toBeTruthy();
   });
 
   it("offers a way into the project it came from", () => {
     const onOpen = vi.fn();
     render(<Group group={group([ranked("Question", 5)])} onOpen={onOpen} />);
-    fireEvent.click(screen.getByText(/Open bancada/));
+    fireEvent.click(screen.getByText("Open"));
     expect(onOpen).toHaveBeenCalledWith("bancada");
   });
 

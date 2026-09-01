@@ -13,6 +13,7 @@ const ranked: Ranked = {
     blocking: 3,
     project_weight: 5,
     project: "bancada",
+    raised_by: null,
   },
   score: 42_000,
   age_ms: 600_000,

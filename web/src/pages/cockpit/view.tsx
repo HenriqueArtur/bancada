@@ -56,7 +56,14 @@ export function CockpitView({
             }
           />
         ) : (
-          queue.groups.map((g) => <Group key={g.session} group={g} onOpen={onOpenProject} />)
+          queue.groups.map((g) => (
+            <Group
+              key={g.session}
+              group={g}
+              glance={queue.glances[g.session]}
+              onOpen={onOpenProject}
+            />
+          ))
         )}
 
         {mute ? (

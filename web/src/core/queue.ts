@@ -15,6 +15,10 @@ export interface QueueItem {
   raised_at: number;
   blocking: number;
   project_weight: number;
+  /// The tool call that raised this decision, when one did. An id, and only
+  /// an id — it is what lets the window look up what the decision says
+  /// without the engine ever holding a word of it.
+  raised_by: string | null;
   /// Which project this came from. Carried on the item rather than looked
   /// up: an item that cannot say where it belongs cannot be opened.
   project: string;
@@ -40,6 +44,19 @@ export interface Wip {
   limit: number;
 }
 
+/// What a session is *about*, in words.
+///
+/// Read after the ranking is settled and merged in at the edge. The order
+/// comes from metadata alone; this is what turns a row you must open into a
+/// row you can triage.
+export interface Glance {
+  title: string | null;
+  /// What each raised decision says, by the id that raised it.
+  says: Record<string, string>;
+  touched: number;
+  unannounced: number;
+}
+
 export interface Queue {
   groups: Grouped[];
   wip: Wip;
@@ -49,6 +66,8 @@ export interface Queue {
   /// Named rather than silent: a project the product could not read looks
   /// exactly like a project with nothing pending.
   unreachable: string[];
+  /// One per session that has something waiting, by session id.
+  glances: Record<string, Glance>;
   /// Set only when the configuration came from somewhere other than the
   /// default path. A cockpit pointed at a scratch configuration looks
   /// exactly like the real one, and the whole product is a claim about what
@@ -63,6 +82,22 @@ export function age(ms: number): string {
   if (m < 60) return `${m}min`;
   const h = Math.floor(m / 60);
   return h < 24 ? `${h}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(h / 24)}d`;
+}
+
+/// What this row is, in as few words as it takes to decide whether to open it.
+///
+/// The kind alone makes you open the row to find out whether it matters, and
+/// triage you cannot do without opening is not triage. Falls back to the kind
+/// when there is nothing to add — an empty detail would be worse than none.
+export function detail(r: Ranked, glance?: Glance): string | null {
+  const said = r.item.raised_by ? glance?.says[r.item.raised_by] : undefined;
+  if (said) return said;
+
+  if (r.item.kind === "Review" && glance && glance.touched > 0) {
+    const files = `${glance.touched} file${glance.touched === 1 ? "" : "s"} changed`;
+    return glance.unannounced > 0 ? `${files} · ${glance.unannounced} unannounced` : files;
+  }
+  return null;
 }
 
 export function label(kind: DecisionKind): string {

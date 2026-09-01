@@ -15,6 +15,13 @@ pub struct QueueItem {
     pub blocking: u32,
     /// How fast waiting hurts on this project. 1 is the baseline.
     pub project_weight: u32,
+    /// The tool call that raised this decision, when one did.
+    ///
+    /// An id, which is metadata — it already travels in `DecisionRaised`,
+    /// and it is what lets the window look up *what the decision says*
+    /// without the engine ever holding a word of it. `None` for a `Review`,
+    /// which no call raised.
+    pub raised_by: Option<String>,
     /// Which project this came from.
     ///
     /// Carried rather than looked up later: an item that cannot say where it
@@ -30,6 +37,7 @@ impl QueueItem {
             kind,
             raised_at,
             blocking: 0,
+            raised_by: None,
             project: String::new(),
             project_weight: 1,
         }
@@ -37,6 +45,11 @@ impl QueueItem {
 
     pub fn with_weight(mut self, weight: u32) -> Self {
         self.project_weight = weight.max(1);
+        self
+    }
+
+    pub fn raised_by(mut self, id: &str) -> Self {
+        self.raised_by = Some(id.to_owned());
         self
     }
 

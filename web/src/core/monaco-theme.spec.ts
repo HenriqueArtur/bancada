@@ -40,7 +40,7 @@ describe("the editor's palette", () => {
     // Bracket pair colorization is a separate feature with its own
     // primaries, and the editor option that disables it is ignored in this
     // version. The theme is the only place left to say no.
-    const { colors } = definition(paletteFor(false));
+    const colors: Record<string, string> = definition(paletteFor(false)).colors;
     for (const n of [1, 2, 3, 4, 5, 6]) {
       expect(colors[`editorBracketHighlight.foreground${n}`]).toBe("#1d1c1a");
     }
