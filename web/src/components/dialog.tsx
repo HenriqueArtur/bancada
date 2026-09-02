@@ -38,7 +38,11 @@ export function DialogFrame({
       <Primitive.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-          "w-[min(880px,calc(100vw-48px))] h-[min(620px,calc(100vh-80px))]",
+          // Divided by the zoom for the same reason `Bleed` is: viewport
+          // units do not scale with it, so an undivided dialog grows past
+          // the window it is centred in.
+          "w-[min(880px,calc(100vw/var(--zoom,1)-48px))]",
+          "h-[min(620px,calc(100vh/var(--zoom,1)-80px))]",
           "bg-ground border border-line rounded-[14px] shadow-float overflow-hidden",
           "flex outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
