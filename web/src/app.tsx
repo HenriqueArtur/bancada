@@ -16,6 +16,13 @@ import {
 import { loadRepo } from "@/core/git";
 import { loadSettings } from "@/core/settings";
 import { name, titleOf } from "@/core/window";
+import {
+  stepped,
+  apply as applyZoom,
+  pressed,
+  remember as rememberZoom,
+  stored as storedZoom,
+} from "@/core/zoom";
 import { Speaks } from "@/lib/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
@@ -96,6 +103,33 @@ function Cockpit({
     apply(resolve(theme, systemIsDark()));
   }, [theme]);
 
+  // How large the window draws itself, kept across restarts.
+  //
+  // The listener is here rather than on any screen: the keys work wherever
+  // the focus is, which is the whole point of them, and one listener above
+  // everything cannot disagree with a second one further down.
+  const [zoom, setZoom] = useState<number>(storedZoom);
+  useEffect(() => {
+    rememberZoom(zoom);
+    applyZoom(zoom);
+  }, [zoom]);
+
+  useEffect(() => {
+    const listen = (e: KeyboardEvent) => {
+      const what = pressed(e);
+      if (!what) return;
+      // Chromium has its own zoom on these keys and it fights with ours —
+      // two scales multiplied, and neither control able to undo the other.
+      e.preventDefault();
+      setZoom((now) => stepped(now, what));
+    };
+    // Captured on the way down. Monaco binds these keys for its own font
+    // size and stops the event before it bubbles, so a listener waiting at
+    // the bottom would work everywhere except inside the file being read.
+    window.addEventListener("keydown", listen, true);
+    return () => window.removeEventListener("keydown", listen, true);
+  }, []);
+
   // Which workspace each project belongs to. Read once and kept, because it
   // has to be on screen the whole time you are inside a project — the
   // workspace is the confidentiality boundary, and a diff shown without one
@@ -175,6 +209,8 @@ function Cockpit({
       onChooseTheme={setTheme}
       language={language}
       onChooseLanguage={onChooseLanguage}
+      zoom={zoom}
+      onChooseZoom={setZoom}
     />
   );
 

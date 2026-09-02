@@ -10,12 +10,14 @@ import type { Theme } from "@/core/appearance";
 import type { Language } from "@/core/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
+import { Stack } from "@/frame";
 import { SettingsDialog } from "@/layouts";
 import { useSettings } from "@/pages/settings/logic";
 import { ProjectsPanel } from "@/pages/settings/projects";
 import { MachinesPanel } from "@/pages/settings/machines";
 import { WorkspacesPanel } from "@/pages/settings/workspaces";
 import { AppearancePanel } from "@/pages/settings/appearance";
+import { ZoomPanel } from "@/pages/settings/zoom";
 import { LanguagePanel } from "@/pages/settings/language";
 import { useText } from "@/lib/language";
 
@@ -28,6 +30,8 @@ export function SettingsPage({
   onChooseTheme,
   language,
   onChooseLanguage,
+  zoom,
+  onChooseZoom,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,6 +40,8 @@ export function SettingsPage({
   onChooseTheme: (t: Theme) => void;
   language: Language | null;
   onChooseLanguage: (l: Language | null) => void;
+  zoom: number;
+  onChooseZoom: (level: number) => void;
 }) {
   const { config, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
     useSettings(onChanged);
@@ -101,7 +107,15 @@ export function SettingsPage({
           label: t("Appearance"),
           icon: <PaletteIcon size={15} />,
           blurb: t("How the window looks while you read in it."),
-          panel: <AppearancePanel theme={theme} onChoose={onChooseTheme} />,
+          // Both live here: they are the two things about how the window
+          // looks while you read in it, and a section apiece would make the
+          // list longer without making either easier to find.
+          panel: (
+            <Stack gap="loose">
+              <AppearancePanel theme={theme} onChoose={onChooseTheme} />
+              <ZoomPanel level={zoom} onChoose={onChooseZoom} />
+            </Stack>
+          ),
         },
         {
           id: "language",
