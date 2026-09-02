@@ -12,7 +12,16 @@ export { Dialog, DialogTrigger, DialogClose, DialogFrame } from "@/components/di
 export { Select, type Choice } from "@/components/select";
 export { Disclosure } from "@/components/disclosure";
 export { Label } from "@/components/label";
+export { Mark } from "@/components/mark";
 export { Pips } from "@/components/pips";
+export { Popover } from "@/components/popover";
+export { Prose, type ProseBlock, type ProseSpan } from "@/components/prose";
 export { RowButton } from "@/components/row-button";
 export { Facts, type Fact } from "@/components/facts";
-export { CodeBlock, PlainText, type CodeLine } from "@/components/code-block";
+export {
+  CodeBlock,
+  CodeGap,
+  PlainText,
+  type CodeLine,
+  type CodeSegment,
+} from "@/components/code-block";
