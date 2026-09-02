@@ -40,6 +40,13 @@ export interface Project {
   path: string;
   weight: number;
   idleAfterMinutes: number;
+  /// Set while the project is not allowed to ask for you.
+  ///
+  /// Carries when you silenced it and how much work it had then, because a
+  /// session that did not exist then wakes it on its own — you silence a
+  /// project when the work ends, and forgetting to un-silence it is the
+  /// failure an attention supervisor exists to prevent.
+  muted?: { at: number; sessions: number } | null;
 }
 
 export interface Config {

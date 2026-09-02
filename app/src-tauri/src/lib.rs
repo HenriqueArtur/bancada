@@ -50,6 +50,7 @@ pub fn run() {
             commands::queue::queue,
             commands::review::review,
             commands::review::summary,
+            commands::setup::mute_project,
             commands::sessions::sessions,
             commands::sessions::chat,
             commands::setup::settings,

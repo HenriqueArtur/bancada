@@ -20,6 +20,7 @@ const standing = (over: Partial<Standing> = {}): Standing => ({
   sessions: 0,
   lastActivity: null,
   unreachable: null,
+  asking: true,
   ...over,
 });
 

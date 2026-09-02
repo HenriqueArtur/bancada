@@ -20,7 +20,7 @@
       ],
       "alternatives": [
         {
-          "option": "Supervisor–worker orchestration",
+          "option": "Supervisor\u2013worker orchestration",
           "why_not": "The dominant pattern in every agent framework, and what the comparable tools build. It removes the human from decisions the human wants to make."
         },
         {
@@ -80,7 +80,7 @@
     {
       "id": "ADR-004",
       "title": "The rules engine has no AI and reads only metadata",
-      "why": "There is no global model reading everything because the global thing is not a model — so hallucination never enters the ranking of the user's attention.",
+      "why": "There is no global model reading everything because the global thing is not a model \u2014 so hallucination never enters the ranking of the user's attention.",
       "link": "docs/DECISIONS.md#adr-004--the-rules-engine-has-no-ai",
       "enforcement": "none",
       "why_not_enforceable": "Enforced by construction rather than by a rule: `MetaEvent` has no variant that can hold content, so a leak is unrepresentable rather than forbidden. An import boundary keeping a model client out of `bancada-rules` would be a second, weaker guard on a door that has no opening. Recorded here so the guarantee is known to rest on the type, and would need a rule the day the type softens.",
@@ -124,7 +124,7 @@
     {
       "id": "ADR-006",
       "title": "A plugin returns typed data, never DOM",
-      "why": "A plugin loaded in the webview would see the channel to the core, which talks to every workspace — crossing every confidentiality boundary at once, through a mechanism the product introduced.",
+      "why": "A plugin loaded in the webview would see the channel to the core, which talks to every workspace \u2014 crossing every confidentiality boundary at once, through a mechanism the product introduced.",
       "link": "docs/DECISIONS.md#adr-006--a-plugin-returns-data-never-dom",
       "scope": [
         "web/src/plugins/**"
@@ -159,7 +159,7 @@
       "alternatives": [
         {
           "option": "HTTP per workspace with an ephemeral token",
-          "why_not": "Easier to reach from any runtime — and *anything* in that runtime reaches the server, not just the agent. Containment by policy, not by construction."
+          "why_not": "Easier to reach from any runtime \u2014 and *anything* in that runtime reaches the server, not just the agent. Containment by policy, not by construction."
         },
         {
           "option": "No MCP server at all, context injection only",
@@ -191,7 +191,7 @@
     {
       "id": "ADR-009",
       "title": "Computed reach between workspaces, not an abstract badge",
-      "why": "A runtime boundary contains what is inside it and does not protect what is outside — one direction is guaranteed and the other is not, so an adjective would be a lie.",
+      "why": "A runtime boundary contains what is inside it and does not protect what is outside \u2014 one direction is guaranteed and the other is not, so an adjective would be a lie.",
       "link": "docs/DECISIONS.md#adr-009--computed-reach-instead-of-an-abstract-badge",
       "enforcement": "none",
       "why_not_enforceable": "It is what the product computes and shows at runtime. No rule about source files can hold it.",
@@ -238,7 +238,7 @@
         },
         {
           "option": "Svelte instead of React",
-          "why_not": "Better shape fit for a live-updating queue, but the advantage is theoretical at 5–20 items, and mature editor tooling matters twice here."
+          "why_not": "Better shape fit for a live-updating queue, but the advantage is theoretical at 5\u201320 items, and mature editor tooling matters twice here."
         },
         {
           "option": "Business logic in the webview",
@@ -277,7 +277,7 @@
     {
       "id": "ADR-014",
       "title": "The machine bancada runs on registers itself",
-      "why": "The product is already executing there, so its prefix, path mapping and filesystem access are facts rather than claims — and asking a person to write them down is asking them to restate one.",
+      "why": "The product is already executing there, so its prefix, path mapping and filesystem access are facts rather than claims \u2014 and asking a person to write them down is asking them to restate one.",
       "link": "docs/DECISIONS.md#adr-014--the-machine-bancada-runs-on-registers-itself",
       "enforcement": "none",
       "why_not_enforceable": "It is behaviour at read time: a runtime synthesised before validation and dropped before writing. Nothing in the file layout shows it.",
@@ -306,7 +306,7 @@
       "why": "A dark cockpit borrows its authority from instrument panels, and this is a place you read prose an agent wrote and decide whether you agree.",
       "link": "docs/DECISIONS.md#adr-015--warm-paper-not-a-dark-cockpit",
       "enforcement": "none",
-      "why_not_enforceable": "The rule worth having — no colour literal outside `theme.css` — is neither a rendered element nor a callee, so no chokepoint reaches it. Filed upstream as archwarden#177.",
+      "why_not_enforceable": "The rule worth having \u2014 no colour literal outside `theme.css` \u2014 is neither a rendered element nor a callee, so no chokepoint reaches it. Filed upstream as archwarden#177.",
       "scope": [
         "web/src/**"
       ],
@@ -314,7 +314,7 @@
       "alternatives": [
         {
           "option": "The dark instrument-panel palette",
-          "why_not": "Its principle held — colour is reserved for things that ask for an action — and its ground did not. Eight hours of reading on black feels like surveillance rather than work."
+          "why_not": "Its principle held \u2014 colour is reserved for things that ask for an action \u2014 and its ground did not. Eight hours of reading on black feels like surveillance rather than work."
         },
         {
           "option": "Web fonts",
@@ -359,7 +359,7 @@
         },
         {
           "option": "Writing every primitive ourselves, no dependency",
-          "why_not": "A correct modal is real work — focus trapped and restored, escape, scroll lock, aria — and getting it wrong is invisible until somebody uses a keyboard."
+          "why_not": "A correct modal is real work \u2014 focus trapped and restored, escape, scroll lock, aria \u2014 and getting it wrong is invisible until somebody uses a keyboard."
         },
         {
           "option": "Testing every view file",
@@ -387,13 +387,13 @@
     {
       "id": "ADR-021",
       "title": "Rust unit tests live inside the file they test",
-      "why": "A test in the file can reach the private function it is testing, and moves with it when the file moves — which is the half no reviewer ever remembers to check.",
+      "why": "A test in the file can reach the private function it is testing, and moves with it when the file moves \u2014 which is the half no reviewer ever remembers to check.",
       "link": "docs/DECISIONS.md#adr-021--rust-unit-tests-live-inside-the-file-they-test",
       "scope": [
         "crates/*/src"
       ],
       "enforcement": "none",
-      "why_not_enforceable": "`spec-pair` looks for a sibling file, and an inline `#[cfg(test)] mod tests` has none. The rule that claimed to keep this was deleted rather than fixed: a rule that cannot be written is better absent than dead and green. It also costs a clean coverage number — assertion machinery sits in the measured file — which is why the gate reads lcov rather than llvm-cov's own summary. Filed upstream as archwarden#178.",
+      "why_not_enforceable": "`spec-pair` looks for a sibling file, and an inline `#[cfg(test)] mod tests` has none. The rule that claimed to keep this was deleted rather than fixed: a rule that cannot be written is better absent than dead and green. It also costs a clean coverage number \u2014 assertion machinery sits in the measured file \u2014 which is why the gate reads lcov rather than llvm-cov's own summary. Filed upstream as archwarden#178.",
       "alternatives": [
         {
           "option": "A sibling spec file, the way the webview does it",
@@ -401,7 +401,7 @@
         },
         {
           "option": "A separate `tests/` directory for everything",
-          "why_not": "That is where integration tests belong and they exist too — `app/src-tauri/tests` drives the commands against a real tree. A unit test put there stops being one the moment it can only see `pub` items."
+          "why_not": "That is where integration tests belong and they exist too \u2014 `app/src-tauri/tests` drives the commands against a real tree. A unit test put there stops being one the moment it can only see `pub` items."
         }
       ]
     },
@@ -415,7 +415,7 @@
         "web/src/core"
       ],
       "enforcement": "none",
-      "why_not_enforceable": "Whether a screen listens or polls is behaviour. A rule can see that `setInterval` exists, not that it is a fallback rather than the mechanism — and the fallback is deliberate, so a rule forbidding the call would forbid the right code.",
+      "why_not_enforceable": "Whether a screen listens or polls is behaviour. A rule can see that `setInterval` exists, not that it is a fallback rather than the mechanism \u2014 and the fallback is deliberate, so a rule forbidding the call would forbid the right code.",
       "alternatives": [
         {
           "option": "Polling, on a short interval",
@@ -423,7 +423,7 @@
         },
         {
           "option": "`Runtime::watch`, so a runtime watches its own tree",
-          "why_not": "The architecture's hard rule 3 names it and it is not needed: `configDir` is written in this machine's spelling by definition — it is how the logs are read at all — so the logs of a VM, a container or an ssh host are already a local path. The harder problem was anticipated than the one that exists."
+          "why_not": "The architecture's hard rule 3 names it and it is not needed: `configDir` is written in this machine's spelling by definition \u2014 it is how the logs are read at all \u2014 so the logs of a VM, a container or an ssh host are already a local path. The harder problem was anticipated than the one that exists."
         },
         {
           "option": "An event carrying what changed",
@@ -432,6 +432,40 @@
         {
           "option": "Falling back to polling in silence",
           "why_not": "A window that looks live while it is a minute behind lies with more confidence than one that admits it. The same argument `RuntimeError::Unsupported` already makes about a watch that reports nothing."
+        }
+      ]
+    },
+    {
+      "id": "ADR-023",
+      "title": "A project can be told not to ask, and new work unmutes it",
+      "why": "A project whose work has ended is noise in a queue whose whole value is that everything in it matters; but a silence you have to remember to lift is the exact forgetting an attention supervisor exists to prevent, so a session that did not exist when you silenced it wakes it on its own.",
+      "link": "docs/DECISIONS.md#adr-023--a-project-can-be-told-not-to-ask",
+      "scope": [
+        "crates/bancada-core/src",
+        "app/src-tauri/src"
+      ],
+      "enforcement": "none",
+      "why_not_enforceable": "It is a claim about what reaches the queue. A rule can see that `Project::asking` exists, not that every screen counting what needs you goes through it \u2014 and the check that matters is that two screens agree, which is a property of two call sites rather than of a shape.",
+      "alternatives": [
+        {
+          "option": "A plain `active: bool`",
+          "why_not": "Silence that only a click can lift. You silence a project the day the work ends and start working there again three weeks later; the queue then says nothing about it, which is the one failure this product cannot have. Forgetting is what it is for."
+        },
+        {
+          "option": "Unregister the project instead",
+          "why_not": "Loses the path, the workspace, the weight and the machine \u2014 everything you configured \u2014 to say \"not this week\". And re-registering is the long form, with a folder picker, for something that should be one click."
+        },
+        {
+          "option": "Wake on any activity, using the log's modification time",
+          "why_not": "Available for free on both screens, and wrong: a conversation you already dismissed continuing is a write, so every silenced project would come back within minutes. The count of sessions distinguishes new work from work you already declined to look at."
+        },
+        {
+          "option": "Wake on a session whose first event is after the silencing",
+          "why_not": "The exact rule, and it needs the *content* of every log to find the first event. The work list deliberately reads no content \u2014 it costs a process per project per open \u2014 so this rule would be computable on one screen and not the other, and two screens deciding \"is this asking for me\" two ways is how a product disagrees with itself about what needs you."
+        },
+        {
+          "option": "Stop reading a silenced project altogether",
+          "why_not": "Cheaper, and it makes the waking rule impossible: nothing would notice the new session. It also hides the project from the screen where you would go to bring it back."
         }
       ]
     }
@@ -617,7 +651,7 @@
       "type": "chokepoint",
       "id": "web/no-raw-html-above-the-alphabet",
       "level": "error",
-      "why": "Raw HTML in a layout or a page is a design decision made outside the design system, and consistency erodes one `<div className=...>` at a time — none of them wrong on their own. Everything above `components` and `frame` composes from what is already there, or adds to it.",
+      "why": "Raw HTML in a layout or a page is a design decision made outside the design system, and consistency erodes one `<div className=...>` at a time \u2014 none of them wrong on their own. Everything above `components` and `frame` composes from what is already there, or adds to it.",
       "roots": [
         "web/src/composites/**",
         "web/src/layouts/**",
@@ -702,7 +736,7 @@
       "type": "spec-pair",
       "id": "web/logic-is-tested-where-it-lives",
       "level": "error",
-      "why": "An error, not a warning, because it is scoped to the files that hold reasoning: the seam to Rust and each page's `logic`. Views are arrangement, and arrangement is checked by looking — a rule that warned about every one of them would be eleven warnings nobody reads, which is how a real one gets missed.",
+      "why": "An error, not a warning, because it is scoped to the files that hold reasoning: the seam to Rust and each page's `logic`. Views are arrangement, and arrangement is checked by looking \u2014 a rule that warned about every one of them would be eleven warnings nobody reads, which is how a real one gets missed.",
       "roots": [
         "web/src/core",
         "web/src/pages/**"

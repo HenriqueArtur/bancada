@@ -11,11 +11,16 @@ export function Toggle({
   on,
   onChange,
   label,
+  hint,
   className,
 }: {
   on: boolean;
   onChange: (on: boolean) => void;
+  /// Shown beside the box. Empty where the row already says what it is —
+  /// and then `hint` is what a screen reader gets instead, because a switch
+  /// with no words at all is a switch nobody can identify.
   label: string;
+  hint?: string;
   className?: string;
 }) {
   return (
@@ -23,6 +28,8 @@ export function Toggle({
       type="button"
       role="switch"
       aria-checked={on}
+      aria-label={label || hint}
+      title={hint}
       onClick={() => onChange(!on)}
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-1 py-1 text-left text-sm",

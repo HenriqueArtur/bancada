@@ -45,6 +45,7 @@ pub fn preview(path: String, runtime: String) -> Result<Preview, String> {
         path: path.clone(),
         weight: 1,
         idle_after_minutes: 2,
+        muted: None,
     };
 
     let cockpit = Cockpit::new(config.clone());

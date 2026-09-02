@@ -830,3 +830,68 @@ the path, because the host side of virtiofs does ordinary filesystem writes.
   minute behind lies with more confidence than one that admits it — the same
   argument `RuntimeError::Unsupported` already makes about a watch that
   reports nothing.
+
+---
+
+## ADR-023 · A project can be told not to ask
+
+**Accepted.** A project carries `muted { at, sessions }`. While it is set, the
+project contributes nothing to the queue, the dock count or the notifications
+— and a session that did not exist when you set it clears the silence on its
+own.
+
+### Context
+
+The queue's whole value is that everything in it matters. A project whose work
+has ended keeps producing rows anyway: an agent finishing a turn, an idle
+session ageing past its threshold. Every one of them is correct and none of
+them is wanted, and a queue with three rows you have learned to skip is a
+queue you stop reading — which is the failure this product exists to prevent
+and cannot detect in itself.
+
+So: a way to say *not this one, not now*. The interesting half is not the
+switch. It is what happens next.
+
+### Why it is not a boolean
+
+You silence a project the day the work there ends. Three weeks later you open
+a terminal in it and start again. With a plain flag, the queue says nothing —
+you have to remember, at the moment you resume, that you told it not to speak.
+That is precisely the forgetting an attention supervisor is for, and a product
+that introduces one to remove another has not helped.
+
+So the silence records **how much work the project had when you set it**, and
+a session that was not there then lifts it. You silenced it because the work
+ended; a new session is new work.
+
+### Why a count and not a timestamp
+
+The exact rule is "a session whose first event is after the moment you
+silenced it". Finding a session's first event means reading the log, and the
+work list deliberately reads no content — a process per project per open is
+what it was built to avoid, and it is the screen where you flip the switch.
+
+The count of session logs is already known to both readers: the queue lists
+the directory to find the logs, and the work list counts them. Two screens
+deciding "is this asking for me" from two different signals is how a product
+ends up disagreeing with itself about what needs you, and this is the one
+question it is about.
+
+The count is a weaker identity than a timestamp. A log deleted and another
+created keeps it level and the project stays quiet. That is a rarer, quieter
+wrong answer than waking on every continuation of a conversation you already
+declined to look at, which is what a modification time would have given.
+
+### Consequences
+
+- The project is still **read**. Nothing is saved by silencing it, and that is
+  what makes the waking rule possible at all.
+- It is still openable, still in the work list, still has a diff. Silencing is
+  about attention, not access.
+- `Project::asking(sessions)` is the one place the rule lives, and both the
+  queue command and `Standing` call it.
+- Both counts go on screen wherever projects are listed. "Nothing needs you"
+  and "nothing needs you, and two projects were told not to ask" are different
+  claims, and the second is the one somebody wants when they remember
+  silencing something.
+

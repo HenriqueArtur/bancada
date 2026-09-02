@@ -87,6 +87,20 @@ impl Bench {
     fn project(&self) -> PathBuf {
         self.root.join("project")
     }
+
+    /// Where the harness keeps this project's logs, spelled the way the
+    /// harness spells it. Recomputed rather than kept, so a change to the
+    /// encoding breaks the test that depends on it.
+    fn log_dir(&self) -> PathBuf {
+        let encoded: String = self
+            .project()
+            .display()
+            .to_string()
+            .chars()
+            .map(|c| if c == '/' || c == '.' { '-' } else { c })
+            .collect();
+        self.root.join("home/.claude/projects").join(encoded)
+    }
 }
 
 impl Drop for Bench {
@@ -195,6 +209,46 @@ fn the_seam_answers_about_a_real_tree() {
         ),
         "and the same lines: {summary:?}"
     );
+
+    // ── telling a project not to ask ──────────────────────────────────────
+    // The whole point of the count in `Muted`: silencing records how much
+    // work there was, so a session that did not exist then lifts it. Driven
+    // against the real bench, which has exactly one session log.
+    let before = bancada_app::commands::queue::queue().expect("a queue");
+    assert_eq!((before.asking(), before.silenced()), (1, 0));
+    assert!(
+        !before.groups().is_empty(),
+        "the bench has something waiting"
+    );
+
+    let config = bancada_app::commands::setup::mute_project("thing".into(), true).expect("muted");
+    let muted = config.projects[0].muted.expect("it says when");
+    assert_eq!(muted.sessions, 1, "one log at the moment of silencing");
+
+    let after = bancada_app::commands::queue::queue().expect("a queue");
+    assert_eq!((after.asking(), after.silenced()), (0, 1));
+    assert!(
+        after.groups().is_empty(),
+        "a silenced project contributes nothing: {:?}",
+        after.groups()
+    );
+    assert_eq!(
+        after.watching(),
+        before.watching(),
+        "still watched, still counted — silencing is about attention, not access"
+    );
+
+    // A session that was not there then is new work, and new work wakes it.
+    std::fs::write(bench.log_dir().join("s2.jsonl"), "").expect("a second log");
+    let woken = bancada_app::commands::queue::queue().expect("a queue");
+    assert_eq!(
+        (woken.asking(), woken.silenced()),
+        (1, 0),
+        "a silence you have to remember to lift is the forgetting this prevents"
+    );
+
+    bancada_app::commands::setup::mute_project("thing".into(), false).expect("unmuted");
+    std::fs::remove_file(bench.log_dir().join("s2.jsonl")).expect("tidy");
 
     // ── the file pane ─────────────────────────────────────────────────────
     let listing = bancada_app::commands::tree::tree("thing".into(), None).expect("a tree");

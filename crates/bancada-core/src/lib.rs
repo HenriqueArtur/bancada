@@ -30,7 +30,7 @@ pub use config::{Config, ConfigError};
 pub use diff::{Diff, FileDiff, Hunk, Line, LineKind, Status};
 pub use discovery::{Account, Discovery, Harness};
 pub use glance::Glance;
-pub use project::Project;
+pub use project::{Muted, Project};
 pub use repo::{Repo, tracking};
 pub use review::{Episode, Review};
 pub use runtime_spec::RuntimeSpec;

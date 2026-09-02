@@ -20,6 +20,15 @@ pub struct Queue {
     /// projects watched and an empty queue with none configured are
     /// different states, and they look identical without this.
     watching: usize,
+    /// How many of those may ask for you, and how many are silenced.
+    ///
+    /// Both, rather than one and a subtraction. "6 active" beside a queue
+    /// with nothing in it says the product is watching and there is nothing
+    /// to do; "6 active · 2 silenced" also says why the other two are not
+    /// there, which is the question somebody asks about the project they
+    /// silenced last week and forgot.
+    asking: usize,
+    silenced: usize,
     /// Named rather than silent: a project the product could not read
     /// looks exactly like a project with nothing pending.
     unreachable: Vec<String>,
@@ -41,6 +50,24 @@ pub struct Queue {
     elsewhere: Option<String>,
 }
 
+impl Queue {
+    // Read by the integration test, which drives these commands the way the
+    // webview does. Serialising and re-parsing to assert on three numbers
+    // would be a test of `serde`.
+    pub fn asking(&self) -> usize {
+        self.asking
+    }
+    pub fn silenced(&self) -> usize {
+        self.silenced
+    }
+    pub fn watching(&self) -> usize {
+        self.watching
+    }
+    pub fn groups(&self) -> &[Grouped] {
+        &self.groups
+    }
+}
+
 /// Read every registered project and answer what needs the human.
 ///
 /// The clock is read **here**, at the edge, and passed inward. Nothing
@@ -57,10 +84,19 @@ pub fn queue() -> Result<Queue, String> {
     let mut unreachable = Vec::new();
     let mut glances = std::collections::BTreeMap::new();
 
+    let mut silenced = 0;
+
     for project in &cockpit.config().projects {
         let scan = cockpit.scan(project, &host);
         if let Some(why) = scan.unreachable {
             unreachable.push(format!("{}: {why}", project.id));
+            continue;
+        }
+        // Read either way, and dropped here rather than skipped above: a
+        // silenced project still has to be counted, and the count of its
+        // sessions is what decides whether it is silenced at all.
+        if !project.asking(scan.logs.len()) {
+            silenced += 1;
             continue;
         }
         for log in scan.logs {
@@ -88,6 +124,8 @@ pub fn queue() -> Result<Queue, String> {
         groups,
         wip,
         watching,
+        asking: watching - silenced,
+        silenced,
         unreachable,
         glances,
         elsewhere: overridden_config(),

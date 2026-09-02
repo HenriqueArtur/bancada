@@ -47,6 +47,14 @@ pub struct Standing {
     pub last_activity: Option<i64>,
     /// Named rather than silent, exactly as in the queue.
     pub unreachable: Option<String>,
+    /// Whether it may ask for your attention right now.
+    ///
+    /// Computed from the same rule the queue uses, on the same signal: how
+    /// many session logs it has, which this screen already counted. Two
+    /// screens deciding "is this asking for me" from two different signals
+    /// is how a product ends up disagreeing with itself about what needs
+    /// you — and this one is the screen where you change the answer.
+    pub asking: bool,
 }
 
 impl Cockpit {
@@ -89,6 +97,7 @@ impl Cockpit {
         let scan = self.scan(project, host);
         let last_activity = scan.logs.iter().filter_map(|p| host.modified(p)).max();
         Standing {
+            asking: project.asking(scan.logs.len()),
             project: project.clone(),
             sessions: scan.logs.len(),
             last_activity,
@@ -379,6 +388,7 @@ mod tests {
                 path: "/dev/loose".into(),
                 weight: 1,
                 idle_after_minutes: 2,
+                muted: None,
             }],
         };
         let w = Cockpit::new(stray).work(&harness());

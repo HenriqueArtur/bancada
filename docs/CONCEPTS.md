@@ -17,6 +17,24 @@ The thesis, the vocabulary and the boundaries. Where an idea came from is in
 | **supervisor** | AI agent, **one per workspace** |
 | **queue** | the decision queue — the main screen |
 | **export level** | what a workspace lets out: `metadata` · `summary` · `full` |
+| **silenced** | a project told not to ask — see below |
+
+### Silenced
+
+A project is **silenced** when you have told it not to ask for you. It stays
+registered, stays read and stays openable; it simply contributes nothing to
+the queue, the dock count or the notifications.
+
+It is not "archived" and not "disabled". Both of those describe the project.
+This describes **your attention**, which is the only thing this product
+manages — the work in a silenced project may be going perfectly well, and you
+have said you are not the one watching it.
+
+Silencing records how many sessions the project had at that moment, and **a
+session that did not exist then lifts it**. You silence a project when the
+work there ends; a new session is new work, and a silence you have to remember
+to lift is the forgetting the queue exists to prevent. See
+[ADR-023](DECISIONS.md#adr-023--a-project-can-be-told-not-to-ask).
 
 ---
 

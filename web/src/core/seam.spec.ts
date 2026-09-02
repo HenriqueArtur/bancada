@@ -49,6 +49,12 @@ describe("the seam", () => {
       { project: "p", session: "s", skip: 20 },
     ],
     ["work", () => work.loadWork(), "work", {}],
+    [
+      "silence a project",
+      () => work.muteProject("p", true),
+      "mute_project",
+      { id: "p", muted: true },
+    ],
     ["forget a workspace", () => work.forgetWorkspace("w"), "forget_workspace", { id: "w" }],
   ];
 

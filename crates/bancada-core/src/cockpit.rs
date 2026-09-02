@@ -526,6 +526,7 @@ mod tests {
                 path: "/x".into(),
                 weight: 1,
                 idle_after_minutes: 2,
+                muted: None,
             }],
         };
         let c = Cockpit::new(broken);
