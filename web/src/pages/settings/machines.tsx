@@ -44,6 +44,7 @@ export function MachinesPanel({
                 </Mono>
 
                 <Probed d={found.get(r.id)} />
+                <Running runtime={r} onSave={onRegister} />
               </Stack>
             </Inset>
           </Card>
@@ -63,6 +64,60 @@ export function MachinesPanel({
       </Stack>
 
       <AddRuntime config={config} onRegister={onRegister} />
+    </Stack>
+  );
+}
+
+/// What you say runs there, and the way to say it.
+///
+/// Editable on the card rather than only on the form that adds a machine:
+/// the machine bancada runs on is never added by anybody — it is synthesised
+/// — so a field only the add form carried was a field that could never be
+/// filled in for it. `register_runtime` replaces by id, so saying it again
+/// with two more fields *is* the edit.
+function Running({
+  runtime,
+  onSave,
+}: {
+  runtime: RuntimeSpec;
+  onSave: (r: RuntimeSpec) => void;
+}) {
+  const t = useText();
+  const [draft, setDraft] = useState(runtime);
+  const said = [runtime.harness, runtime.model].filter(Boolean).join(" · ");
+  const changed = draft.harness !== runtime.harness || draft.model !== runtime.model;
+
+  return (
+    <Stack gap="snug">
+      <Text as="span" size="sm" tone={said ? "muted" : "faint"}>
+        {said || t("Nothing said about what runs there")}
+      </Text>
+      <Disclosure summary={said ? t("Change it") : t("Say what runs there")}>
+        <Stack gap="normal">
+          <Grid columns={2}>
+            <Field
+              label={t("The harness")}
+              value={draft.harness ?? ""}
+              onChange={(v) => setDraft({ ...draft, harness: v.trim() || null })}
+              hint={t("Shown in the header of every project on this machine.")}
+            />
+            <Field
+              label={t("The model")}
+              value={draft.model ?? ""}
+              onChange={(v) => setDraft({ ...draft, model: v.trim() || null })}
+              hint={t("What you have it pointed at, spelled however you say it.")}
+            />
+          </Grid>
+          <Row gap="normal" wrap>
+            <Button tone="primary" disabled={!changed} onClick={() => onSave(draft)}>
+              {t("Save it")}
+            </Button>
+            <Text tone="faint" size="sm">
+              {t("Declared, never probed. Nothing here checks it against the machine.")}
+            </Text>
+          </Row>
+        </Stack>
+      </Disclosure>
     </Stack>
   );
 }

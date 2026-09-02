@@ -151,3 +151,46 @@ describe("MachinesPanel", () => {
     );
   });
 });
+
+const show = (over: { config?: Config; onRegister?: () => void } = {}) =>
+  render(
+    <MachinesPanel config={over.config ?? config} onRegister={over.onRegister ?? vi.fn()} />,
+  );
+
+describe("saying what runs on a machine", () => {
+  it("says nothing has been said, rather than showing an empty line", () => {
+    show();
+    expect(screen.getAllByText("Nothing said about what runs there").length).toBeGreaterThan(0);
+  });
+
+  it("shows the harness and the model once they are declared", () => {
+    show({
+      config: {
+        ...config,
+        runtimes: [{ ...config.runtimes[0], harness: "claude-code", model: "claude-opus-5" }],
+      },
+    });
+    expect(screen.getByText("claude-code · claude-opus-5")).toBeTruthy();
+  });
+
+  it("saves the machine again with what you said", () => {
+    // `register_runtime` replaces by id, so saying it again *is* the edit —
+    // which is what lets the synthesised machine be given one at all.
+    const onRegister = vi.fn();
+    show({ onRegister });
+    fireEvent.click(screen.getAllByText("Say what runs there")[0]);
+    fireEvent.change(screen.getAllByLabelText("The harness")[0], {
+      target: { value: "codex" },
+    });
+    fireEvent.click(screen.getAllByText("Save it")[0]);
+    expect(onRegister).toHaveBeenCalledWith(
+      expect.objectContaining({ id: config.runtimes[0].id, harness: "codex" }),
+    );
+  });
+
+  it("offers nothing to save until something changed", () => {
+    show();
+    fireEvent.click(screen.getAllByText("Say what runs there")[0]);
+    expect((screen.getAllByText("Save it")[0] as HTMLButtonElement).disabled).toBe(true);
+  });
+});
