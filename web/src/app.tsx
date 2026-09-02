@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+import {
+  ClockCounterClockwiseIcon,
+  FolderOpenIcon,
+  GitDiffIcon,
+  type Icon,
+  QuotesIcon,
+} from "@phosphor-icons/react";
 import { apply, remember, resolve, stored, systemIsDark, type Theme } from "@/core/appearance";
 import {
   current,
@@ -6,16 +13,20 @@ import {
   stored as storedLanguage,
   type Language,
 } from "@/core/language";
+import { loadRepo } from "@/core/git";
+import { loadSettings } from "@/core/settings";
+import { name, titleOf } from "@/core/window";
 import { Speaks } from "@/lib/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { Row } from "@/frame";
 import { AppShell } from "@/layouts";
-import { BackToQueue, Elsewhere, WipBar } from "@/pages/_shared";
 import {
+  ChangesPage,
   CockpitView,
   FilesPage,
-  ReviewPage,
+  GitPage,
+  SaidPage,
   SettingsPage,
   WorkPage,
   useCockpit,
@@ -31,8 +42,16 @@ type Where =
   /// `from` is where the project was opened, so the way back leads there.
   /// Always sending you to the queue is right half the time, and the other
   /// half is the product deciding you were somewhere else.
-  | { at: "review"; project: string; from: Origin }
-  | { at: "files"; project: string; from: Origin };
+  | { at: "said"; project: string; from: Origin }
+  | { at: "changes"; project: string; from: Origin }
+  | { at: "files"; project: string; from: Origin }
+  | { at: "git"; project: string; from: Origin };
+
+/// The screens a project has, in the order somebody works through them:
+/// what was promised, what it did, the tree it did it to, and what has
+/// already landed.
+const INSIDE = ["said", "changes", "files", "git"] as const;
+type Inside = (typeof INSIDE)[number];
 
 /// Which screen, and the queue that every screen carries.
 ///
@@ -77,6 +96,63 @@ function Cockpit({
     apply(resolve(theme, systemIsDark()));
   }, [theme]);
 
+  // Which workspace each project belongs to. Read once and kept, because it
+  // has to be on screen the whole time you are inside a project — the
+  // workspace is the confidentiality boundary, and a diff shown without one
+  // is a diff whose rules nobody stated.
+  const [workspaces, setWorkspaces] = useState<Record<string, string>>({});
+  useEffect(() => {
+    loadSettings()
+      .then((c) =>
+        setWorkspaces(Object.fromEntries(c.projects.map((p) => [p.id, p.workspace]))),
+      )
+      // The settings screen says so far better than a header can. Here the
+      // honest fallback is to name the project and not its workspace.
+      .catch(() => {});
+  }, []);
+
+  // Whether the open project is a repository at all. The history tab is only
+  // a tab if there is a history; a directory git has never been told about
+  // is a normal thing for a project to point at.
+  // Named here rather than in each page, so the four cannot drift apart and
+  // so the order is one decision in one place. The window title reads from
+  // the same map, which is why it is above everything that returns early.
+  const NAME: Record<Inside, string> = {
+    said: t("What they said"),
+    changes: t("Files changed"),
+    files: t("Files"),
+    git: t("History"),
+  };
+  const GLYPH: Record<Inside, Icon> = {
+    said: QuotesIcon,
+    changes: GitDiffIcon,
+    files: FolderOpenIcon,
+    git: ClockCounterClockwiseIcon,
+  };
+  const HERE: Record<Where["at"], string> = {
+    cockpit: t("Needs you"),
+    work: t("Your work"),
+    ...NAME,
+  };
+
+  const project = "project" in where ? where.project : null;
+
+  useEffect(() => {
+    name(titleOf(queue?.wip.sessions_waiting ?? 0, project, HERE[where.at]));
+  });
+  const [isGit, setIsGit] = useState(false);
+  useEffect(() => {
+    if (!project) return;
+    setIsGit(false);
+    let alive = true;
+    loadRepo(project)
+      .then((r) => alive && setIsGit(r.isGit))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [project]);
+
   if (failed) {
     return (
       <AppShell title={t("Needs you")}>
@@ -108,7 +184,7 @@ function Cockpit({
         <CockpitView
           queue={queue}
           mute={mute}
-          onOpenProject={(project) => setWhere({ at: "review", project, from: "cockpit" })}
+          onOpenProject={(project) => setWhere({ at: "changes", project, from: "cockpit" })}
           onOpenSettings={() => setSettings(true)}
           onOpenWork={() => setWhere({ at: "work" })}
         />
@@ -122,7 +198,7 @@ function Cockpit({
       <>
         <WorkPage
           queue={queue}
-          onOpen={(project) => setWhere({ at: "review", project, from: "work" })}
+          onOpen={(project) => setWhere({ at: "changes", project, from: "work" })}
           onOpenSettings={() => setSettings(true)}
           onOpenQueue={() => setWhere({ at: "cockpit" })}
         />
@@ -131,65 +207,43 @@ function Cockpit({
     );
   }
 
+  const shown = INSIDE.filter((at) => at !== "git" || isGit);
   const tabs = (
     <Row gap="tight">
-      <Button
-        tone={where.at === "review" ? "outline" : "ghost"}
-        size="sm"
-        onClick={() => setWhere({ at: "review", project: where.project, from: where.from })}
-      >
-        {t("What changed")}
-      </Button>
-      <Button
-        tone={where.at === "files" ? "outline" : "ghost"}
-        size="sm"
-        onClick={() => setWhere({ at: "files", project: where.project, from: where.from })}
-      >
-        {t("Files")}
-      </Button>
+      {shown.map((at) => {
+        const Glyph = GLYPH[at];
+        return (
+          <Button
+            key={at}
+            tone={where.at === at ? "outline" : "ghost"}
+            size="sm"
+            onClick={() => setWhere({ at, project: where.project, from: where.from })}
+          >
+            <Glyph size={13} />
+            {NAME[at]}
+          </Button>
+        );
+      })}
     </Row>
   );
 
-  // The file pane gets the whole window; everything else keeps the measured
-  // column. Prose wants a narrow line and an editor wants every pixel, and
-  // one shell cannot be right for both.
-  if (where.at === "files") {
-    return (
-      <>
-        <FilesPage
-          project={where.project}
-          queue={queue}
-          from={where.from}
-          onBack={() => setWhere({ at: where.from })}
-          tabs={tabs}
-        />
-        {dialog}
-      </>
-    );
-  }
-
+  const SCREEN: Record<Inside, typeof FilesPage> = {
+    said: SaidPage,
+    changes: ChangesPage,
+    files: FilesPage,
+    git: GitPage,
+  };
+  const Screen = SCREEN[where.at];
   return (
     <>
-      <AppShell
-        wide
-        title={where.project}
-        above={
-          <BackToQueue
-            queue={queue}
-            from={where.from}
-            onBack={() => setWhere({ at: where.from })}
-          />
-        }
-        banner={<Elsewhere path={queue.elsewhere} />}
-        aside={
-          <Row gap="normal">
-            <WipBar wip={queue.wip} />
-            {tabs}
-          </Row>
-        }
-      >
-        <ReviewPage project={where.project} />
-      </AppShell>
+      <Screen
+        project={where.project}
+        workspace={workspaces[where.project] ?? null}
+        queue={queue}
+        from={where.from}
+        onBack={() => setWhere({ at: where.from })}
+        tabs={tabs}
+      />
       {dialog}
     </>
   );

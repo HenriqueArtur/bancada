@@ -8,6 +8,6 @@ export { Stack, Row, Push, Fill, type Gap } from "@/frame/stack";
 export { Bleed } from "@/frame/bleed";
 export { Grid, Full } from "@/frame/grid";
 export { Inset, Divider, Scroller } from "@/frame/inset";
-export { Page } from "@/frame/page";
+export { Measure, Page } from "@/frame/page";
 export { Mount } from "@/frame/mount";
 export { Listing, ListingItem, Region } from "@/frame/listing";
