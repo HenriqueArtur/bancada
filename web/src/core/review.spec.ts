@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { churn, forgetSeen, markSeen, seenOf } from "@/core/review";
-import { translator } from "@/core/language";
-
-/// English, so every assertion reads as the phrase itself.
-const t = translator({});
-
+import { forgetSeen, markSeen, seenOf, unmarkSeen } from "@/core/review";
 describe("what this human has already looked at", () => {
   beforeEach(() => localStorage.clear());
 
@@ -36,23 +31,27 @@ describe("what this human has already looked at", () => {
   });
 });
 
-describe("churn", () => {
-  const f = (added: number, removed: number) => ({
-    path: "p",
-    added,
-    removed,
-    fingerprint: "",
-    fresh: true,
-    hunks: [],
+describe("taking a review back", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("forgets one file and leaves the rest", () => {
+    // The checkbox beside a file can be unticked. A control that looks
+    // reversible and is not teaches the reader that the product's state is
+    // not theirs to correct.
+    markSeen("bancada", "a.rs", "one");
+    markSeen("bancada", "b.rs", "two");
+    unmarkSeen("bancada", "a.rs");
+    expect(seenOf("bancada")).toEqual({ "b.rs": "two" });
   });
 
-  it("reads as a diff stat", () => {
-    expect(churn(f(12, 3), t)).toBe("+12 \u22123");
+  it("shrugs at a project nobody has reviewed anything in", () => {
+    expect(() => unmarkSeen("empty", "a.rs")).not.toThrow();
+    expect(seenOf("empty")).toEqual({});
   });
 
-  it("says so plainly when nothing moved", () => {
-    // A mode change or a rename produces a file with no line changes;
-    // "+0 -0" reads like a bug.
-    expect(churn(f(0, 0), t)).toBe("no lines");
+  it("shrugs at a file that was never marked", () => {
+    markSeen("bancada", "a.rs", "one");
+    unmarkSeen("bancada", "never.rs");
+    expect(seenOf("bancada")).toEqual({ "a.rs": "one" });
   });
 });
