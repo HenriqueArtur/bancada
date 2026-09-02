@@ -15,6 +15,18 @@ pub struct SessionView {
     /// same fact that lights the dock badge, and two readings of "is this
     /// waiting" is how a product ends up disagreeing with itself.
     pub waiting: bool,
+    /// Whether a newer session is not allowed to quiet this one.
+    ///
+    /// Sent so the screen can show the mark and let you take it off. The
+    /// state has to be visible somewhere you would look for it, or it is a
+    /// silence you cannot find the switch for — the failure ADR-023 is
+    /// written against.
+    pub kept: bool,
+    /// Held back only because a newer session began.
+    ///
+    /// Not the same silence as "nothing has happened here", and the screen
+    /// says which: one of the two has a switch beside it.
+    pub quieted: bool,
 }
 
 /// Every session of one project, newest first.
@@ -39,7 +51,12 @@ pub fn sessions(project: String) -> Result<Vec<SessionView>, String> {
     let host = HostRuntime::local();
     let now = bancada_meta::Timestamp::from_millis(super::queue::millis_now());
 
-    let mut out = Vec::new();
+    // Every session first, then the one question that needs all of them.
+    // Whether a session is waiting depends on the sessions beside it, so
+    // asking it one log at a time would give this screen a different answer
+    // from the queue's — about the one thing they both exist to say.
+    let mut found = Vec::new();
+    let mut states = Vec::new();
     for log in cockpit.scan(project, &host).logs {
         let Ok(bytes) = host.read_file(&log) else {
             continue;
@@ -50,16 +67,35 @@ pub fn sessions(project: String) -> Result<Vec<SessionView>, String> {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default();
 
+        states.extend(Cockpit::states_of(&Cockpit::facts(&text)));
+
         let session = Session::of(&id, &text);
         // A session that never said or heard anything is a file the harness
         // opened and abandoned. A row for it is a row about nothing.
         if session.said.is_none() && session.heard.is_none() {
             continue;
         }
-
-        let waiting = !Cockpit::queue_of(project, &Cockpit::facts(&text), now).is_empty();
-        out.push(SessionView { session, waiting });
+        found.push(session);
     }
+
+    let waiting: std::collections::BTreeSet<String> = Cockpit::queue_of(project, &states, now)
+        .iter()
+        .map(|i| i.session.as_str().to_owned())
+        .collect();
+    let quieted: std::collections::BTreeSet<String> = Cockpit::quieted_in(project, &states, now)
+        .iter()
+        .map(|s| s.as_str().to_owned())
+        .collect();
+
+    let mut out: Vec<SessionView> = found
+        .into_iter()
+        .map(|session| SessionView {
+            waiting: waiting.contains(&session.id),
+            kept: project.kept.contains(&session.id),
+            quieted: quieted.contains(&session.id),
+            session,
+        })
+        .collect();
 
     // Waiting first, then by when. The order the queue would put them in,
     // for the same reason: what is stopped on you outranks what is not.

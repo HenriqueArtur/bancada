@@ -51,6 +51,7 @@ pub fn run() {
             commands::review::review,
             commands::review::summary,
             commands::setup::mute_project,
+            commands::setup::keep_session,
             commands::sessions::sessions,
             commands::sessions::chat,
             commands::setup::settings,

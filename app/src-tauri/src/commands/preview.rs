@@ -46,6 +46,7 @@ pub fn preview(path: String, runtime: String) -> Result<Preview, String> {
         weight: 1,
         idle_after_minutes: 2,
         muted: None,
+        kept: Vec::new(),
     };
 
     let cockpit = Cockpit::new(config.clone());

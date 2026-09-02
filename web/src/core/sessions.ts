@@ -1,5 +1,6 @@
 /// What each session of a project is doing, and what it last said.
 import { invoke } from "@tauri-apps/api/core";
+import type { Config } from "@/core/settings";
 
 export interface QuestionOption {
   label: string;
@@ -33,7 +34,18 @@ export interface Session {
   at: number;
   /// Stopped on you. The same fact that lights the dock badge.
   waiting: boolean;
+  /// Held back from the rule that quiets a session once a newer one begins.
+  kept: boolean;
+  /// Silent *because* a newer session began, rather than because nothing has
+  /// happened here. The two look identical on a screen and only one of them
+  /// has a switch, so the screen is told which.
+  quieted: boolean;
 }
 
 export const loadSessions = (project: string): Promise<Session[]> =>
   invoke<Session[]>("sessions", { project });
+
+/// Keep one session out of reach of the rule that quiets the old ones, or
+/// let it go again.
+export const keepSession = (project: string, session: string, kept: boolean): Promise<Config> =>
+  invoke<Config>("keep_session", { project, session, kept });

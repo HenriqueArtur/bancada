@@ -47,6 +47,10 @@ export interface Project {
   /// project when the work ends, and forgetting to un-silence it is the
   /// failure an attention supervisor exists to prevent.
   muted?: { at: number; sessions: number } | null;
+  /// Sessions a newer one may not quiet. Opening a session is how you say
+  /// you have moved on from the last one, and the queue reads it that way —
+  /// this names the ones that is wrong for.
+  kept?: string[];
 }
 
 export interface Config {

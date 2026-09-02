@@ -9,6 +9,12 @@ use bancada_meta::{DecisionKind, MetaEvent, SessionId, Timestamp};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionState {
     pub session: SessionId,
+    /// The first thing that happened in it — when the session began.
+    ///
+    /// Kept beside `last_activity` because the two answer different
+    /// questions: one is "is this still moving", the other is "is this the
+    /// work I have moved on to". See [`SessionState::queue`].
+    pub began: Timestamp,
     pub last_activity: Timestamp,
     pub pending: Vec<Pending>,
     pub agent_last_spoke: Option<Timestamp>,
@@ -19,6 +25,7 @@ impl SessionState {
     fn new(session: SessionId, at: Timestamp) -> Self {
         Self {
             session,
+            began: at,
             last_activity: at,
             pending: Vec::new(),
             agent_last_spoke: None,
@@ -83,8 +90,23 @@ impl SessionState {
     /// only after `idle_after_ms` of silence — in observe mode nothing
     /// distinguishes *finished* from *about to continue* except time, and
     /// waiting does the triage for free.
-    pub fn queue(states: &[Self], now: Timestamp, idle_after_ms: i64) -> Vec<QueueItem> {
+    ///
+    /// `states` is **every session of one project**, not one of them. The
+    /// rule below is about the sessions beside each other, and a caller
+    /// folding one log at a time would ask it a question it cannot answer.
+    ///
+    /// `kept` names the sessions a newer one may not quiet.
+    pub fn queue(
+        states: &[Self],
+        now: Timestamp,
+        idle_after_ms: i64,
+        kept: &[SessionId],
+    ) -> Vec<QueueItem> {
         let mut items = Vec::new();
+        // No sessions, so nothing to compare against and nothing to walk.
+        let Some(newest) = states.iter().map(|s| s.began).max() else {
+            return items;
+        };
 
         for s in states {
             // The unit is the decision: two pending things in one session
@@ -93,6 +115,9 @@ impl SessionState {
                 items.push(QueueItem::new(s.session.clone(), p.kind, p.at).raised_by(&p.id));
             }
             if !s.pending.is_empty() {
+                continue;
+            }
+            if !s.speaks_up(newest, kept) {
                 continue;
             }
             if let Some(spoke) = s.agent_last_spoke
@@ -108,6 +133,53 @@ impl SessionState {
         }
 
         items
+    }
+
+    /// The sessions this rule is holding back.
+    ///
+    /// What would be asking if every session were kept, minus what is
+    /// asking now. Said as a subtraction rather than as a second copy of
+    /// the rule, because a second copy is a second thing to keep in step.
+    ///
+    /// The screen needs it: a session quiet because you moved on and a
+    /// session quiet because nothing has happened look identical, and only
+    /// one of them has a switch. A silence you cannot find the switch for
+    /// is the failure ADR-023 is written against.
+    pub fn quieted(
+        states: &[Self],
+        now: Timestamp,
+        idle_after_ms: i64,
+        kept: &[SessionId],
+    ) -> Vec<SessionId> {
+        let all: Vec<SessionId> = states.iter().map(|s| s.session.clone()).collect();
+        let asking = Self::queue(states, now, idle_after_ms, kept);
+        Self::queue(states, now, idle_after_ms, &all)
+            .into_iter()
+            .map(|i| i.session)
+            .filter(|s| !asking.iter().any(|a| &a.session == s))
+            .collect()
+    }
+
+    /// Whether a *finished turn* here is still worth your eyes.
+    ///
+    /// Opening a session is how you say you have moved on from the last one.
+    /// Without this the queue had no unit for "that one is over": a session
+    /// you walked away from stays `awaiting_human` forever, because the only
+    /// thing that clears it is a next event and an abandoned session has
+    /// none — and since a score multiplies by age, it grew louder every
+    /// minute until it outranked the session you were actually in.
+    ///
+    /// Quiets only what had **already stopped** when the newer session
+    /// began. A session still producing events past that moment is work
+    /// happening in parallel, and the whole product is for people running
+    /// several at once; silencing those would be the cure killing the
+    /// patient. `kept` is the manual override for the one that legitimately
+    /// sits idle — the long-running session you will come back to.
+    ///
+    /// A *raised decision* never consults this: an agent that has stopped
+    /// and cannot continue is the one thing that must always reach you.
+    fn speaks_up(&self, newest: Timestamp, kept: &[SessionId]) -> bool {
+        self.last_activity >= newest || kept.contains(&self.session)
     }
 }
 
@@ -161,7 +233,13 @@ mod tests {
         }
     }
     fn queue_of(events: &[MetaEvent]) -> Vec<QueueItem> {
-        SessionState::queue(&SessionState::fold(events), NOW, IDLE)
+        SessionState::queue(&SessionState::fold(events), NOW, IDLE, &[])
+    }
+    fn queue_keeping(events: &[MetaEvent], kept: &[SessionId]) -> Vec<QueueItem> {
+        SessionState::queue(&SessionState::fold(events), NOW, IDLE, kept)
+    }
+    fn sessions(q: &[QueueItem]) -> Vec<&str> {
+        q.iter().map(|i| i.session.as_str()).collect()
     }
 
     #[test]
@@ -252,6 +330,97 @@ mod tests {
         let f = SessionState::fold(&ev);
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].session, s("b"));
+    }
+
+    // ── a newer session says you have moved on ───────────────────────────
+
+    /// Two sessions: one that stopped, and one that began after it stopped.
+    ///
+    /// Both are old enough to be listed on their own, so anything missing
+    /// from the queue was quieted rather than merely too fresh.
+    fn walked_away() -> [MetaEvent; 4] {
+        [
+            human("old", 10),
+            spoke("old", 500_000),
+            human("new", 600_000),
+            spoke("new", 700_000),
+        ]
+    }
+
+    #[test]
+    fn a_session_you_walked_away_from_stops_asking_once_a_newer_one_begins() {
+        // Reported from the screen: both the abandoned session and the one
+        // just opened were marked as needing you. Nothing ever cleared the
+        // first, because the only thing that clears `awaiting_human` is a
+        // next event and an abandoned session has none.
+        assert_eq!(sessions(&queue_of(&walked_away())), vec!["new"]);
+    }
+
+    #[test]
+    fn a_session_still_working_beside_a_newer_one_is_not_quieted() {
+        // Two agents at once is what this product is *for*. The rule quiets
+        // what had already stopped, not what is running.
+        let q = queue_of(&[
+            human("busy", 10),
+            called("busy", 650_000, "t1"),
+            done("busy", 660_000, "t1"),
+            spoke("busy", 700_000),
+            human("new", 600_000),
+            spoke("new", 700_000),
+        ]);
+        assert_eq!(sessions(&q), vec!["busy", "new"]);
+    }
+
+    #[test]
+    fn a_kept_session_goes_on_asking_however_many_begin_after_it() {
+        // The long-running one you will come back to. It sits idle, so the
+        // rule would quiet it, and saying so by hand is the whole override.
+        let q = queue_keeping(&walked_away(), &[s("old")]);
+        assert_eq!(sessions(&q), vec!["old", "new"]);
+    }
+
+    #[test]
+    fn a_newer_session_never_quiets_an_agent_that_is_stopped_on_a_question() {
+        // A finished turn can wait. An agent that cannot continue without
+        // an answer is the one thing that must always reach you — and it is
+        // the row that would be worst to lose to a rule about tidiness.
+        let q = queue_of(&[
+            human("old", 10),
+            asked("old", 500_000, "t1"),
+            human("new", 600_000),
+        ]);
+        assert_eq!(sessions(&q), vec!["old"]);
+        assert_eq!(q[0].kind, DecisionKind::Question);
+    }
+
+    #[test]
+    fn a_project_with_no_sessions_yet_has_an_empty_queue() {
+        // There is no newest session to compare against, and the rule below
+        // is written as if there always is one. Answered before the walk
+        // rather than by a branch inside it that nothing could reach.
+        assert!(SessionState::queue(&[], NOW, IDLE, &[]).is_empty());
+    }
+
+    #[test]
+    fn the_quieted_ones_are_named_so_a_screen_can_say_why_they_are_silent() {
+        let states = SessionState::fold(&walked_away());
+        let held = SessionState::quieted(&states, NOW, IDLE, &[]);
+        assert_eq!(
+            held.iter().map(SessionId::as_str).collect::<Vec<_>>(),
+            ["old"]
+        );
+
+        // Kept, it is asking rather than held back — the two lists are the
+        // same fact from opposite sides and must never both claim it.
+        assert!(SessionState::quieted(&states, NOW, IDLE, &[s("old")]).is_empty());
+    }
+
+    #[test]
+    fn a_session_nothing_has_happened_in_is_not_reported_as_quieted() {
+        // Silent because the turn is yours, not because a newer one began.
+        // Told apart, one of them has a switch and the other does not.
+        let states = SessionState::fold(&[human("a", 10), human("b", 20)]);
+        assert!(SessionState::quieted(&states, NOW, IDLE, &[]).is_empty());
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use crate::{Config, Diff, Project, Summary};
 use bancada_adapter_claude::SessionLog;
-use bancada_meta::{MetaEvent, Timestamp};
+use bancada_meta::{MetaEvent, SessionId, Timestamp};
 use bancada_rules::{Grouped, QueueItem, SessionState, Wip, group, rank};
 use bancada_runtime::{Runtime, RuntimeError};
 use std::collections::BTreeSet;
@@ -117,12 +117,39 @@ impl Cockpit {
             .collect()
     }
 
-    /// The queue for one project, from its facts.
-    pub fn queue_of(project: &Project, facts: &[MetaEvent], now: Timestamp) -> Vec<QueueItem> {
-        SessionState::queue(&SessionState::fold(facts), now, project.idle_after_ms())
+    /// One log's facts, folded into what its sessions look like now.
+    ///
+    /// Separate from [`Cockpit::queue_of`] because a project's logs are read
+    /// one at a time and the queue is decided across all of them: a newer
+    /// session quiets the ones that had already stopped, which is a question
+    /// about the sessions beside each other. Folding first keeps the answer
+    /// possible without holding every log's facts at once — a log is tens of
+    /// megabytes, and a state is three timestamps and a name.
+    pub fn states_of(facts: &[MetaEvent]) -> Vec<SessionState> {
+        SessionState::fold(facts)
+    }
+
+    /// The queue for one project, from every session it has.
+    pub fn queue_of(project: &Project, states: &[SessionState], now: Timestamp) -> Vec<QueueItem> {
+        let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
+        SessionState::queue(states, now, project.idle_after_ms(), &kept)
             .into_iter()
             .map(|i| i.with_weight(project.weight).in_project(&project.id))
             .collect()
+    }
+
+    /// The sessions of this project a newer one is holding back.
+    ///
+    /// Beside [`Cockpit::queue_of`] rather than inside it: the queue is what
+    /// needs you, and this is the reason something is missing from it. A
+    /// screen showing sessions needs both, and the queue needs only the one.
+    pub fn quieted_in(
+        project: &Project,
+        states: &[SessionState],
+        now: Timestamp,
+    ) -> Vec<SessionId> {
+        let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
+        SessionState::quieted(states, now, project.idle_after_ms(), &kept)
     }
 
     /// Rank and group a whole queue.
@@ -357,6 +384,33 @@ mod tests {
     }
 
     #[test]
+    fn the_project_says_which_of_its_sessions_a_newer_one_is_holding_back() {
+        // The names the screen needs to explain a silence, and the same
+        // `kept` list that decides the queue — read here rather than spelled
+        // twice, because two spellings drift and this is the one question
+        // both screens are about.
+        let c = cockpit();
+        let now = Timestamp::from_millis(1_000_000);
+        let spoke = |who: &str, at: i64| MetaEvent::AgentSpoke {
+            session: bancada_meta::SessionId::new(who),
+            at: Timestamp::from_millis(at),
+        };
+        let states = Cockpit::states_of(&[spoke("old", 100), spoke("new", 200)]);
+
+        let held = Cockpit::quieted_in(&c.config().projects[0], &states, now);
+        assert_eq!(
+            held.iter().map(SessionId::as_str).collect::<Vec<_>>(),
+            ["old"]
+        );
+
+        let kept = Project {
+            kept: vec!["old".to_owned()],
+            ..c.config().projects[0].clone()
+        };
+        assert!(Cockpit::quieted_in(&kept, &states, now).is_empty());
+    }
+
+    #[test]
     fn a_projects_weight_reaches_the_items_it_produces() {
         let c = cockpit();
         let p = &c.config().projects[0];
@@ -373,7 +427,7 @@ mod tests {
                 kind: DecisionKind::Question,
             },
         ];
-        let q = Cockpit::queue_of(p, &facts, now);
+        let q = Cockpit::queue_of(p, &Cockpit::states_of(&facts), now);
         assert_eq!(q.len(), 1);
         assert_eq!(q[0].project_weight, 3);
     }
@@ -585,6 +639,7 @@ mod tests {
                 weight: 1,
                 idle_after_minutes: 2,
                 muted: None,
+                kept: Vec::new(),
             }],
         };
         let c = Cockpit::new(broken);

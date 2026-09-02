@@ -43,6 +43,12 @@ describe("the seam", () => {
     ["forget a project", () => settings.forgetProject("p"), "forget_project", { id: "p" }],
     ["sessions", () => sessions.loadSessions("p"), "sessions", { project: "p" }],
     [
+      "keep a session",
+      () => sessions.keepSession("p", "s", true),
+      "keep_session",
+      { project: "p", session: "s", kept: true },
+    ],
+    [
       "one session's conversation",
       () => chat.loadChat("p", "s", 20),
       "chat",

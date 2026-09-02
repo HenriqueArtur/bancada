@@ -14,6 +14,7 @@
 // it is allowed in the commands.
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
+use bancada_app::commands::sessions::SessionView;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -123,6 +124,24 @@ fn run(at: &Path, cmd: &[&str]) {
         "{cmd:?} failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
+}
+
+/// A second session, begun after the first one had already stopped.
+///
+/// A minute later in the same ancient year, so both are far past any idle
+/// threshold and the only thing separating them is which began last.
+fn later_session() -> String {
+    [
+        r#"{"type":"user","sessionId":"s2","timestamp":"2020-01-01T00:01:00Z","message":{"content":"Now the other thing"}}"#,
+        r#"{"type":"assistant","sessionId":"s2","timestamp":"2020-01-01T00:01:01Z","message":{"content":[{"type":"text","text":"Done."}]}}"#,
+    ]
+    .join("\n")
+}
+
+fn row<'a>(rows: &'a [SessionView], id: &str) -> &'a SessionView {
+    rows.iter()
+        .find(|r| r.session.id == id)
+        .unwrap_or_else(|| panic!("no session {id} in {:?}", rows.len()))
 }
 
 /// A session that said what it would do, did more, and is waiting.
@@ -249,6 +268,49 @@ fn the_seam_answers_about_a_real_tree() {
 
     bancada_app::commands::setup::mute_project("thing".into(), false).expect("unmuted");
     std::fs::remove_file(bench.log_dir().join("s2.jsonl")).expect("tidy");
+
+    // ── a newer session says you have moved on ────────────────────────────
+    // The bench has one session that stopped in 2020. A second one beginning
+    // after it stopped is the whole rule: the first goes quiet, and it says
+    // so rather than merely falling silent.
+    let alone = bancada_app::commands::sessions::sessions("thing".into()).expect("the sessions");
+    assert_eq!(alone.len(), 1);
+    assert!(row(&alone, "s1").waiting, "the only session there is");
+    assert!(!row(&alone, "s1").quieted, "nothing to be quieted by");
+
+    fs::write(bench.log_dir().join("s2.jsonl"), later_session()).expect("a second log");
+    let both = bancada_app::commands::sessions::sessions("thing".into()).expect("the sessions");
+    assert!(!row(&both, "s1").waiting, "the one you walked away from");
+    assert!(
+        row(&both, "s1").quieted,
+        "and it says which kind of silence it is, because only one has a switch"
+    );
+    assert!(row(&both, "s2").waiting, "the one you moved to");
+
+    // Named by hand, it asks again — the long-running session that sits idle
+    // on purpose. The queue has to agree: two screens deciding this two ways
+    // is how a product disagrees with itself about what needs you.
+    bancada_app::commands::setup::keep_session("thing".into(), "s1".into(), true).expect("kept");
+    let held = bancada_app::commands::sessions::sessions("thing".into()).expect("the sessions");
+    assert!(row(&held, "s1").kept && row(&held, "s1").waiting);
+    assert!(!row(&held, "s1").quieted, "kept and held back at once");
+    assert_eq!(
+        bancada_app::commands::queue::queue()
+            .expect("a queue")
+            .groups()
+            .len(),
+        2,
+        "the queue and the sessions screen disagreed about what is waiting"
+    );
+
+    let let_go =
+        bancada_app::commands::setup::keep_session("thing".into(), "s1".into(), false).expect("go");
+    assert!(
+        let_go.projects[0].kept.is_empty(),
+        "letting go left the name behind: {:?}",
+        let_go.projects[0].kept
+    );
+    fs::remove_file(bench.log_dir().join("s2.jsonl")).expect("tidy");
 
     // ── the file pane ─────────────────────────────────────────────────────
     let listing = bancada_app::commands::tree::tree("thing".into(), None).expect("a tree");

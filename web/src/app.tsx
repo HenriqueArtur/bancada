@@ -46,6 +46,7 @@ import { ChatPanel } from "@/pages/sessions/panel";
 import { useSessions } from "@/pages/sessions/view";
 import { useWork } from "@/pages/work/logic";
 import { muteProject } from "@/core/work";
+import { keepSession } from "@/core/sessions";
 import {
   ChangesPage,
   CockpitView,
@@ -179,6 +180,16 @@ function Cockpit({
       })
       // The screen keeps showing what the configuration still says. A switch
       // that moved without the write landing would be a lie.
+      .catch(() => {});
+  };
+
+  // Hold one session back from the rule that quiets it once a newer one
+  // begins, or let it go. Reloaded rather than assumed for the reason the
+  // silence above is: the list says what the configuration says.
+  const keep = (session: string, kept: boolean) => {
+    if (!project) return;
+    keepSession(project, session, kept)
+      .then(() => void reload())
       .catch(() => {});
   };
 
@@ -444,6 +455,7 @@ function Cockpit({
         failed={sessionsFailed}
         picked={talking}
         onPick={setTalking}
+        onKeep={keep}
       />
       {dialog}
     </>
@@ -523,6 +535,7 @@ function Screen({
   failed,
   picked,
   onPick,
+  onKeep,
 }: {
   at: Inside;
   inside: Shared;
@@ -530,6 +543,7 @@ function Screen({
   failed: string | null;
   picked: string | null;
   onPick: (id: string) => void;
+  onKeep: (session: string, kept: boolean) => void;
 }) {
   if (at === "changes") return <ChangesPage {...inside} />;
   if (at === "files") return <FilesPage {...inside} />;
@@ -541,6 +555,7 @@ function Screen({
       failed={failed}
       picked={picked}
       onPick={onPick}
+      onKeep={onKeep}
     />
   );
 }

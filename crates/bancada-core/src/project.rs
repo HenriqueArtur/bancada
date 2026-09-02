@@ -28,6 +28,18 @@ pub struct Project {
     /// facts rather than being a flag.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub muted: Option<Muted>,
+    /// Sessions a newer one may not quiet.
+    ///
+    /// Opening a session is how you say you have moved on from the last
+    /// one, and the queue takes it that way — which is right for the
+    /// session you abandoned and wrong for the long-running one you mean to
+    /// come back to. This is how you say "not that one".
+    ///
+    /// Ids rather than a count, unlike [`Muted`]: this names a particular
+    /// session, and a count cannot. The cost is that a log deleted leaves
+    /// its id behind, which is a dead string and nothing more.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub kept: Vec<String>,
 }
 
 /// When you silenced a project, and how much work it had then.
@@ -141,6 +153,7 @@ mod tests {
             weight: 1,
             idle_after_minutes: 2,
             muted: None,
+            kept: Vec::new(),
         }
     }
 

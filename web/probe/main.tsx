@@ -762,7 +762,7 @@ function Sessions() {
         <Divider soft />
         <Stack gap="snug">
           {rows.map((s) => (
-            <SessionCard key={s.id} session={s} now={now} />
+            <SessionCard key={s.id} session={s} now={now} onKeep={() => {}} />
           ))}
         </Stack>
       </Stack>
@@ -801,6 +801,8 @@ function SESSIONS(now: number) {
       heard: "pode seguir",
       at: now - 2 * 60_000,
       waiting: true,
+      kept: false,
+      quieted: false,
     },
     {
       id: "55a56b23-995d-47eb-939e-043b2b441bd0",
@@ -810,6 +812,10 @@ function SESSIONS(now: number) {
       heard: "roda os testes de novo",
       at: now - 55 * 60_000,
       waiting: false,
+      // The long-running one you mean to come back to. Named by hand, so a
+      // newer session does not quiet it.
+      kept: true,
+      quieted: false,
     },
     {
       id: "3edc4601-1111-2222-3333-444455556666",
@@ -819,6 +825,10 @@ function SESSIONS(now: number) {
       heard: "oi",
       at: now - 3 * 86_400_000,
       waiting: false,
+      // Walked away from three days ago, and a newer session has begun
+      // since. The state that used to go on asking for you forever.
+      kept: false,
+      quieted: true,
     },
   ];
 }
@@ -910,14 +920,14 @@ function Talking() {
         />
       }
       chatSide="right"
-      footer={<Tally summary={{ files: 14, added: 1204, removed: 317 }} />}
+      footer={<Tally summary={{ files: 14, added: 1204, removed: 317, versioned: true }} />}
     >
       <Panes
         index={<SessionIndex sessions={rows} picked={picked} onPick={setPicked} now={now} />}
         subject={
           <Scroller className="min-h-0 flex-1">
             <Stack gap="none" className="p-5">
-              <SessionCard session={open} now={now} />
+              <SessionCard session={open} now={now} onKeep={() => {}} />
             </Stack>
           </Scroller>
         }

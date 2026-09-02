@@ -21,6 +21,8 @@ const session = (over: Partial<Session> = {}): Session => ({
   heard: "go",
   at: Date.now(),
   waiting: false,
+  kept: false,
+  quieted: false,
   ...over,
 });
 

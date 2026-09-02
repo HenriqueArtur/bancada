@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Question, Session } from "@/core/sessions";
 import { prose } from "@/core/prose";
-import { Badge, Card, CodeBlock, Mono, Prose, Text } from "@/components";
+import { Badge, Card, CodeBlock, Mono, Prose, Text, Toggle } from "@/components";
 import { Divider, Inset, Row, Stack } from "@/frame";
 import { Since } from "@/pages/git/since";
 import { useText } from "@/lib/language";
@@ -11,7 +11,19 @@ import { useText } from "@/lib/language";
 /// The end of the log and not the middle. What a session did is the diff's
 /// business; what this answers is whether it is stopped, on what, and what
 /// the two of you last said to each other.
-export function SessionCard({ session, now }: { session: Session; now: number }) {
+export function SessionCard({
+  session,
+  now,
+  onKeep,
+}: {
+  session: Session;
+  now: number;
+  /// Hold this session back from the rule that quiets it once a newer one
+  /// begins, or let it go. Required rather than optional: a card mounted
+  /// without it would show a state and hide its switch, which is the one
+  /// shape this control exists to prevent.
+  onKeep: (kept: boolean) => void;
+}) {
   const t = useText();
 
   return (
@@ -67,6 +79,29 @@ export function SessionCard({ session, now }: { session: Session; now: number })
               </Text>
             )}
           </Stack>
+
+          <Divider soft />
+
+          {/* The switch and the reason for the silence, on one line. A
+              session quiet because you moved on and a session quiet because
+              nothing happened look identical, and only one of them can be
+              undone — so the sentence that says which sits beside the thing
+              that undoes it. */}
+          <Row gap="snug" align="center" wrap>
+            <Toggle
+              on={session.kept}
+              onChange={onKeep}
+              label={t("Keep asking")}
+              hint={t(
+                "A newer session quiets the ones that had already stopped. Not this one.",
+              )}
+            />
+            {session.quieted ? (
+              <Text as="span" size="sm" tone="faint">
+                {t("Quieted by a newer session.")}
+              </Text>
+            ) : null}
+          </Row>
         </Stack>
       </Inset>
     </Card>
