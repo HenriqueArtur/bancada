@@ -1,6 +1,6 @@
 use crate::{Config, Diff, Project, Summary};
 use bancada_adapter_claude::SessionLog;
-use bancada_meta::{MetaEvent, Timestamp};
+use bancada_meta::{MetaEvent, SessionId, Timestamp};
 use bancada_rules::{Grouped, QueueItem, SessionState, Wip, group, rank};
 use bancada_runtime::{Runtime, RuntimeError};
 use std::collections::BTreeSet;
@@ -117,12 +117,49 @@ impl Cockpit {
             .collect()
     }
 
-    /// The queue for one project, from its facts.
-    pub fn queue_of(project: &Project, facts: &[MetaEvent], now: Timestamp) -> Vec<QueueItem> {
-        SessionState::queue(&SessionState::fold(facts), now, project.idle_after_ms())
+    /// One log's facts, folded into what its sessions look like now.
+    ///
+    /// Separate from [`Cockpit::queue_of`] because a project's logs are read
+    /// one at a time and the queue is decided across all of them: a newer
+    /// session quiets the ones that had already stopped, which is a question
+    /// about the sessions beside each other. Folding first keeps the answer
+    /// possible without holding every log's facts at once — a log is tens of
+    /// megabytes, and a state is three timestamps and a name.
+    pub fn states_of(facts: &[MetaEvent]) -> Vec<SessionState> {
+        SessionState::fold(facts)
+    }
+
+    /// The queue for one project, from every session it has.
+    pub fn queue_of(project: &Project, states: &[SessionState], now: Timestamp) -> Vec<QueueItem> {
+        let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
+        SessionState::queue(states, now, project.idle_after_ms(), &kept)
             .into_iter()
             .map(|i| i.with_weight(project.weight).in_project(&project.id))
             .collect()
+    }
+
+    /// The sessions of this project a newer one is holding back.
+    ///
+    /// Beside [`Cockpit::queue_of`] rather than inside it: the queue is what
+    /// needs you, and this is the reason something is missing from it. A
+    /// screen showing sessions needs both, and the queue needs only the one.
+    pub fn quieted_in(
+        project: &Project,
+        states: &[SessionState],
+        now: Timestamp,
+    ) -> Vec<SessionId> {
+        let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
+        SessionState::quieted(states, now, project.idle_after_ms(), &kept)
+    }
+
+    /// Which session of a project you have moved to.
+    ///
+    /// No project and no clock: it is the last session opened, which is a
+    /// fact about the sessions alone. Beside `quieted_in` because the two
+    /// are the same rule from opposite sides, and a screen showing one
+    /// without the other says only which rows went quiet.
+    pub fn current_in(states: &[SessionState]) -> Option<SessionId> {
+        SessionState::current(states).map(|s| s.session.clone())
     }
 
     /// Rank and group a whole queue.
@@ -162,6 +199,24 @@ impl Cockpit {
         Ok(Diff::parse(&text))
     }
 
+    /// Whether git has ever been told about this tree.
+    ///
+    /// Asked before the diff rather than read out of its failure. Run in a
+    /// plain directory, `git diff HEAD` exits 129 with a *usage message* —
+    /// so a screen that reported the error reported a crash for one of the
+    /// most ordinary states a project can be in. Pattern-matching that text
+    /// would be reading one version of git's help output.
+    pub fn versioned(&self, project: &Project, host: &dyn Runtime) -> bool {
+        host.exec(&[
+            "git".to_owned(),
+            "-C".to_owned(),
+            project.path.clone(),
+            "rev-parse".to_owned(),
+            "--git-dir".to_owned(),
+        ])
+        .is_ok()
+    }
+
     /// How much has moved, without the diff itself.
     ///
     /// `--numstat` rather than `diff_of(..).summary()`: the footer is on all
@@ -169,6 +224,11 @@ impl Cockpit {
     /// lines of hunks on the tree screen to reach. The untracked files still
     /// cost a read each, exactly as they do for the diff.
     pub fn summary_of(&self, project: &Project, host: &dyn Runtime) -> Result<Summary, String> {
+        if !self.versioned(project, host) {
+            // Three zeroes would be a claim about a repository there is none
+            // of. The footer says which it is.
+            return Ok(Summary::default());
+        }
         let at = project.path.as_str();
         let git = |args: &[&str]| -> Result<String, String> {
             let mut cmd = vec!["git".to_owned(), "-C".to_owned(), at.to_owned()];
@@ -176,7 +236,10 @@ impl Cockpit {
             host.exec(&cmd).map_err(|e| format!("{e:?}"))
         };
 
-        let mut out = Summary::default();
+        let mut out = Summary {
+            versioned: true,
+            ..Summary::default()
+        };
         for line in git(&["diff", "HEAD", "--numstat", "--no-color", "--no-ext-diff"])?.lines() {
             let mut cols = line.split('\t');
             let (Some(added), Some(removed)) = (cols.next(), cols.next()) else {
@@ -331,6 +394,50 @@ mod tests {
     }
 
     #[test]
+    fn the_project_says_which_session_you_moved_to() {
+        // The other side of the silence. Held back and moved to are one
+        // rule read from either end, and a screen given only the first can
+        // say which rows went quiet but not which row did it.
+        let spoke = |who: &str, at: i64| MetaEvent::AgentSpoke {
+            session: bancada_meta::SessionId::new(who),
+            at: Timestamp::from_millis(at),
+        };
+        let states = Cockpit::states_of(&[spoke("old", 100), spoke("new", 200)]);
+
+        assert_eq!(
+            Cockpit::current_in(&states).as_ref().map(SessionId::as_str),
+            Some("new")
+        );
+    }
+
+    #[test]
+    fn the_project_says_which_of_its_sessions_a_newer_one_is_holding_back() {
+        // The names the screen needs to explain a silence, and the same
+        // `kept` list that decides the queue — read here rather than spelled
+        // twice, because two spellings drift and this is the one question
+        // both screens are about.
+        let c = cockpit();
+        let now = Timestamp::from_millis(1_000_000);
+        let spoke = |who: &str, at: i64| MetaEvent::AgentSpoke {
+            session: bancada_meta::SessionId::new(who),
+            at: Timestamp::from_millis(at),
+        };
+        let states = Cockpit::states_of(&[spoke("old", 100), spoke("new", 200)]);
+
+        let held = Cockpit::quieted_in(&c.config().projects[0], &states, now);
+        assert_eq!(
+            held.iter().map(SessionId::as_str).collect::<Vec<_>>(),
+            ["old"]
+        );
+
+        let kept = Project {
+            kept: vec!["old".to_owned()],
+            ..c.config().projects[0].clone()
+        };
+        assert!(Cockpit::quieted_in(&kept, &states, now).is_empty());
+    }
+
+    #[test]
     fn a_projects_weight_reaches_the_items_it_produces() {
         let c = cockpit();
         let p = &c.config().projects[0];
@@ -347,7 +454,7 @@ mod tests {
                 kind: DecisionKind::Question,
             },
         ];
-        let q = Cockpit::queue_of(p, &facts, now);
+        let q = Cockpit::queue_of(p, &Cockpit::states_of(&facts), now);
         assert_eq!(q.len(), 1);
         assert_eq!(q[0].project_weight, 3);
     }
@@ -430,6 +537,9 @@ mod tests {
             .join("\n");
         FakeRuntime::new(Answers {
             says: vec![
+                // Asked before anything else: a plain directory answers the
+                // diff with a usage message, not with an empty diff.
+                ("rev-parse".into(), ".git".into()),
                 ("numstat".into(), numstat.into()),
                 ("ls-files".into(), names),
             ],
@@ -447,6 +557,27 @@ mod tests {
     }
 
     #[test]
+    fn a_directory_git_has_never_heard_of_is_not_versioned() {
+        // `Answers` refuses an unscripted command, so a runtime told nothing
+        // about `rev-parse` is exactly a machine where it fails.
+        let c = cockpit();
+        let bare = FakeRuntime::new(Answers::default());
+        assert!(!c.versioned(&c.config().projects[0], &bare));
+    }
+
+    #[test]
+    fn a_project_that_is_not_a_repository_summarises_as_nothing_of_the_kind() {
+        // Three zeroes would be a claim about a repository there is none of,
+        // and "nothing uncommitted" is the wrong thing for a screen to say
+        // about a folder somebody is working in.
+        let c = cockpit();
+        let bare = FakeRuntime::new(Answers::default());
+        let s = c.summary_of(&c.config().projects[0], &bare).unwrap();
+        assert!(!s.versioned);
+        assert_eq!((s.files, s.added, s.removed), (0, 0, 0));
+    }
+
+    #[test]
     fn the_summary_counts_both_directions_without_parsing_a_diff() {
         // Three numbers, and the footer that shows them sits on all four
         // screens — the tree screen has no reason to pay for the hunks.
@@ -454,6 +585,7 @@ mod tests {
         let rt = counted("12\t3\tsrc/db.rs\n4\t0\tsrc/x.rs\n", &[]);
         let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
         assert_eq!((s.files, s.added, s.removed), (2, 16, 3));
+        assert!(s.versioned);
     }
 
     #[test]
@@ -491,7 +623,14 @@ mod tests {
         let s = c
             .summary_of(&c.config().projects[0], &counted("", &[]))
             .unwrap();
-        assert_eq!(s, crate::Summary::default());
+        assert_eq!(
+            s,
+            crate::Summary {
+                versioned: true,
+                ..crate::Summary::default()
+            },
+            "a clean repository is not the same fact as no repository"
+        );
     }
 
     #[test]
@@ -527,6 +666,7 @@ mod tests {
                 weight: 1,
                 idle_after_minutes: 2,
                 muted: None,
+                kept: Vec::new(),
             }],
         };
         let c = Cockpit::new(broken);

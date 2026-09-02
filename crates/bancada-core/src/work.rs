@@ -389,6 +389,7 @@ mod tests {
                 weight: 1,
                 idle_after_minutes: 2,
                 muted: None,
+                kept: Vec::new(),
             }],
         };
         let w = Cockpit::new(stray).work(&harness());

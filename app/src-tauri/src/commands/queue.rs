@@ -99,23 +99,45 @@ pub fn queue() -> Result<Queue, String> {
             silenced += 1;
             continue;
         }
+        // Folded first, and only then asked. Whether a session still needs
+        // you depends on the sessions beside it — a newer one quiets what
+        // had already stopped — so a log at a time cannot answer it. States
+        // rather than facts: a log is tens of megabytes and a state is three
+        // timestamps and a name, so this holds a project, not its logs.
+        let mut states = Vec::new();
+        let mut where_from = std::collections::BTreeMap::new();
         for log in scan.logs {
             match host.read_file(&log) {
                 Ok(bytes) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    let facts = Cockpit::facts(&text);
-                    let raised = Cockpit::queue_of(project, &facts, now);
-                    // Read only for sessions that ended up in the queue. A
-                    // project with forty finished logs should not cost forty
-                    // content reads every ten seconds to say nothing.
-                    if let Some(session) = raised.first().map(|i| i.session.as_str().to_owned()) {
-                        glances.insert(session, Glance::of(&text));
+                    let facts = Cockpit::facts(&String::from_utf8_lossy(&bytes));
+                    for s in Cockpit::states_of(&facts) {
+                        where_from.insert(s.session.as_str().to_owned(), log.clone());
+                        states.push(s);
                     }
-                    items.extend(raised);
                 }
                 Err(e) => unreachable.push(format!("{}: {e:?}", log.display())),
             }
         }
+
+        let raised = Cockpit::queue_of(project, &states, now);
+        // Read a second time, and only for the sessions that reached the
+        // queue. A project with forty finished logs should not cost forty
+        // content reads every ten seconds to say nothing — and which forty
+        // are worth reading is not known until the queue is settled.
+        for session in raised.iter().map(|i| i.session.as_str()) {
+            if glances.contains_key(session) {
+                continue;
+            }
+            if let Some(log) = where_from.get(session)
+                && let Ok(bytes) = host.read_file(log)
+            {
+                glances.insert(
+                    session.to_owned(),
+                    Glance::of(&String::from_utf8_lossy(&bytes)),
+                );
+            }
+        }
+        items.extend(raised);
     }
 
     let watching = cockpit.config().projects.len();

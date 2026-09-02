@@ -39,18 +39,25 @@ fn main() {
         if let Some(why) = &scan.unreachable {
             println!("  unreachable: {why}");
         }
+        // Folded per log, asked once. A newer session quiets the ones that
+        // had already stopped, and that is a question about the whole
+        // project rather than about any one file in it.
+        let mut states = Vec::new();
         for log in scan.logs {
             let bytes = host.read_file(&log).expect("read");
             let facts = Cockpit::facts(&String::from_utf8_lossy(&bytes));
-            let q = Cockpit::queue_of(project, &facts, now);
+            let folded = Cockpit::states_of(&facts);
             println!(
-                "  {}  {} facts → {} item(s)",
+                "  {}  {} facts → {} session(s)",
                 log.file_name().unwrap_or_default().to_string_lossy(),
                 facts.len(),
-                q.len()
+                folded.len()
             );
-            items.extend(q);
+            states.extend(folded);
         }
+        let q = Cockpit::queue_of(project, &states, now);
+        println!("  → {} item(s)", q.len());
+        items.extend(q);
     }
 
     let (groups, wip) = Cockpit::present(items, now);

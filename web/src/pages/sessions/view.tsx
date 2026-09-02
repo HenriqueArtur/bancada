@@ -44,6 +44,15 @@ export function SessionIndex({
                 </Text>
                 <Row gap="tight">
                   {s.waiting ? <Badge tone="clay">{t("waiting")}</Badge> : null}
+                  {/* Plain, not clay, and for the same reason as `kept`
+                      below: where you are is a fact about the list, not a
+                      summons. Without it the session you had just opened
+                      was the only row on the screen wearing nothing. */}
+                  {s.current ? <Badge>{t("current")}</Badge> : null}
+                  {/* Plain, not clay: clay means "this wants you", and a
+                      kept session is one you told the queue to go on asking
+                      about — which is a setting, not a summons. */}
+                  {s.kept ? <Badge>{t("kept")}</Badge> : null}
                   <Since when={Math.floor(s.at / 1000)} now={now} />
                 </Row>
               </Stack>
@@ -67,10 +76,11 @@ export function SessionsPage(
     failed: string | null;
     picked: string | null;
     onPick: (id: string) => void;
+    onKeep: (session: string, kept: boolean) => void;
   },
 ) {
   const t = useText();
-  const { sessions, failed, picked, onPick } = inside;
+  const { sessions, failed, picked, onPick, onKeep } = inside;
 
   const now = Date.now();
   const open = sessions?.find((s) => s.id === picked) ?? null;
@@ -92,6 +102,7 @@ export function SessionsPage(
   ) : sessions.length === 0 ? (
     <Inset pad="loose">
       <EmptyState
+        mark
         headline={t("No session has run here yet.")}
         detail={t("When one does, what it is doing and what it last said will be here.")}
       />
@@ -103,7 +114,7 @@ export function SessionsPage(
             run across a wide monitor is a line you lose your place in
             returning from — the same reason the message screen is measured. */}
         <Measure>
-          <SessionCard session={open} now={now} />
+          <SessionCard session={open} now={now} onKeep={(kept) => onKeep(open.id, kept)} />
         </Measure>
       </Inset>
     </Scroller>

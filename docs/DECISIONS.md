@@ -895,3 +895,99 @@ declined to look at, which is what a modification time would have given.
   claims, and the second is the one somebody wants when they remember
   silencing something.
 
+
+## ADR-024 · A newer session quiets the ones that had already stopped
+
+**Accepted.** Starting a session is read as saying you have moved on from the
+last one. A session whose last activity precedes the newest session's first
+event stops raising a finished turn; `Project.kept` names the exceptions, and
+a *raised decision* is never quieted at all.
+
+### Context
+
+ADR-023 gave the queue a unit for "not this project, not now". It had none for
+"not that session", and three things compounded into a queue that got louder
+the longer you left it.
+
+`awaiting_human` is set when the agent speaks and cleared by the next event in
+that session. A session you walk away from has no next event, so it is your
+turn forever. `idle_after_minutes` is only a *floor* — after it the session
+enters the queue and nothing ever takes it out. And the score multiplies by
+age, so the session you abandoned yesterday outranks the one you are working
+in right now.
+
+Reported from the screen: a `/clear`, a new session, and both the old and the
+new one marked as needing you. The old one never would have stopped.
+
+### Why the newer session is the signal, and not a button
+
+Every silence has to be lifted by somebody. ADR-023's argument is that a
+silence you must *remember* to lift is the forgetting an attention supervisor
+exists to prevent — and the same argument runs the other way here. Walking
+away from a session is precisely the moment you are not thinking about the
+supervisor, so a "done with this one" button is a button that does not get
+pressed, and the queue rots exactly as it did before.
+
+Opening the next session is a thing you were going to do anyway. It carries
+the fact for free.
+
+### Why it quiets only what had already stopped
+
+The blunt rule — the newest session is the only one that may ask — is wrong
+for the product this is. Running several agents at once is the case it exists
+for, and a session still producing events past the newer one's first line is
+work happening in parallel, not work abandoned. So the comparison is against
+each session's own last activity, and a busy session goes on asking without
+anybody marking anything.
+
+`kept` is for the remaining case: the long-running session that legitimately
+sits idle and that you do mean to come back to. Naming what to keep rather
+than what to drop is deliberate — you abandon many more sessions than you
+hold, so the list of exceptions stays short and a forgotten mark costs noise
+rather than silence.
+
+### Why the session you moved to is a state of its own
+
+The rule was shipped as a subtraction and nothing else. Old rows went quiet;
+nothing named the session whose opening had quieted them. On the screen that
+left the session you had just opened wearing no mark at all — identical to a
+session that had merely fallen silent without being quieted, which is the
+state every session sits in for its first `idleAfterMinutes`. It was reported
+in exactly those terms: the old ones went inactive and the new one was never
+made active.
+
+So `SessionState::current` names it, read from `began` rather than from
+`last_activity`. The question is which session you opened last, not which one
+is moving — a session running in parallel is more recently *active* and is
+not the one you moved to, and it goes on asking on its own account. The two
+can never both be true of one row: a session's own last activity is at least
+its own beginning, so the newest always speaks for itself.
+
+### Why a raised decision is exempt
+
+A finished turn can wait; an agent stopped on a question cannot continue at
+all. It is the row it would be worst to lose, and losing it to a rule about
+tidiness is the trade nothing justifies. Pending decisions short-circuit
+before the rule is consulted.
+
+### Consequences
+
+- `SessionState` carries `began` beside `last_activity`. One answers "is this
+  still moving", the other "is this the work I have moved on to".
+- `SessionState::queue` takes **every session of one project**, not one at a
+  time. Both commands fold their logs into states first and ask once — a log
+  is tens of megabytes and a state is three timestamps and a name, so this
+  holds a project rather than its logs.
+- The queue reads each surviving session's log a second time for its glance,
+  because which logs are worth reading is not known until the queue settles.
+- `SessionState::quieted` names what is being held back, as a subtraction
+  rather than a second copy of the rule. The screen needs it: a session quiet
+  because you moved on and a session quiet because nothing happened look
+  identical, and only one of them has a switch.
+- `SessionState::current` names the other end of it, and `queue` takes its own
+  `newest` from there so the two cannot drift. The index, the conversation
+  picker and the card all show it — the picker especially, because it is the
+  one place the whole list is visible while you read one session.
+- The end-to-end test over the three recorded fixtures proves it, and caught
+  the wrong expectation first — written the obvious way, one file at a time,
+  every call sees a single session and the test passes while proving nothing.

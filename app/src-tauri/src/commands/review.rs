@@ -14,6 +14,11 @@ pub struct ReviewView {
     /// What was said before each stretch of work, newest first.
     pub told: Vec<Told>,
     pub unreachable: Option<String>,
+    /// Whether git has been told about this tree at all.
+    ///
+    /// An empty diff and no repository are different states that look
+    /// identical, and only one of them means "nothing has changed".
+    pub versioned: bool,
 }
 
 /// One turn's claim, and the session it came from.
@@ -58,14 +63,23 @@ pub fn review(project: String, seen: HashMap<String, String>) -> Result<ReviewVi
         .ok_or_else(|| format!("no runtime registered for {}", project.id))?
         .open();
 
-    let (diff, unreachable) = match cockpit.diff_of(project, &at) {
-        Ok(mut d) => {
-            d.mark_fresh(&seen);
-            (d, None)
+    // Asked first, because the failure is unreadable. `git diff HEAD` in a
+    // plain directory exits 129 with a usage message, and reporting that is
+    // reporting a crash for one of the most ordinary states a project can be
+    // in — a tree git has never been told about.
+    let versioned = cockpit.versioned(project, &at);
+    let (diff, unreachable) = if !versioned {
+        (Diff::default(), None)
+    } else {
+        match cockpit.diff_of(project, &at) {
+            Ok(mut d) => {
+                d.mark_fresh(&seen);
+                (d, None)
+            }
+            // A tree that cannot be read is still worth naming: it looks
+            // exactly like a tree with nothing in it.
+            Err(why) => (Diff::default(), Some(why)),
         }
-        // A tree that is not a git repository is a normal state, not a
-        // crash: say so, and still show what the sessions claimed.
-        Err(why) => (Diff::default(), Some(why)),
     };
 
     // How many turns reach the screen. An afternoon is a hundred of them
@@ -107,6 +121,7 @@ pub fn review(project: String, seen: HashMap<String, String>) -> Result<ReviewVi
         diff,
         told,
         unreachable,
+        versioned,
     })
 }
 

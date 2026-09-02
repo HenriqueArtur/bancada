@@ -27,7 +27,17 @@ import { useEffect, useRef, useState } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
 import { Card, Heading, Mono, RowButton, Text } from "../src/components";
-import { Divider, Listing, ListingItem, Mount, Page, Row, Scroller, Stack } from "../src/frame";
+import {
+  Divider,
+  Inset,
+  Listing,
+  ListingItem,
+  Mount,
+  Page,
+  Row,
+  Scroller,
+  Stack,
+} from "../src/frame";
 import { Panes, ProjectShell } from "../src/layouts";
 import { FileTree } from "../src/pages/files/tree";
 import { CodeView } from "../src/pages/files/code";
@@ -37,6 +47,7 @@ import { SessionCard } from "../src/pages/sessions/card";
 import { ChatPanel } from "../src/pages/sessions/panel";
 import { SessionIndex } from "../src/pages/sessions/view";
 import { Tally } from "../src/pages/_shared/tally";
+import { EmptyState } from "../src/composites";
 import { WorkPage } from "../src/pages/work/view";
 import { ProjectList } from "../src/pages/_shared/switcher";
 import { KeysPanel } from "../src/pages/settings/keys";
@@ -751,7 +762,7 @@ function Sessions() {
         <Divider soft />
         <Stack gap="snug">
           {rows.map((s) => (
-            <SessionCard key={s.id} session={s} now={now} />
+            <SessionCard key={s.id} session={s} now={now} onKeep={() => {}} />
           ))}
         </Stack>
       </Stack>
@@ -790,6 +801,12 @@ function SESSIONS(now: number) {
       heard: "pode seguir",
       at: now - 2 * 60_000,
       waiting: true,
+      kept: false,
+      quieted: false,
+      // The one you moved to, and the one that quieted the third. Waiting
+      // *and* current on the same row on purpose: the two badges have to
+      // read as two facts rather than as one repeated.
+      current: true,
     },
     {
       id: "55a56b23-995d-47eb-939e-043b2b441bd0",
@@ -799,6 +816,11 @@ function SESSIONS(now: number) {
       heard: "roda os testes de novo",
       at: now - 55 * 60_000,
       waiting: false,
+      // The long-running one you mean to come back to. Named by hand, so a
+      // newer session does not quiet it.
+      kept: true,
+      quieted: false,
+      current: false,
     },
     {
       id: "3edc4601-1111-2222-3333-444455556666",
@@ -808,6 +830,11 @@ function SESSIONS(now: number) {
       heard: "oi",
       at: now - 3 * 86_400_000,
       waiting: false,
+      // Walked away from three days ago, and a newer session has begun
+      // since. The state that used to go on asking for you forever.
+      kept: false,
+      quieted: true,
+      current: false,
     },
   ];
 }
@@ -899,19 +926,58 @@ function Talking() {
         />
       }
       chatSide="right"
-      footer={<Tally summary={{ files: 14, added: 1204, removed: 317 }} />}
+      footer={<Tally summary={{ files: 14, added: 1204, removed: 317, versioned: true }} />}
     >
       <Panes
         index={<SessionIndex sessions={rows} picked={picked} onPick={setPicked} now={now} />}
         subject={
           <Scroller className="min-h-0 flex-1">
             <Stack gap="none" className="p-5">
-              <SessionCard session={open} now={now} />
+              <SessionCard session={open} now={now} onKeep={() => {}} />
             </Stack>
           </Scroller>
         }
       />
     </ProjectShell>
+  );
+}
+
+/// A project pointed at a folder git has never been told about.
+///
+/// The state that produced the bug: `git diff HEAD` in a plain directory
+/// exits 129 with a *usage message*, and the screen printed it. Reproduced
+/// here rather than reasoned about — the whole reason this file exists.
+function Bare() {
+  return (
+    <Page>
+      <Stack gap="airy">
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="This project is not a git repository."
+            detail="Nothing to compare against, so there is no diff and no history. The Files tab still reads the tree, and the sessions still say what happened here."
+          />
+        </Inset>
+        <Divider soft />
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="Nothing has changed here."
+            detail="The tree matches its last commit, down to the last line."
+          />
+        </Inset>
+        <Divider soft />
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="No session has run here yet."
+            detail="When one does, what it is doing and what it last said will be here."
+          />
+        </Inset>
+        <Divider soft />
+        <Tally summary={{ files: 0, added: 0, removed: 0, versioned: false }} />
+      </Stack>
+    </Page>
   );
 }
 
@@ -1022,6 +1088,8 @@ createRoot(document.getElementById("root")!).render(
     <Keys />
   ) : q.has("switcher") ? (
     <Switcher />
+  ) : q.has("bare") ? (
+    <Bare />
   ) : (
     <Workbench
       bar={

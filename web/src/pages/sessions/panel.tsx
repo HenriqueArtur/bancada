@@ -44,6 +44,7 @@ export function SessionList({
               {s.id.slice(0, 8)}
             </Text>
           </Stack>
+          {s.current ? <Badge>{t("current")}</Badge> : null}
           {s.waiting ? <Badge tone="clay">{t("waiting")}</Badge> : null}
         </RowButton>
       ))}

@@ -140,6 +140,26 @@ mod tests {
     }
 
     #[test]
+    fn a_slash_command_is_the_last_thing_you_said_and_reads_as_one() {
+        // Reported off the screen: after `/clear` the card read
+        // `<command-name>/clear</command-name>` and two more tags, under a
+        // heading that says "What you asked for". What the command printed
+        // follows it in the log and is not speech at all — kept, it would
+        // now be the last thing you said instead.
+        let s = Session::of(
+            "abc",
+            &log(&[
+                &user("do the thing"),
+                &user(
+                    "<command-name>/clear</command-name>\n            <command-message>clear</command-message>\n            <command-args></command-args>",
+                ),
+                &user("<local-command-stdout></local-command-stdout>"),
+            ]),
+        );
+        assert_eq!(s.heard.as_deref(), Some("/clear"));
+    }
+
+    #[test]
     fn blank_prose_is_not_the_last_thing_said() {
         // The harness writes an empty text block beside a tool call. Taken
         // as speech, every working session reports having said nothing.

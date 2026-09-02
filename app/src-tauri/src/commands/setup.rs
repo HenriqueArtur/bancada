@@ -133,3 +133,28 @@ pub fn mute_project(id: String, muted: bool) -> Result<Config, String> {
     project.muted = muted.then_some(Muted { at: now, sessions });
     save(config)
 }
+
+/// Keep one session out of reach of the rule that quiets the old ones.
+///
+/// Opening a session is how you say you have moved on from the last one,
+/// and the queue reads it that way. This is the exception: the long-running
+/// session that sits idle on purpose and that you do mean to come back to.
+///
+/// No clock and no scan, unlike [`mute_project`]. A mark on a session is
+/// just a name — it says *which*, and there is nothing about the moment it
+/// was made that any rule needs to ask later.
+#[tauri::command]
+pub fn keep_session(project: String, session: String, kept: bool) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    let found = config
+        .projects
+        .iter_mut()
+        .find(|p| p.id == project)
+        .ok_or_else(|| format!("no project registered as {project}"))?;
+
+    found.kept.retain(|s| *s != session);
+    if kept {
+        found.kept.push(session);
+    }
+    save(config)
+}

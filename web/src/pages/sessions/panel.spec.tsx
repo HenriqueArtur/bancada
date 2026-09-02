@@ -21,6 +21,9 @@ const session = (over: Partial<Session> = {}): Session => ({
   heard: "go",
   at: Date.now(),
   waiting: false,
+  kept: false,
+  quieted: false,
+  current: false,
   ...over,
 });
 
@@ -98,12 +101,12 @@ describe("ChatPanel", () => {
 /// portal in a test costs about seven seconds, and this asserts the same
 /// thing in milliseconds.
 describe("SessionList", () => {
-  it("offers the other sessions, marking who is waiting", () => {
+  it("offers the other sessions, marking who is waiting and where you are", () => {
     const onSession = vi.fn();
     render(
       <SessionList
         sessions={[
-          session(),
+          session({ current: true }),
           session({ id: "55a56b23", title: "Fix the doctor", waiting: true }),
         ]}
         session="10414dd9"
@@ -111,6 +114,10 @@ describe("SessionList", () => {
       />,
     );
     expect(screen.getByText("waiting")).toBeTruthy();
+    // The picker is the one place both lists are visible at once, and a
+    // conversation panel that cannot say which session is the live one is
+    // a picker you read the ids in.
+    expect(screen.getByText("current")).toBeTruthy();
     fireEvent.click(screen.getByText("Fix the doctor"));
     expect(onSession).toHaveBeenCalledWith("55a56b23");
   });

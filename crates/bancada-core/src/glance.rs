@@ -67,7 +67,8 @@ fn describe(e: &Event) -> Option<(String, String)> {
 ///
 /// A resumed session begins with a block the harness wrote, not the person,
 /// and a queue row titled with a system reminder is worse than one titled
-/// with nothing.
+/// with nothing. A bare slash command is passed over for the same reason —
+/// see [`bare_command`].
 fn first_human_words(events: &[Event]) -> Option<String> {
     events.iter().find_map(|e| match e {
         Event::Text {
@@ -76,10 +77,32 @@ fn first_human_words(events: &[Event]) -> Option<String> {
             ..
         } => {
             let said = strip_reminders(content);
-            (!said.is_empty()).then_some(said)
+            (!said.is_empty() && !bare_command(&said)).then_some(said)
         }
         _ => None,
     })
+}
+
+/// Whether a turn is a slash command and nothing else.
+///
+/// `/clear` is how a session begins, so it is the first thing said in every
+/// session begun that way — and the index became a column of rows all
+/// called `/clear`, which is the one thing you pick a session by saying
+/// nothing about any of them. It is an instruction to the terminal *about*
+/// the session rather than a description of the work in it.
+///
+/// Only the bare form. `/loop 5m /babysit-prs` is what you asked for and
+/// makes a good title, and that is the same split the adapter makes when it
+/// joins a command with its arguments and leaves a bare one alone.
+///
+/// A leading slash is not the signal. `/Users/henrique/notes` is somebody
+/// speaking, and what tells them apart is that a command name carries no
+/// second slash.
+fn bare_command(said: &str) -> bool {
+    let Some(name) = said.strip_prefix('/') else {
+        return false;
+    };
+    !name.is_empty() && !name.contains('/') && !name.contains(char::is_whitespace)
 }
 
 /// The harness's own notes, cut out of what a person said.
@@ -154,6 +177,39 @@ mod tests {
         // Better nothing than a queue row titled with plumbing.
         let g = Glance::of(&human("<system-reminder>context</system-reminder>"));
         assert!(g.title.is_none());
+    }
+
+    #[test]
+    fn a_session_begun_with_a_slash_command_is_not_titled_with_it() {
+        // `/clear` opens the session, so it is the first thing said in
+        // every session opened that way. Two of them and the index was a
+        // column of the same word.
+        let g = Glance::of(&[human("/clear"), human("Fix the parser")].join("\n"));
+        assert_eq!(g.title.as_deref(), Some("Fix the parser"));
+    }
+
+    #[test]
+    fn a_command_you_gave_arguments_to_is_what_you_asked_for() {
+        // The split the adapter itself makes. `/clear` says nothing about
+        // the work; this says all of it.
+        let g = Glance::of(&human("/loop 5m /babysit-prs"));
+        assert_eq!(g.title.as_deref(), Some("/loop 5m /babysit-prs"));
+    }
+
+    #[test]
+    fn a_path_opening_a_message_is_not_a_command() {
+        // A leading slash is not the signal — a command name carries no
+        // second slash. Skipped, this one would title the session with
+        // whatever was said next.
+        let g = Glance::of(&human("/Users/henrique/notes"));
+        assert_eq!(g.title.as_deref(), Some("/Users/henrique/notes"));
+    }
+
+    #[test]
+    fn a_session_that_is_only_a_slash_command_has_no_title_yet() {
+        // The window between `/clear` and your first real message. The
+        // screen falls back to the id, which says less and lies less.
+        assert!(Glance::of(&human("/clear")).title.is_none());
     }
 
     #[test]

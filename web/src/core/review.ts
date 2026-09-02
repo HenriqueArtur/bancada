@@ -52,6 +52,10 @@ export interface Summary {
   files: number;
   added: number;
   removed: number;
+  /// Whether git has been told about this tree at all. False and three
+  /// zeroes are not the same fact: "nothing uncommitted" is a claim about a
+  /// repository, and a project pointed at a plain directory has none.
+  versioned: boolean;
 }
 
 export const loadSummary = (project: string): Promise<Summary> =>
@@ -74,6 +78,9 @@ export interface ReviewView {
   /// Newest first.
   told: Told[];
   unreachable: string | null;
+  /// Whether git has been told about this tree at all. An empty diff and no
+  /// repository look identical, and only one of them means nothing changed.
+  versioned: boolean;
 }
 
 export interface Entry {
