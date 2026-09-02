@@ -32,6 +32,7 @@ import { FileTree } from "../src/pages/files/tree";
 import { CodeView } from "../src/pages/files/code";
 import { Prose } from "../src/components";
 import { prose } from "../src/core/prose";
+import { apply as applyZoom } from "../src/core/zoom";
 import { WorkspacesPanel } from "../src/pages/settings/workspaces";
 import { ChangedFiles } from "../src/pages/review/changed";
 import { FileSection } from "../src/pages/review/diff";
@@ -48,6 +49,13 @@ const dark = q.has("dark")
     ? false
     : matchMedia("(prefers-color-scheme: dark)").matches;
 document.documentElement.classList.toggle("dark", dark);
+
+// `?zoom=2` renders a scene at that level, so the sticky headers and the
+// scrolling panes can be looked at under it. `zoom` is a Chromium property
+// with a history of arguing with `position: sticky`, and this product has
+// three sticky headers on one screen.
+const level = Number(q.get("zoom") ?? 0);
+if (level !== 0) applyZoom(level);
 
 const LICENSE = `MIT License
 
@@ -503,7 +511,6 @@ function Changes() {
 }
 
 const UNANNOUNCED = ["crates/bancada-core/src/diff.rs"];
-
 
 /// A fourth thing to look at: the file pane before anything is open, and the
 /// tree coloured by what git says. Both are cases the code cannot show.
