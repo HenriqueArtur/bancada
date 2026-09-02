@@ -38,10 +38,6 @@ pub struct Account {
 
 impl Discovery {
     /// Probe one runtime.
-    ///
-    /// The lookup runs in a **login shell** on purpose: binary paths differ
-    /// per runtime and version managers do not exist in a non-interactive
-    /// one, so `command -v` would answer "absent" about something present.
     pub fn probe(spec: &RuntimeSpec, r: &dyn Runtime) -> Self {
         let mut out = Self {
             runtime: spec.id.clone(),
@@ -49,8 +45,10 @@ impl Discovery {
             error: None,
         };
 
-        let path = match r.exec(&["bash".into(), "-lc".into(), "command -v claude".into()]) {
+        let path = match ask(r, "command -v claude") {
             Ok(p) if !p.trim().is_empty() => p.trim().to_owned(),
+            // Ran, and found nothing. Not a failure — plenty of machines
+            // have no harness on them, and the screen has a phrase for it.
             Ok(_) => return out,
             Err(e) => {
                 out.error = Some(format!("{e:?}"));
@@ -58,14 +56,11 @@ impl Discovery {
             }
         };
 
-        let version = r
-            .exec(&["bash".into(), "-lc".into(), "claude --version".into()])
+        let version = ask(r, "claude --version")
             .map(|v| v.trim().to_owned())
             .unwrap_or_default();
 
-        let status = r
-            .exec(&["bash".into(), "-lc".into(), "claude auth status".into()])
-            .unwrap_or_default();
+        let status = ask(r, "claude auth status").unwrap_or_default();
         let logged_in = status.contains("\"loggedIn\": true");
 
         out.harness = Some(Harness {
@@ -76,6 +71,37 @@ impl Discovery {
         });
         out
     }
+}
+
+/// Ask a runtime's own shell, and let "no" come back as an answer.
+///
+/// **Interactive as well as login.** A version manager puts the harness on
+/// `PATH` from the interactive rc, and a login shell never reads that one:
+/// this shipped as `bash -lc`, and it reported `bash exited 1` about a
+/// harness that was installed and working, because the directory holding it
+/// was added by `.zshrc` and by nothing a login shell reads.
+///
+/// **`$SHELL` rather than a name.** The shell belongs to the machine being
+/// asked, not to the one asking, and hardcoding `bash` guesses wrong on
+/// every machine that has moved on from it. Evaluated over there, so a
+/// remote runtime answers about itself.
+///
+/// **`|| true`** so a script that simply found nothing exits zero. Without
+/// it, `command -v` returning 1 — which is how it says "absent" — arrives as
+/// a transport failure, and the caller cannot tell a machine with no harness
+/// from one it could not reach.
+fn ask(r: &dyn Runtime, script: &str) -> Result<String, bancada_runtime::RuntimeError> {
+    let inner = quoted(&format!("{script} || true"));
+    r.exec(&[
+        "sh".into(),
+        "-c".into(),
+        format!(r#"exec "${{SHELL:-/bin/sh}}" -ilc {inner}"#),
+    ])
+}
+
+/// One shell argument, quoted so the shell reads it as one.
+fn quoted(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
 }
 
 /// The account identity, from the harness's own configuration.
@@ -152,6 +178,38 @@ mod tests {
         assert_eq!(h.path, "/usr/bin/claude");
         assert!(h.logged_in);
         assert_eq!(h.account.unwrap().organization, "Org");
+    }
+
+    #[test]
+    fn the_lookup_asks_the_target_machine_s_own_shell_interactively() {
+        // This shipped as `bash -lc` and reported `bash exited 1` about a
+        // harness that was installed and working: the directory holding it
+        // reached `PATH` from `.zshrc`, which no login shell reads, and the
+        // machine had not used bash as its login shell for years.
+        let r = installed();
+        Discovery::probe(&spec(), &r);
+        let asked = r.commands().join(" | ");
+        assert!(!asked.contains("bash"), "a shell was guessed: {asked}");
+        assert!(
+            asked.contains("${SHELL"),
+            "not the target's own shell: {asked}"
+        );
+        assert!(
+            asked.contains("-ilc"),
+            "login alone never reads the rc: {asked}"
+        );
+    }
+
+    #[test]
+    fn a_lookup_that_finds_nothing_is_not_allowed_to_fail() {
+        // `command -v` says "absent" by exiting 1, and every non-zero exit
+        // arrives as an error. Without this the caller cannot tell a machine
+        // with no harness from one it could not reach — and the screen has a
+        // different sentence for each.
+        let r = installed();
+        Discovery::probe(&spec(), &r);
+        let asked = r.commands();
+        assert!(asked.iter().all(|c| c.contains("|| true")), "{asked:?}");
     }
 
     #[test]
