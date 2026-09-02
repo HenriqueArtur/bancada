@@ -9,6 +9,12 @@ authors.workspace = true
 
 [dependencies]
 bancada-meta = { workspace = true }
+# A question crosses the seam so the window can draw it as the cards it
+# already is in the log. Only `Question` is serialised — `Event` is not, and
+# a whole log has no business being handed to a screen.
+[dependencies.serde]
+workspace = true
+features = ["derive"]
 
 [lints]
 workspace = true

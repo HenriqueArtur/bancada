@@ -3,14 +3,12 @@ import {
   branches,
   extensionOf,
   filtering,
-  firstToRead,
   gapAbove,
   gapRows,
   kinds,
   leaf,
   NOTHING_FILTERED,
   openOnArrival,
-  readingOrder,
   rows,
   sift,
   slice,
@@ -41,60 +39,6 @@ const hunk = (newStart: number, newLines: number, lines: Hunk["lines"] = []): Hu
   newStart,
   newLines,
   lines,
-});
-
-describe("readingOrder", () => {
-  it("puts what nobody announced above everything else", () => {
-    // The whole argument of the screen. An ordering bug here looks like
-    // nothing at all, which is why it is a function and not a sort inline.
-    const got = readingOrder([file("a.rs"), file("z.rs")], ["z.rs"]);
-    expect(got.map((f) => f.path)).toEqual(["z.rs", "a.rs"]);
-  });
-
-  it("puts what moved since you looked above what did not", () => {
-    const got = readingOrder([file("a.rs", false), file("z.rs", true)], []);
-    expect(got.map((f) => f.path)).toEqual(["z.rs", "a.rs"]);
-  });
-
-  it("ranks unannounced over merely fresh", () => {
-    const got = readingOrder(
-      [file("fresh.rs", true), file("surprise.rs", false)],
-      ["surprise.rs"],
-    );
-    expect(got[0].path).toBe("surprise.rs");
-  });
-
-  it("falls back to the name, so two runs agree", () => {
-    const got = readingOrder([file("b.rs"), file("a.rs"), file("c.rs")], []);
-    expect(got.map((f) => f.path)).toEqual(["a.rs", "b.rs", "c.rs"]);
-  });
-
-  it("leaves the caller's array alone", () => {
-    const files = [file("b.rs"), file("a.rs")];
-    readingOrder(files, []);
-    expect(files.map((f) => f.path)).toEqual(["b.rs", "a.rs"]);
-  });
-});
-
-describe("firstToRead", () => {
-  it("opens on what nobody announced", () => {
-    expect(firstToRead([file("a.rs", true), file("z.rs")], ["z.rs"])).toBe("z.rs");
-  });
-
-  it("opens on what moved when nothing is unannounced", () => {
-    expect(firstToRead([file("a.rs"), file("z.rs", true)], [])).toBe("z.rs");
-  });
-
-  it("opens on nothing when every file has been reviewed", () => {
-    // Not "the first file". A tree with nothing urgent in it should hand the
-    // reader the claim the agents made, and picking a file at random would
-    // say there is something to check when there is not.
-    expect(firstToRead([file("a.rs"), file("b.rs")], [])).toBeNull();
-  });
-
-  it("opens on nothing when there is nothing at all", () => {
-    expect(firstToRead([], [])).toBeNull();
-  });
 });
 
 describe("extensionOf", () => {
@@ -148,7 +92,6 @@ describe("filtering", () => {
   it("notices each filter on its own", () => {
     expect(filtering(only({ exts: [".rs"] }))).toBe(true);
     expect(filtering(only({ query: "core" }))).toBe(true);
-    expect(filtering(only({ onlyUnannounced: true }))).toBe(true);
     expect(filtering(only({ hideViewed: true }))).toBe(true);
     expect(filtering(only({ hideDeleted: true }))).toBe(true);
   });
@@ -166,55 +109,44 @@ describe("sift", () => {
   ];
 
   it("keeps everything when nothing is filtered", () => {
-    expect(sift(files, [], NOTHING_FILTERED).length).toBe(3);
+    expect(sift(files, NOTHING_FILTERED).length).toBe(3);
   });
 
   it("keeps only the chosen extensions", () => {
-    expect(sift(files, [], only({ exts: [".rs"] })).map((f) => f.path)).toEqual([
-      "crates/a.rs",
-    ]);
+    expect(sift(files, only({ exts: [".rs"] })).map((f) => f.path)).toEqual(["crates/a.rs"]);
   });
 
   it("treats no chosen extensions as every kind, not none", () => {
     // The difference bites when a file of a new kind appears while the
     // filter is open: an explicit set would not contain it and it would
     // vanish without anybody choosing to hide it.
-    expect(sift(files, [], only({ exts: null })).length).toBe(3);
-  });
-
-  it("keeps only what nobody announced", () => {
-    const got = sift(files, ["crates/a.rs"], only({ onlyUnannounced: true }));
-    expect(got.map((f) => f.path)).toEqual(["crates/a.rs"]);
+    expect(sift(files, only({ exts: null })).length).toBe(3);
   });
 
   it("hides what you have already looked at", () => {
-    expect(sift(files, [], only({ hideViewed: true })).map((f) => f.path)).toEqual([
-      "web/b.tsx",
-    ]);
+    expect(sift(files, only({ hideViewed: true })).map((f) => f.path)).toEqual(["web/b.tsx"]);
   });
 
   it("hides deleted files", () => {
-    expect(
-      sift(files, [], only({ hideDeleted: true })).some((f) => f.path === "web/c.tsx"),
-    ).toBe(false);
+    expect(sift(files, only({ hideDeleted: true })).some((f) => f.path === "web/c.tsx")).toBe(
+      false,
+    );
   });
 
   it("searches the whole path, not just the name", () => {
-    expect(sift(files, [], only({ query: "crates" })).map((f) => f.path)).toEqual([
-      "crates/a.rs",
-    ]);
+    expect(sift(files, only({ query: "crates" })).map((f) => f.path)).toEqual(["crates/a.rs"]);
   });
 
   it("ignores case and surrounding space in the search", () => {
-    expect(sift(files, [], only({ query: "  CRATES  " })).length).toBe(1);
+    expect(sift(files, only({ query: "  CRATES  " })).length).toBe(1);
   });
 
   it("applies every filter at once", () => {
-    expect(sift(files, [], only({ exts: [".rs"], hideViewed: true }))).toEqual([]);
+    expect(sift(files, only({ exts: [".rs"], hideViewed: true }))).toEqual([]);
   });
 
   it("returns path order, so the tree does not shuffle", () => {
-    expect(sift(files, [], NOTHING_FILTERED).map((f) => f.path)).toEqual([
+    expect(sift(files, NOTHING_FILTERED).map((f) => f.path)).toEqual([
       "crates/a.rs",
       "web/b.tsx",
       "web/c.tsx",
@@ -228,23 +160,11 @@ describe("totals", () => {
       file("a.rs", false, { added: 10, removed: 2 }),
       file("b.rs", false, { added: 5, removed: 30 }),
     ];
-    expect(totals(files, ["a.rs"])).toEqual({
-      files: 2,
-      added: 15,
-      removed: 32,
-      unannounced: 1,
-    });
-  });
-
-  it("ignores an unannounced path that is not in the diff", () => {
-    // `unannounced` comes from the sessions' claims, so it can name a file
-    // that has since been reverted. Counting it would put a number in the
-    // header that filters to nothing.
-    expect(totals([file("a.rs")], ["ghost.rs"]).unannounced).toBe(0);
+    expect(totals(files)).toEqual({ files: 2, added: 15, removed: 32 });
   });
 
   it("is all zeroes for a clean tree", () => {
-    expect(totals([], [])).toEqual({ files: 0, added: 0, removed: 0, unannounced: 0 });
+    expect(totals([])).toEqual({ files: 0, added: 0, removed: 0 });
   });
 });
 

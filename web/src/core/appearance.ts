@@ -67,3 +67,59 @@ export function nameOf(theme: Theme, t: Translate): string {
       return t("Follow the system");
   }
 }
+
+/// Which edge the conversation sits on.
+///
+/// Beside the palette and the size, because it is the same question: how the
+/// window looks while you read in it. Kept in the webview for the same
+/// reason too — it is a fact about whoever is reading, not about the work.
+export type Side = "left" | "right";
+
+const SIDE_KEY = "bancada.chat-side";
+
+export function side(): Side {
+  try {
+    return localStorage.getItem(SIDE_KEY) === "left" ? "left" : "right";
+  } catch {
+    return "right";
+  }
+}
+
+export function rememberSide(where: Side): void {
+  try {
+    localStorage.setItem(SIDE_KEY, where);
+  } catch {
+    /* see `stored` */
+  }
+}
+
+/// How wide the conversation is, in pixels.
+///
+/// Kept, and clamped on the way in and out. A width read back from a window
+/// that was 2400 pixels wide would, on a laptop, leave the screen it sits
+/// beside with nothing.
+export const NARROWEST = 340;
+export const WIDEST = 720;
+
+const WIDTH_KEY = "bancada.chat-width";
+
+export function clampWidth(px: number): number {
+  return Math.min(WIDEST, Math.max(NARROWEST, Math.round(px)));
+}
+
+export function width(): number {
+  try {
+    const said = Number(localStorage.getItem(WIDTH_KEY));
+    return Number.isFinite(said) && said > 0 ? clampWidth(said) : NARROWEST;
+  } catch {
+    return NARROWEST;
+  }
+}
+
+export function rememberWidth(px: number): void {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(clampWidth(px)));
+  } catch {
+    /* see `stored` */
+  }
+}

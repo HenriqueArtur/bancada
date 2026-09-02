@@ -1,12 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   apply,
+  NARROWEST,
   nameOf,
   remember,
+  rememberSide,
   resolve,
+  side,
   stored,
+  rememberWidth,
   systemIsDark,
   THEMES,
+  width,
+  WIDEST,
 } from "@/core/appearance";
 import { translator } from "@/core/language";
 
@@ -79,5 +85,87 @@ describe("apply and the machine", () => {
   it("keeps following the machine when nothing was stored", () => {
     localStorage.clear();
     expect(resolve(stored(), true)).toBe(true);
+  });
+});
+
+describe("which side the conversation sits on", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("is the right by default, where a reading pane usually is", () => {
+    expect(side()).toBe("right");
+  });
+
+  it("comes back where it was left", () => {
+    rememberSide("left");
+    expect(side()).toBe("left");
+  });
+
+  it("reads anything else as the right rather than as nothing", () => {
+    localStorage.setItem("bancada.chat-side", "sideways");
+    expect(side()).toBe("right");
+  });
+
+  it("opens on the right when the store refuses to be read", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    expect(side()).toBe("right");
+    vi.restoreAllMocks();
+  });
+
+  it("carries on when the store refuses to be written", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    expect(() => rememberSide("left")).not.toThrow();
+    vi.restoreAllMocks();
+  });
+});
+
+describe("how wide the conversation is", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("starts at the narrowest it is allowed to be", () => {
+    expect(width()).toBe(NARROWEST);
+  });
+
+  it("remembers a width you dragged to", () => {
+    rememberWidth(480);
+    expect(width()).toBe(480);
+  });
+
+  it("refuses one wider than the screen it sits beside", () => {
+    // Read back on a laptop, a width saved on a 2400px monitor would leave
+    // the content column with nothing.
+    rememberWidth(4000);
+    expect(width()).toBe(WIDEST);
+  });
+
+  it("refuses one narrower than the panel can be read at", () => {
+    rememberWidth(10);
+    expect(width()).toBe(NARROWEST);
+  });
+
+  it("falls back to the narrowest when what was stored is not a width", () => {
+    localStorage.setItem("bancada.chat-width", "wide please");
+    expect(width()).toBe(NARROWEST);
+  });
+
+  it("still opens at a readable width when the window cannot remember", () => {
+    // Private browsing throws on read. A panel that cannot recall its width
+    // still has to have one.
+    const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    expect(width()).toBe(NARROWEST);
+    getItem.mockRestore();
+  });
+
+  it("survives being unable to save one", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    expect(() => rememberWidth(500)).not.toThrow();
+    setItem.mockRestore();
   });
 });

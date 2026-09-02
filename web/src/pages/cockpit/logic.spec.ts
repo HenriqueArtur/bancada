@@ -16,6 +16,8 @@ const queue = (over: Partial<Queue> = {}): Queue => ({
   groups: [],
   wip: { sessions_waiting: 0, items: 0, limit: 4 },
   watching: 1,
+  asking: 1,
+  silenced: 0,
   unreachable: [],
   glances: {},
   elsewhere: null,

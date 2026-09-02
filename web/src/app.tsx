@@ -4,9 +4,18 @@ import {
   FolderOpenIcon,
   GitDiffIcon,
   type Icon,
-  QuotesIcon,
+  ChatCircleTextIcon,
+  SidebarSimpleIcon,
 } from "@phosphor-icons/react";
-import { apply, remember, resolve, stored, systemIsDark, type Theme } from "@/core/appearance";
+import {
+  apply,
+  remember,
+  resolve,
+  stored,
+  systemIsDark,
+  type Side,
+  type Theme,
+} from "@/core/appearance";
 import {
   current,
   remember as rememberLanguage,
@@ -14,51 +23,79 @@ import {
   type Language,
 } from "@/core/language";
 import { loadRepo } from "@/core/git";
+import { live } from "@/core/live";
+import { loadSummary, type Summary } from "@/core/review";
 import { loadSettings } from "@/core/settings";
 import { name, titleOf } from "@/core/window";
 import {
-  stepped,
   apply as applyZoom,
-  pressed,
   remember as rememberZoom,
+  stepped,
   stored as storedZoom,
 } from "@/core/zoom";
+import { spell, stored as storedKeys, type Action, type Chord } from "@/core/shortcuts";
+import { rememberSide, side as storedSide } from "@/core/appearance";
+import { useKeys } from "@/lib/keys";
 import { Speaks } from "@/lib/language";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { Row } from "@/frame";
 import { AppShell } from "@/layouts";
+import type { Session } from "@/core/sessions";
+import { ChatPanel } from "@/pages/sessions/panel";
+import { useSessions } from "@/pages/sessions/view";
+import { useWork } from "@/pages/work/logic";
+import { muteProject } from "@/core/work";
 import {
   ChangesPage,
   CockpitView,
   FilesPage,
   GitPage,
-  SaidPage,
+  SessionsPage,
   SettingsPage,
   WorkPage,
   useCockpit,
 } from "@/pages";
 import { Button } from "@/components";
 
-import type { Origin } from "@/pages/_shared";
+import type { Inside as Shared } from "@/pages/_shared";
+import {
+  INSIDE,
+  NOWHERE,
+  recall,
+  remember as rememberPlace,
+  type Inside,
+  type Place,
+} from "@/core/place";
 import { useText } from "@/lib/language";
 
-type Where =
-  | { at: "cockpit" }
-  | { at: "work" }
-  /// `from` is where the project was opened, so the way back leads there.
-  /// Always sending you to the queue is right half the time, and the other
-  /// half is the product deciding you were somewhere else.
-  | { at: "said"; project: string; from: Origin }
-  | { at: "changes"; project: string; from: Origin }
-  | { at: "files"; project: string; from: Origin }
-  | { at: "git"; project: string; from: Origin };
+/// What the configuration says about one project, for the chrome above it.
+interface About {
+  workspace: string;
+  harness: string | null;
+  model: string | null;
+}
+
+/// Where you are.
+///
+/// `from` is where the project was opened, so the way back leads there.
+/// Always sending you to the queue is right half the time, and the other
+/// half is the product deciding you were somewhere else.
+type Where = Place;
 
 /// The screens a project has, in the order somebody works through them:
-/// what was promised, what it did, the tree it did it to, and what has
-/// already landed.
-const INSIDE = ["said", "changes", "files", "git"] as const;
-type Inside = (typeof INSIDE)[number];
+/// who is working and on what, what changed, the tree it changed, and what
+/// has already landed. Named in `core/place`, which has to know them to
+/// decide whether where you were last still exists.
+
+/// Out here rather than beside the names: a glyph reads nothing from the
+/// translator, and the tab strip below needs it too.
+const GLYPH: Record<Inside, Icon> = {
+  sessions: ChatCircleTextIcon,
+  changes: GitDiffIcon,
+  files: FolderOpenIcon,
+  git: ClockCounterClockwiseIcon,
+};
 
 /// Which screen, and the queue that every screen carries.
 ///
@@ -92,8 +129,13 @@ function Cockpit({
   language: Language | null;
   onChooseLanguage: (l: Language | null) => void;
 }) {
-  const { queue, failed, mute } = useCockpit();
-  const [where, setWhere] = useState<Where>({ at: "cockpit" });
+  const { queue, failed, mute, asking, reload } = useCockpit();
+  // Every project there is. Read here rather than by the screen that lists
+  // them, because the switcher in every project header lists them too — and
+  // two readings of "which projects exist" is two answers to the question
+  // the whole product is about.
+  const { work, failed: workFailed, reload: reloadWork } = useWork();
+  const [where, setWhere] = useState<Where>(NOWHERE.place);
   const [settings, setSettings] = useState(false);
   const t = useText();
   const [theme, setTheme] = useState<Theme>(stored);
@@ -114,36 +156,98 @@ function Cockpit({
     applyZoom(zoom);
   }, [zoom]);
 
-  useEffect(() => {
-    const listen = (e: KeyboardEvent) => {
-      const what = pressed(e);
-      if (!what) return;
-      // Chromium has its own zoom on these keys and it fights with ours —
-      // two scales multiplied, and neither control able to undo the other.
-      e.preventDefault();
-      setZoom((now) => stepped(now, what));
-    };
-    // Captured on the way down. Monaco binds these keys for its own font
-    // size and stops the event before it bubbles, so a listener waiting at
-    // the bottom would work everywhere except inside the file being read.
-    window.addEventListener("keydown", listen, true);
-    return () => window.removeEventListener("keydown", listen, true);
-  }, []);
+  // Every keystroke the window answers to, in one registry — see
+  // `core/shortcuts`. The zoom used to hang its own listener here, and the
+  // second one beside it is how a window ends up with two keys doing the
+  // same thing and nowhere to look them up.
+  const [keys, setKeys] = useState<Record<Action, Chord>>(storedKeys);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSide, setChatSide] = useState(storedSide);
+  useEffect(() => rememberSide(chatSide), [chatSide]);
 
-  // Which workspace each project belongs to. Read once and kept, because it
-  // has to be on screen the whole time you are inside a project — the
+  // One step through the project's screens, skipping the one that is not
+  // offered. Wraps, because four tabs is a ring and stopping at the end
+  // would make the key do nothing once in every four presses.
+  // Silencing writes to the configuration, so both readings of it have to
+  // be told: the queue decides what needs you, and the work list is where
+  // the switch you just flipped is drawn.
+  const silence = (project: string, muted: boolean) => {
+    muteProject(project, muted)
+      .then(() => {
+        reloadWork();
+        void reload();
+      })
+      // The screen keeps showing what the configuration still says. A switch
+      // that moved without the write landing would be a lie.
+      .catch(() => {});
+  };
+
+  const move = (what: "tab.next" | "tab.previous") =>
+    setWhere((now) => {
+      if (!("project" in now)) return now;
+      const open = INSIDE.filter((at) => at !== "git" || isGit);
+      const i = open.indexOf(now.at as Inside);
+      const step = what === "tab.next" ? 1 : open.length - 1;
+      return { ...now, at: open[(i + step) % open.length] };
+    });
+
+  useKeys(keys, {
+    chat: () => setChatOpen((now) => !now),
+    "zoom.reset": () => setZoom(0),
+    "zoom.in": () => setZoom((now) => stepped(now, "in")),
+    "zoom.out": () => setZoom((now) => stepped(now, "out")),
+    "tab.next": () => move("tab.next"),
+    "tab.previous": () => move("tab.previous"),
+  });
+
+  // What the configuration says about each project. Read once and kept,
+  // because it has to be on screen the whole time you are inside one — the
   // workspace is the confidentiality boundary, and a diff shown without one
-  // is a diff whose rules nobody stated.
-  const [workspaces, setWorkspaces] = useState<Record<string, string>>({});
+  // is a diff whose rules nobody stated. The harness rides along because it
+  // comes from the same read and answers the same kind of question.
+  const [about, setAbout] = useState<Record<string, About>>({});
+  // Nothing is drawn until this has answered. Where you were last is only
+  // restorable once the configuration says which projects still exist, and a
+  // window that opened at the queue and then jumped would read as a bug.
+  const [restored, setRestored] = useState(false);
   useEffect(() => {
     loadSettings()
-      .then((c) =>
-        setWorkspaces(Object.fromEntries(c.projects.map((p) => [p.id, p.workspace]))),
-      )
+      .then((c) => {
+        // Where you were, restored here rather than in an effect of its own:
+        // it needs the project list this read just produced, and an effect
+        // watching that list would drag you back to where you started the
+        // morning every time the configuration is re-read.
+        const kept = recall(c.projects.map((p) => p.id));
+        setWhere(kept.place);
+        setChatOpen(kept.chat);
+
+        const machine = Object.fromEntries(c.runtimes.map((r) => [r.id, r]));
+        setAbout(
+          Object.fromEntries(
+            c.projects.map((p) => [
+              p.id,
+              {
+                workspace: p.workspace,
+                harness: machine[p.runtime]?.harness ?? null,
+                model: machine[p.runtime]?.model ?? null,
+              },
+            ]),
+          ),
+        );
+      })
       // The settings screen says so far better than a header can. Here the
       // honest fallback is to name the project and not its workspace.
-      .catch(() => {});
+      .catch(() => {})
+      // Either way. A configuration that could not be read is a reason to
+      // open at the queue, not a reason to never draw anything.
+      .finally(() => setRestored(true));
   }, []);
+
+  // And kept, whenever it changes. Beside the palette and the zoom, because
+  // it is the same kind of fact: about this window on this machine.
+  useEffect(() => {
+    if (restored) rememberPlace({ place: where, chat: chatOpen });
+  }, [where, chatOpen, restored]);
 
   // Whether the open project is a repository at all. The history tab is only
   // a tab if there is a history; a directory git has never been told about
@@ -152,16 +256,10 @@ function Cockpit({
   // so the order is one decision in one place. The window title reads from
   // the same map, which is why it is above everything that returns early.
   const NAME: Record<Inside, string> = {
-    said: t("What they said"),
+    sessions: t("Sessions"),
     changes: t("Files changed"),
     files: t("Files"),
     git: t("History"),
-  };
-  const GLYPH: Record<Inside, Icon> = {
-    said: QuotesIcon,
-    changes: GitDiffIcon,
-    files: FolderOpenIcon,
-    git: ClockCounterClockwiseIcon,
   };
   const HERE: Record<Where["at"], string> = {
     cockpit: t("Needs you"),
@@ -170,6 +268,45 @@ function Cockpit({
   };
 
   const project = "project" in where ? where.project : null;
+
+  // Read once, here, because two things need it: the Sessions screen and the
+  // conversation panel's own picker. Two readings of "which sessions are
+  // here" is how a product ends up disagreeing with itself about what is
+  // waiting on you.
+  const { sessions, failed: sessionsFailed } = useSessions(project ?? "");
+  const [talking, setTalking] = useState<string | null>(null);
+  useEffect(() => {
+    // Whatever is stopped on you, and only until you pick another. Re-picked
+    // on every reload it would move the panel off what you were reading.
+    setTalking((now) =>
+      now && sessions?.some((s) => s.id === now)
+        ? now
+        : ((sessions?.find((s) => s.waiting) ?? sessions?.[0])?.id ?? null),
+    );
+  }, [sessions]);
+
+  // How much has moved, for the strip along the bottom of all four screens.
+  // Read here rather than per screen, so the number cannot differ between
+  // two tabs of the same project.
+  const [summary, setSummary] = useState<Summary | null>(null);
+  useEffect(() => {
+    if (!project) return;
+    setSummary(null);
+    let alive = true;
+    const read = () => {
+      loadSummary(project)
+        .then((s) => alive && setSummary(s))
+        // Silent. The footer already reads "still counting", and a project
+        // git has never been told about is a normal thing to open.
+        .catch(() => {});
+    };
+    read();
+    const channel = live(read);
+    return () => {
+      alive = false;
+      channel.stop();
+    };
+  }, [project]);
 
   useEffect(() => {
     name(titleOf(queue?.wip.sessions_waiting ?? 0, project, HERE[where.at]));
@@ -198,7 +335,7 @@ function Cockpit({
       </AppShell>
     );
   }
-  if (!queue) return <AppShell title={t("Needs you")}>{null}</AppShell>;
+  if (!queue || !restored) return <AppShell title={t("Needs you")}>{null}</AppShell>;
 
   const dialog = (
     <SettingsPage
@@ -211,6 +348,10 @@ function Cockpit({
       onChooseLanguage={onChooseLanguage}
       zoom={zoom}
       onChooseZoom={setZoom}
+      side={chatSide}
+      onChooseSide={setChatSide}
+      keys={keys}
+      onChooseKeys={setKeys}
     />
   );
 
@@ -220,7 +361,9 @@ function Cockpit({
         <CockpitView
           queue={queue}
           mute={mute}
-          onOpenProject={(project) => setWhere({ at: "changes", project, from: "cockpit" })}
+          asking={asking}
+          onOpenProject={(project) => setWhere({ at: "changes", project })}
+          onMuteProject={silence}
           onOpenSettings={() => setSettings(true)}
           onOpenWork={() => setWhere({ at: "work" })}
         />
@@ -234,7 +377,14 @@ function Cockpit({
       <>
         <WorkPage
           queue={queue}
-          onOpen={(project) => setWhere({ at: "changes", project, from: "work" })}
+          work={work}
+          failed={workFailed}
+          onReload={() => {
+            reloadWork();
+            void reload();
+          }}
+          onMute={silence}
+          onOpen={(project) => setWhere({ at: "changes", project })}
           onOpenSettings={() => setSettings(true)}
           onOpenQueue={() => setWhere({ at: "cockpit" })}
         />
@@ -245,42 +395,152 @@ function Cockpit({
 
   const shown = INSIDE.filter((at) => at !== "git" || isGit);
   const tabs = (
-    <Row gap="tight">
-      {shown.map((at) => {
-        const Glyph = GLYPH[at];
-        return (
-          <Button
-            key={at}
-            tone={where.at === at ? "outline" : "ghost"}
-            size="sm"
-            onClick={() => setWhere({ at, project: where.project, from: where.from })}
-          >
-            <Glyph size={13} />
-            {NAME[at]}
-          </Button>
-        );
-      })}
-    </Row>
+    <ProjectTabs
+      shown={shown}
+      at={where.at}
+      name={NAME}
+      onGo={(at) => setWhere({ at, project: where.project })}
+      chatOpen={chatOpen}
+      chatSide={chatSide}
+      chord={keys.chat}
+      onChat={() => setChatOpen((now) => !now)}
+    />
   );
 
-  const SCREEN: Record<Inside, typeof FilesPage> = {
-    said: SaidPage,
-    changes: ChangesPage,
-    files: FilesPage,
-    git: GitPage,
+  const inside = {
+    project: where.project,
+    workspace: about[where.project]?.workspace ?? null,
+    harness: about[where.project]?.harness ?? null,
+    model: about[where.project]?.model ?? null,
+    summary,
+    queue,
+    onBack: () => setWhere({ at: "cockpit" }),
+    work,
+    // The screen comes with you. Switching from one project's diff to
+    // another's and landing on the queue would make the switcher a way to
+    // lose your place.
+    onOpen: (project: string) => setWhere({ at: where.at, project }),
+    onMute: silence,
+    tabs,
+    chat: chatOpen ? (
+      <ChatPanel
+        project={where.project}
+        sessions={sessions ?? []}
+        session={talking}
+        onSession={setTalking}
+        onClose={() => setChatOpen(false)}
+        side={chatSide}
+      />
+    ) : undefined,
+    chatSide,
   };
-  const Screen = SCREEN[where.at];
+
   return (
     <>
       <Screen
-        project={where.project}
-        workspace={workspaces[where.project] ?? null}
-        queue={queue}
-        from={where.from}
-        onBack={() => setWhere({ at: where.from })}
-        tabs={tabs}
+        at={where.at}
+        inside={inside}
+        sessions={sessions}
+        failed={sessionsFailed}
+        picked={talking}
+        onPick={setTalking}
       />
       {dialog}
     </>
+  );
+}
+
+/// Where you can go from inside a project, and what you can see from
+/// wherever you already are.
+///
+/// The two are in one strip but not in one list: the conversation is not a
+/// fifth screen, so it sits past a gap and says so by staying put when the
+/// tab changes.
+function ProjectTabs({
+  shown,
+  at,
+  name,
+  onGo,
+  chatOpen,
+  chatSide,
+  chord,
+  onChat,
+}: {
+  shown: readonly Inside[];
+  at: Inside;
+  name: Record<Inside, string>;
+  onGo: (at: Inside) => void;
+  chatOpen: boolean;
+  chatSide: Side;
+  chord: Chord;
+  onChat: () => void;
+}) {
+  const t = useText();
+  return (
+    <Row gap="tight">
+      {shown.map((one) => {
+        const Glyph = GLYPH[one];
+        return (
+          <Button
+            key={one}
+            tone={at === one ? "outline" : "ghost"}
+            size="sm"
+            onClick={() => onGo(one)}
+          >
+            <Glyph size={13} />
+            {name[one]}
+          </Button>
+        );
+      })}
+      {/* The key is the fast way and the button is the discoverable one; a
+          shortcut nothing on the screen names is a shortcut nobody finds. */}
+      <Button
+        tone={chatOpen ? "outline" : "ghost"}
+        size="sm"
+        className="ml-2"
+        aria-pressed={chatOpen}
+        title={`${t("Conversation")} · ${spell(chord, navigator.platform.startsWith("Mac"))}`}
+        onClick={onChat}
+      >
+        <SidebarSimpleIcon
+          size={13}
+          className={chatSide === "right" ? "-scale-x-100" : undefined}
+        />
+        {t("Conversation")}
+      </Button>
+    </Row>
+  );
+}
+
+/// Which of the four is on screen.
+///
+/// Split out so the shell above it stays about state rather than about
+/// rendering, and so adding a fifth screen is one place rather than three.
+function Screen({
+  at,
+  inside,
+  sessions,
+  failed,
+  picked,
+  onPick,
+}: {
+  at: Inside;
+  inside: Shared;
+  sessions: Session[] | null;
+  failed: string | null;
+  picked: string | null;
+  onPick: (id: string) => void;
+}) {
+  if (at === "changes") return <ChangesPage {...inside} />;
+  if (at === "files") return <FilesPage {...inside} />;
+  if (at === "git") return <GitPage {...inside} />;
+  return (
+    <SessionsPage
+      {...inside}
+      sessions={sessions}
+      failed={failed}
+      picked={picked}
+      onPick={onPick}
+    />
   );
 }

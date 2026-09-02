@@ -58,7 +58,7 @@ describe("Group", () => {
     render(
       <Group
         group={group([ranked("Question", 5)])}
-        glance={{ title: "Add a folder picker", says: {}, touched: 0, unannounced: 0 }}
+        glance={{ title: "Add a folder picker", says: {}, touched: 0 }}
       />,
     );
     expect(screen.getByText("Add a folder picker")).toBeTruthy();
@@ -68,7 +68,7 @@ describe("Group", () => {
     render(
       <Group
         group={group([ranked("Question", 5, 5, "t1")])}
-        glance={{ title: null, says: { t1: "Which icon set?" }, touched: 0, unannounced: 0 }}
+        glance={{ title: null, says: { t1: "Which icon set?" }, touched: 0 }}
       />,
     );
     expect(screen.getByText("Which icon set?")).toBeTruthy();

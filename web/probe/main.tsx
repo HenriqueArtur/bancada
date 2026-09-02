@@ -16,22 +16,32 @@
 /// characters long.
 import { createRoot } from "react-dom/client";
 import {
+  ChatCircleTextIcon,
   ClockCounterClockwiseIcon,
   FolderOpenIcon,
   GitDiffIcon,
   QuotesIcon,
+  SidebarSimpleIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
-import { Badge, Card, Heading, Mono, RowButton, Text } from "../src/components";
-import { aliveness, exportsAs } from "../src/core/work";
+import { Card, Heading, Mono, RowButton, Text } from "../src/components";
 import { Divider, Listing, ListingItem, Mount, Page, Row, Scroller, Stack } from "../src/frame";
 import { Panes, ProjectShell } from "../src/layouts";
 import { FileTree } from "../src/pages/files/tree";
 import { CodeView } from "../src/pages/files/code";
 import { Prose } from "../src/components";
 import { prose } from "../src/core/prose";
+import { SessionCard } from "../src/pages/sessions/card";
+import { ChatPanel } from "../src/pages/sessions/panel";
+import { SessionIndex } from "../src/pages/sessions/view";
+import { Tally } from "../src/pages/_shared/tally";
+import { WorkPage } from "../src/pages/work/view";
+import { ProjectList } from "../src/pages/_shared/switcher";
+import { KeysPanel } from "../src/pages/settings/keys";
+import { SidePanel } from "../src/pages/settings/side";
+import { DEFAULTS } from "../src/core/shortcuts";
 import { apply as applyZoom } from "../src/core/zoom";
 import { WorkspacesPanel } from "../src/pages/settings/workspaces";
 import { ChangedFiles } from "../src/pages/review/changed";
@@ -41,6 +51,55 @@ import type { FileDiff } from "../src/core/review";
 import { THEME, definition, paletteFor } from "../src/core/monaco-theme";
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() };
+
+// The seam, answered from fixtures.
+//
+// `invoke` reads this and nothing else, so stubbing it lets the *real*
+// components render — the panel's own paging, error handling and chrome,
+// rather than a copy of them that could drift from what ships. Everything
+// else in this file mounts real components for the same reason.
+const OVER_THE_SEAM: Record<string, (args: Record<string, unknown>) => unknown> = {
+  chat: ({ skip }) => ({
+    said: (skip as number) > 0 ? [] : TALK,
+    more: (skip as number) === 0,
+  }),
+  summary: () => ({ files: 14, added: 1204, removed: 317 }),
+  // The work screen registers projects through the same form the settings
+  // dialog uses, and that form asks the configuration what machines and
+  // workspaces there are.
+  settings: () => ({
+    workspaces: [{ id: "personal" }, { id: "client-x", export: "summary" }],
+    runtimes: [
+      {
+        id: "this-machine",
+        kind: "local",
+        prefix: [],
+        hostRoot: "/",
+        guestRoot: "/",
+        configDir: "/Users/h/.claude",
+        sharedFs: true,
+        harness: "claude-code",
+        model: "claude-opus-5",
+      },
+      {
+        id: "devbox",
+        kind: "vm",
+        prefix: ["limactl", "shell", "devbox", "--"],
+        hostRoot: "/Users/henrique/Documents/dev/personal",
+        guestRoot: "/mnt/dev",
+        configDir: "/Users/h/.devbox",
+        sharedFs: true,
+        harness: null,
+        model: null,
+      },
+    ],
+    projects: [],
+  }),
+};
+(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
+  invoke: async (cmd: string, args: Record<string, unknown>) =>
+    OVER_THE_SEAM[cmd]?.(args ?? {}) ?? null,
+};
 
 const q = new URLSearchParams(location.search);
 const dark = q.has("dark")
@@ -60,6 +119,22 @@ if (level !== 0) applyZoom(level);
 // The bug this guards against does not show in a screenshot: the document
 // gains a scrollbar and the header rides off the top only once somebody
 // scrolls. Printed into the title so a headless render can read it.
+// `?expand` opens every disclosure on the page once it has mounted.
+//
+// A screenshot cannot click, and the two things worth looking at here are
+// both behind one — a run of tool calls, and a folded diff. The probe
+// clicking its own DOM is honest; drawing an imitation of the open state
+// would only prove the imitation.
+if (q.has("expand")) {
+  setTimeout(() => {
+    // Not Radix's own triggers: a popover opened over the thing being
+    // looked at is a picture of the popover.
+    for (const b of document.querySelectorAll('[aria-expanded="false"]:not([data-state])')) {
+      (b as HTMLElement).click();
+    }
+  }, 600);
+}
+
 if (q.has("measure")) {
   setTimeout(() => {
     const root = document.documentElement;
@@ -67,6 +142,64 @@ if (q.has("measure")) {
     document.title = `document overflows by ${over}px`;
   }, 500);
 }
+
+/// A conversation with the three shapes in it: your words, its prose, and a
+/// question it is stopped on. What has to be looked at is that the three read
+/// as one thread — nobody is named, and the sides carry that on their own.
+const NOW = Date.now();
+const TALK = [
+  {
+    kind: "you" as const,
+    text: "da forma que esta não ta legal, porque as sessions estão concentradas e empilhadas.\n\no ideal é poder escolher cada sessão e ver apenas ela",
+    at: NOW - 40 * 60_000,
+  },
+  {
+    kind: "steps" as const,
+    at: NOW - 39.5 * 60_000,
+    steps: [
+      { tool: "Read", target: "crates/bancada-core/src/chat.rs", ok: true },
+      { tool: "Edit", target: "crates/bancada-core/src/chat.rs", ok: true },
+      { tool: "Bash", target: "cargo test -p bancada-core --lib chat", ok: true },
+      { tool: "Bash", target: "make check", ok: false },
+      { tool: "Read", target: "web/src/pages/sessions/talk.tsx", ok: true },
+      { tool: "Grep", target: "'/Users/henrique/Documents/dev/personal/archwarden'", ok: true },
+      { tool: "Edit", target: "web/src/pages/sessions/talk.tsx", ok: true },
+    ],
+  },
+  {
+    kind: "agent" as const,
+    text: "Entendi. Vou separar em duas metades: uma lista à esquerda e o detalhe ao centro.\n\nO que muda de concreto:\n\n- a lista passa a ser um **índice**, não um empilhamento\n- o detalhe mostra a troca inteira, sem cortar no meio da frase\n- `prose()` passa a valer também no que você escreveu",
+    at: NOW - 39 * 60_000,
+  },
+  {
+    kind: "you" as const,
+    text: "pode seguir",
+    at: NOW - 20 * 60_000,
+  },
+  {
+    kind: "asked" as const,
+    text: "De que lado a conversa deve ficar?",
+    at: NOW - 2 * 60_000,
+    question: {
+      header: "Lado",
+      prompt: "De que lado a conversa deve ficar?",
+      multi: false,
+      options: [
+        {
+          label: "À direita (recomendado)",
+          description:
+            "Longe da árvore de arquivos, que já ocupa a esquerda em duas das quatro telas.",
+          preview: "[ árvore ][ diff ................ ][ conversa ]",
+        },
+        {
+          label: "À esquerda",
+          description: "Contra a mesma borda da árvore, que então cede espaço.",
+          preview: null,
+        },
+      ],
+    },
+  },
+];
 
 const LICENSE = `MIT License
 
@@ -106,115 +239,87 @@ const plain = q.has("plain");
 /// Its data comes from a command, so the probe hands it a fake rather than
 /// mounting the page — the point is the shape of the screen, and a screen
 /// that cannot render without a backend cannot be looked at at all.
+/// Everything registered, as the screen that manages it.
+///
+/// The real `WorkPage`, answered from fixtures over the stubbed seam. It
+/// used to be a copy of the screen written out again here, and a copy is a
+/// thing that drifts: the session index did exactly that within an hour of
+/// being written twice.
 function Work() {
-  const workspaces = [
-    {
-      workspace: { id: "personal", export: "metadata" as const },
-      projects: [
-        {
-          project: {
-            id: "bancada",
-            workspace: "personal",
-            runtime: "this-machine",
-            path: "/Users/henrique/Documents/dev/personal/bancada",
-            weight: 1,
-            idleAfterMinutes: 2,
-          },
-          sessions: 7,
-          lastActivity: Date.now() - 4 * 60_000,
-          unreachable: null,
-        },
-        {
-          project: {
-            id: "neo-gitmoji",
-            workspace: "personal",
-            runtime: "devbox",
-            path: "/mnt/dev/neo-gitmoji.nvim",
-            weight: 1,
-            idleAfterMinutes: 2,
-          },
-          sessions: 0,
-          lastActivity: null,
-          unreachable: null,
-        },
-      ],
-    },
-    {
-      workspace: { id: "client-x", export: "summary" as const },
-      projects: [
-        {
-          project: {
-            id: "api",
-            workspace: "client-x",
-            runtime: "devbox",
-            path: "/mnt/dev/api",
-            weight: 3,
-            idleAfterMinutes: 2,
-          },
-          sessions: 3,
-          lastActivity: Date.now() - 26 * 3_600_000,
-          unreachable: null,
-        },
-      ],
-    },
-  ];
-  const waiting: Record<string, number> = { bancada: 2 };
-  const now = Date.now();
+  const [muted, setMuted] = useState<Record<string, boolean>>({ "neo-gitmoji": true });
+  const stand = (
+    id: string,
+    workspace: string,
+    runtime: string,
+    path: string,
+    sessions: number,
+    ago: number | null,
+  ) => ({
+    project: { id, workspace, runtime, path, weight: 1, idleAfterMinutes: 2 },
+    sessions,
+    lastActivity: ago === null ? null : NOW - ago,
+    unreachable: null,
+    asking: !muted[id],
+  });
+
+  const work = {
+    workspaces: [
+      {
+        workspace: { id: "personal", export: "metadata" as const },
+        projects: [
+          stand(
+            "bancada",
+            "personal",
+            "this-machine",
+            "/Users/henrique/Documents/dev/personal/bancada",
+            7,
+            4 * 60_000,
+          ),
+          stand(
+            "neo-gitmoji",
+            "personal",
+            "devbox",
+            "/mnt/dev/neo-gitmoji.nvim",
+            3,
+            2 * 3_600_000,
+          ),
+        ],
+      },
+      {
+        workspace: { id: "client-x", export: "summary" as const },
+        projects: [stand("api", "client-x", "devbox", "/mnt/dev/client-x/api", 2, 40 * 60_000)],
+      },
+    ],
+    orphans: [],
+  };
+
   return (
-    <Page>
-      <Stack gap="loose">
-        <Row justify="between" align="end" className="border-b border-line-soft pb-4">
-          <Heading level={1} as="h1">
-            Your work
-          </Heading>
-          <Text as="span" size="sm" tone="muted">
-            2 waiting
-          </Text>
-        </Row>
-        <Stack gap="airy">
-          {workspaces.map((g) => (
-            <Stack gap="snug" key={g.workspace.id}>
-              <Row gap="snug" align="baseline" justify="between">
-                <Row gap="snug" align="baseline">
-                  <Heading level={2}>{g.workspace.id}</Heading>
-                  <Badge>{exportsAs(g.workspace)}</Badge>
-                </Row>
-                <Text as="span" size="sm" tone="faint">
-                  {g.projects.length} project{g.projects.length === 1 ? "" : "s"}
-                </Text>
-              </Row>
-              <Card>
-                {g.projects.map((s, i) => (
-                  <Stack gap="none" key={s.project.id}>
-                    {i > 0 ? <Divider soft /> : null}
-                    <RowButton className="items-start gap-3 rounded-none px-4 py-3.5">
-                      <Stack gap="tight" className="min-w-0 flex-1">
-                        <Row gap="snug" align="baseline">
-                          <Heading level={3} as="h3">
-                            {s.project.id}
-                          </Heading>
-                          {waiting[s.project.id] ? (
-                            <Badge tone="clay">{waiting[s.project.id]} waiting</Badge>
-                          ) : null}
-                        </Row>
-                        <Mono className="break-all">{s.project.path}</Mono>
-                        <Text size="sm" tone="faint">
-                          {s.project.runtime === "this-machine"
-                            ? "This machine"
-                            : s.project.runtime}
-                          {" · "}
-                          {aliveness(s, now)}
-                        </Text>
-                      </Stack>
-                    </RowButton>
-                  </Stack>
-                ))}
-              </Card>
-            </Stack>
-          ))}
-        </Stack>
-      </Stack>
-    </Page>
+    <WorkPage
+      queue={
+        {
+          groups: [
+            {
+              session: "s",
+              items: [{ item: { project: "bancada" } }, { item: { project: "bancada" } }],
+            },
+          ],
+          wip: { sessions_waiting: 2, items: 2, limit: 4 },
+          watching: 3,
+          asking: 3 - Object.values(muted).filter(Boolean).length,
+          silenced: Object.values(muted).filter(Boolean).length,
+          unreachable: [],
+          glances: {},
+          elsewhere: null,
+        } as never
+      }
+      work={work as never}
+      failed={null}
+      onReload={() => {}}
+      onOpen={() => {}}
+      onMute={(id, on) => setMuted((now) => ({ ...now, [id]: on }))}
+      onOpenSettings={() => {}}
+      onOpenQueue={() => {}}
+    />
   );
 }
 
@@ -411,8 +516,8 @@ const CHANGED: FileDiff[] = [
 function Changes() {
   const [filters, setFilters] = useState(NOTHING_FILTERED);
   const [at, setAt] = useState<string | null>(CHANGED[0].path);
-  const showing = sift(CHANGED, UNANNOUNCED, filters);
-  const sum = totals(showing, UNANNOUNCED);
+  const showing = sift(CHANGED, filters);
+  const sum = totals(showing);
   const unfolded = openOnArrival(showing);
 
   return (
@@ -472,7 +577,6 @@ function Changes() {
         index={
           <ChangedFiles
             files={CHANGED}
-            unannounced={UNANNOUNCED}
             filters={filters}
             onFilters={setFilters}
             at={at}
@@ -495,9 +599,6 @@ function Changes() {
               <Text as="span" size="sm" className="text-alarm tabular-nums">
                 −{sum.removed}
               </Text>
-              <Text as="span" size="sm" tone="alarm">
-                ▲ {sum.unannounced} unannounced
-              </Text>
             </Row>
             <Scroller className="min-h-0 flex-1">
               <Stack gap="snug" className="p-3">
@@ -506,7 +607,6 @@ function Changes() {
                     key={f.path}
                     project="bancada"
                     file={f}
-                    unannounced={UNANNOUNCED.includes(f.path)}
                     startOpen={unfolded.has(f.path)}
                     onVouch={() => {}}
                     onEnter={setAt}
@@ -520,8 +620,6 @@ function Changes() {
     </ProjectShell>
   );
 }
-
-const UNANNOUNCED = ["crates/bancada-core/src/diff.rs"];
 
 /// A fourth thing to look at: the file pane before anything is open, and the
 /// tree coloured by what git says. Both are cases the code cannot show.
@@ -637,6 +735,274 @@ function Message() {
   );
 }
 
+/// A fifth thing to look at: the sessions of a project, one of them stopped
+/// on a question. The question is the case that cannot be judged from code —
+/// it has to read as something you could answer, while saying you cannot.
+function Sessions() {
+  const now = Date.now();
+  const rows = SESSIONS(now);
+
+  return (
+    <Page>
+      <Stack gap="normal">
+        <Heading level={1} as="h1">
+          Sessions
+        </Heading>
+        <Divider soft />
+        <Stack gap="snug">
+          {rows.map((s) => (
+            <SessionCard key={s.id} session={s} now={now} />
+          ))}
+        </Stack>
+      </Stack>
+    </Page>
+  );
+}
+
+/// A function of `now` rather than a constant: relative times are half of
+/// what these rows say, and a fixture frozen at import would read "in 0
+/// seconds" by the time anything mounted it.
+function SESSIONS(now: number) {
+  return [
+    {
+      id: "10414dd9-7337-4efe-a0e4-0c6a7a149993",
+      title: "Discutir a tela de sessões e depois construí-la",
+      asked: {
+        header: "Estado",
+        prompt: "Sem a parte de rodando, o que cada linha ainda diz?",
+        multi: false,
+        options: [
+          {
+            label: '"Waiting on you" + quando',
+            description:
+              "O crachá só aparece quando a fila diz que a sessão espera por você, mais a hora relativa.",
+            preview:
+              "10414dd9   [Waiting on you]   2 min ago\n55a56b23                      1 hour ago",
+          },
+          {
+            label: "Nenhum crachá",
+            description: "A linha mostra só a última troca e a hora dela.",
+            preview: null,
+          },
+        ],
+      },
+      said: "Levantei o terreno.",
+      heard: "pode seguir",
+      at: now - 2 * 60_000,
+      waiting: true,
+    },
+    {
+      id: "55a56b23-995d-47eb-939e-043b2b441bd0",
+      title: "Corrigir o falso positivo do config doctor",
+      asked: null,
+      said: "Não consegui abrir: `Failed(\"/opt/homebrew/bin/limactl exited 128: fatal: cannot change to '/Users/henrique/Documents/dev/personal/archwarden': No such file or directory\")`\n\nPronto. O **doctor** deixa de reclamar de uma regra que guarda `renders`, e o teste que prova isso está em `config/doctor.rs`.\n\n- a checagem passou a olhar as duas dimensões\n- o aviso some sozinho quando a regra tem escopo",
+      heard: "roda os testes de novo",
+      at: now - 55 * 60_000,
+      waiting: false,
+    },
+    {
+      id: "3edc4601-1111-2222-3333-444455556666",
+      title: null,
+      asked: null,
+      said: null,
+      heard: "oi",
+      at: now - 3 * 86_400_000,
+      waiting: false,
+    },
+  ];
+}
+
+/// The sessions screen as it ships: an index, one session's detail, and the
+/// conversation beside it.
+///
+/// The three columns at once is the thing that cannot be judged from code.
+/// Each was fine alone; together the question cards had to still read as
+/// answerable inside 340 pixels, and the detail had to keep a line short
+/// enough to read to the end of with a column on either side of it.
+function Talking() {
+  const now = Date.now();
+  const rows = SESSIONS(now);
+  const [picked, setPicked] = useState(rows[Number(q.get("pick") ?? 0)]?.id ?? rows[0].id);
+  const open = rows.find((s) => s.id === picked) ?? rows[0];
+
+  return (
+    <ProjectShell
+      back={
+        <Text as="span" size="sm" tone="muted">
+          ← Needs you
+        </Text>
+      }
+      title={
+        <Row gap="tight" align="baseline">
+          <Text as="span" className="font-medium">
+            bancada
+          </Text>
+          <Text as="span" size="sm" tone="faint">
+            ·
+          </Text>
+          <Text as="span" size="sm" tone="muted">
+            personal
+          </Text>
+        </Row>
+      }
+      aside={
+        <Row gap="normal" align="baseline">
+          <Text as="span" size="sm" tone="muted">
+            claude-code · claude-opus-5
+          </Text>
+          <Text as="span" size="sm" tone="faint">
+            2 waiting
+          </Text>
+        </Row>
+      }
+      tabs={
+        <Row gap="tight">
+          {(
+            [
+              ["Sessions", ChatCircleTextIcon],
+              ["Files changed", GitDiffIcon],
+              ["Files", FolderOpenIcon],
+              ["History", ClockCounterClockwiseIcon],
+            ] as const
+          ).map(([n, Glyph]) => (
+            <Row
+              key={n}
+              gap="tight"
+              className={
+                n === "Sessions"
+                  ? "rounded-lg border border-line bg-raised px-2.5 py-1"
+                  : "px-2.5 py-1 text-ink-muted"
+              }
+            >
+              <Glyph size={13} />
+              <Text as="span" size="sm" className="text-inherit">
+                {n}
+              </Text>
+            </Row>
+          ))}
+          <Row gap="tight" className="ml-2 rounded-lg border border-line bg-raised px-2.5 py-1">
+            <SidebarSimpleIcon size={13} className="-scale-x-100" />
+            <Text as="span" size="sm" className="text-inherit">
+              Conversation
+            </Text>
+          </Row>
+        </Row>
+      }
+      chat={
+        <ChatPanel
+          project="bancada"
+          sessions={rows}
+          session={picked}
+          onSession={setPicked}
+          onClose={() => {}}
+          side="right"
+        />
+      }
+      chatSide="right"
+      footer={<Tally summary={{ files: 14, added: 1204, removed: 317 }} />}
+    >
+      <Panes
+        index={<SessionIndex sessions={rows} picked={picked} onPick={setPicked} now={now} />}
+        subject={
+          <Scroller className="min-h-0 flex-1">
+            <Stack gap="none" className="p-5">
+              <SessionCard session={open} now={now} />
+            </Stack>
+          </Scroller>
+        }
+      />
+    </ProjectShell>
+  );
+}
+
+/// The list the header's project name opens onto.
+///
+/// Rendered without its popover, for the reason the test is written that way
+/// too: a portal in a headless render is a picture of a portal.
+function Switcher() {
+  const now = Date.now();
+  const [picked, setPicked] = useState("bancada");
+  const [muted, setMuted] = useState<Record<string, boolean>>({ archwarden: true });
+  const stand = (id: string, workspace: string) => ({
+    project: {
+      id,
+      workspace,
+      runtime: "this-machine",
+      path: `/mnt/dev/${id}`,
+      weight: 1,
+      idleAfterMinutes: 2,
+    },
+    sessions: 3,
+    lastActivity: now - 90 * 60_000,
+    unreachable: null,
+    asking: !muted[id],
+  });
+  const work = {
+    workspaces: [
+      {
+        workspace: { id: "personal" },
+        projects: [stand("bancada", "personal"), stand("archwarden", "personal")],
+      },
+      {
+        workspace: { id: "work" },
+        projects: [stand("api", "work"), stand("painel", "work")],
+      },
+      { workspace: { id: "empty" }, projects: [] },
+    ],
+    orphans: [],
+  };
+  const silenced = Object.values(muted).filter(Boolean).length;
+
+  return (
+    <Page>
+      <Stack gap="loose">
+        <Card className="w-[22rem] p-1.5">
+          <ProjectList
+            project={picked}
+            queue={
+              {
+                groups: [
+                  {
+                    session: "s",
+                    items: [
+                      {
+                        item: { project: "bancada" },
+                      },
+                      { item: { project: "bancada" } },
+                    ],
+                  },
+                  { session: "t", items: [{ item: { project: "api" } }] },
+                ],
+                asking: 4 - silenced,
+                silenced,
+              } as never
+            }
+            work={work as never}
+            onOpen={setPicked}
+            onMute={(id, on) => setMuted((now) => ({ ...now, [id]: on }))}
+          />
+        </Card>
+      </Stack>
+    </Page>
+  );
+}
+
+/// The two settings that arrived with the conversation: which edge it sits
+/// against, and which keystroke shows it.
+function Keys() {
+  const [keys, setKeys] = useState(DEFAULTS);
+  const [side, setSide] = useState<"left" | "right">("right");
+
+  return (
+    <Page>
+      <Stack gap="loose">
+        <SidePanel side={side} onChoose={setSide} />
+        <KeysPanel keys={keys} onChange={setKeys} />
+      </Stack>
+    </Page>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   q.has("settings") ? (
     <Settings />
@@ -648,6 +1014,14 @@ createRoot(document.getElementById("root")!).render(
     <Files />
   ) : q.has("message") ? (
     <Message />
+  ) : q.has("sessions") ? (
+    <Sessions />
+  ) : q.has("talking") ? (
+    <Talking />
+  ) : q.has("keys") ? (
+    <Keys />
+  ) : q.has("switcher") ? (
+    <Switcher />
   ) : (
     <Workbench
       bar={

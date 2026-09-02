@@ -45,12 +45,11 @@ const file = (over: Partial<FileDiff> = {}): FileDiff => ({
   ...over,
 });
 
-const show = (over: Partial<FileDiff> = {}, unannounced = false, startOpen = true) =>
+const show = (over: Partial<FileDiff> = {}, startOpen = true) =>
   render(
     <FileSection
       project="bancada"
       file={file(over)}
-      unannounced={unannounced}
       startOpen={startOpen}
       onVouch={vi.fn()}
       onEnter={vi.fn()}
@@ -73,11 +72,6 @@ describe("FileSection", () => {
     expect(screen.getByText(/Nothing in the text of this file changed/)).toBeTruthy();
   });
 
-  it("marks a file no session announced", () => {
-    show({}, true);
-    expect(screen.getByText("Unannounced")).toBeTruthy();
-  });
-
   it("opens a file you have not seen", () => {
     show();
     expect(screen.getByText("@@ -1,2 +1,3 @@")).toBeTruthy();
@@ -86,7 +80,7 @@ describe("FileSection", () => {
   it("arrives folded when the page says so, still named and still counted", () => {
     // Which files arrive folded is the page's call — it is the only thing
     // that can see how much is already drawn. Nothing is hidden either way.
-    show({ fresh: false }, false, false);
+    show({ fresh: false }, false);
     expect(screen.queryByText("@@ -1,2 +1,3 @@")).toBeNull();
     expect(screen.getByText("src/db.rs")).toBeTruthy();
     expect(screen.getByText("+2")).toBeTruthy();
@@ -101,15 +95,7 @@ describe("FileSection", () => {
 
   it("offers viewed as something you can take back", () => {
     const onVouch = vi.fn();
-    render(
-      <FileSection
-        project="bancada"
-        file={file()}
-        unannounced={false}
-        onVouch={onVouch}
-        onEnter={vi.fn()}
-      />,
-    );
+    render(<FileSection project="bancada" file={file()} onVouch={onVouch} onEnter={vi.fn()} />);
     const box = screen.getByText("Viewed").closest("button");
     expect(box?.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(box as Element);

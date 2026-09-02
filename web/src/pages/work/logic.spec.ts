@@ -23,6 +23,8 @@ const queue = (items: Ranked[]): Queue => ({
   groups: [{ session: "s", items }],
   wip: { sessions_waiting: 1, items: items.length, limit: 4 },
   watching: 2,
+  asking: 1,
+  silenced: 0,
   unreachable: [],
   glances: {},
   elsewhere: null,

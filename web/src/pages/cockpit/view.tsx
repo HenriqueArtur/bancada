@@ -15,13 +15,18 @@ import { useText } from "@/lib/language";
 export function CockpitView({
   queue,
   mute,
+  asking,
   onOpenProject,
+  onMuteProject,
   onOpenSettings,
   onOpenWork,
 }: {
   queue: Queue;
   mute: string | null;
+  /// The window is asking on a timer because it could not be told.
+  asking: boolean;
   onOpenProject: (project: string) => void;
+  onMuteProject: (project: string, muted: boolean) => void;
   onOpenSettings: () => void;
   /// The other surface: everything being watched, waiting or not.
   onOpenWork: () => void;
@@ -51,7 +56,12 @@ export function CockpitView({
             detail={
               queue.watching === 0
                 ? t("No projects registered yet.")
-                : t.plural(queue.watching, "Watching {n} project.", "Watching {n} projects.")
+                : queue.silenced > 0
+                  ? t("Watching {asking}. {silenced} silenced.", {
+                      asking: t.plural(queue.asking, "{n} project", "{n} projects"),
+                      silenced: queue.silenced,
+                    })
+                  : t.plural(queue.watching, "Watching {n} project.", "Watching {n} projects.")
             }
             action={
               // With nothing registered the action is to register. With
@@ -75,9 +85,36 @@ export function CockpitView({
               group={g}
               glance={queue.glances[g.session]}
               onOpen={onOpenProject}
+              onMute={(project) => onMuteProject(project, true)}
             />
           ))
         )}
+
+        {/* Both numbers, whenever anything is silenced. "Nothing else needs
+            you" is a different claim from "nothing else needs you, and two
+            projects were told not to ask" — and the second is the one
+            somebody wants when they remember silencing something. */}
+        {queue.groups.length > 0 && queue.silenced > 0 ? (
+          <Row gap="none" justify="center" className="pt-1">
+            <Text as="span" size="sm" tone="faint">
+              {t("{asking} active · {silenced} silenced", {
+                asking: queue.asking,
+                silenced: queue.silenced,
+              })}
+            </Text>
+          </Row>
+        ) : null}
+
+        {/* Said out loud, because the alternative is a window that looks
+            live and is a minute behind. The core could not watch the log
+            folders, so this is a timer. */}
+        {asking ? (
+          <Banner label={t("Not hearing about changes")}>
+            <Text as="span" size="sm" tone="muted">
+              {t("Checking again every minute instead.")}
+            </Text>
+          </Banner>
+        ) : null}
 
         {mute ? (
           <Banner label={t("Cannot reach you outside this window")} tone="alarm">

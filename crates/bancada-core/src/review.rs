@@ -1,84 +1,119 @@
 use bancada_adapter_claude::SessionLog;
 use bancada_events::{Event, Role};
+use bancada_meta::Timestamp;
 use serde::Serialize;
 use std::collections::BTreeSet;
 
-/// A session's work, beside what it said it would do.
+/// A session's work, split into the turns it was asked for.
 ///
 /// A raw diff is what a terminal already gives, and it is the thing that
 /// makes reviewing agent work miserable: four hundred lines with no claim to
-/// check them against. The intent is already in the log — the agent announced
-/// it before acting — so putting the two side by side turns "read everything"
-/// into "look at where it left the agreement".
+/// check them against. The claim is already in the log — the agent announced
+/// it before acting — so putting the two side by side turns "read
+/// everything" into "look at where it left the agreement".
+///
+/// **Per turn, not per session.** The first version read one claim from the
+/// whole log: the last thing said before the *first* edit. That is right for
+/// a session that does one thing, and a session is an afternoon. On a real
+/// log it froze at event twenty of two thousand and every later file came
+/// back unannounced, which is the failure the crude path matcher below is
+/// written to avoid — an alarm that is always on is an alarm nobody reads.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Review {
-    /// What the agent said it would do, in its own words.
+    /// Oldest first, as the log has them. Turns that wrote nothing are not
+    /// here: there is nothing to hold against a claim.
+    pub episodes: Vec<Episode>,
+}
+
+/// One turn: what the agent said it would do, and what it then touched.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Episode {
+    /// In its own words. `None` for a turn that acted without saying
+    /// anything first.
     pub intent: Option<String>,
-    /// Files the agent named while announcing.
-    pub announced: Vec<String>,
-    /// Files it actually touched, from the tool calls.
+    /// Paths it actually wrote to, from the tool calls.
     pub touched: Vec<String>,
-    /// Touched and never announced. **The deviation** — the short list worth
-    /// reading when the diff is long.
-    pub unannounced: Vec<String>,
+    /// When the first write landed, so several sessions can be read in one
+    /// order.
+    pub at: Timestamp,
 }
 
 impl Review {
-    /// Just the paths a piece of prose names.
-    ///
-    /// Split out so a caller holding several sessions' claims can pool them
-    /// before deciding what went unannounced. Two agents in one tree is
-    /// exactly the case a per-session list gets wrong: the file *was*
-    /// announced, only not by the session that wrote it.
-    pub fn of_text(text: &str) -> Self {
+    /// Read one session log and pair each turn's claim with its actions.
+    pub fn of(log: &str) -> Self {
+        let events = SessionLog::parse(log).events;
         Review {
-            announced: paths_named_in(text).into_iter().collect(),
-            intent: Some(text.to_owned()),
-            ..Default::default()
+            episodes: turns(&events).iter().filter_map(|t| episode(t)).collect(),
         }
     }
 
-    /// Read one session log and pair its claim with its actions.
-    pub fn of(log: &str) -> Self {
-        let parsed = SessionLog::parse(log);
-        let intent = intent_of(&parsed.events);
-        let touched = touched_by(&parsed.events);
-        let announced: Vec<String> = intent
-            .as_deref()
-            .map(paths_named_in)
-            .unwrap_or_default()
-            .into_iter()
-            .collect();
-
-        let unannounced = touched
-            .iter()
-            .filter(|t| !announced.iter().any(|a| mentions(a, t)))
-            .cloned()
-            .collect();
-
-        Review {
-            intent,
-            announced,
-            touched,
-            unannounced,
+    /// Every path any turn wrote to.
+    pub fn touched(&self) -> Vec<String> {
+        let mut out: BTreeSet<&str> = BTreeSet::new();
+        for e in &self.episodes {
+            out.extend(e.touched.iter().map(String::as_str));
         }
+        out.into_iter().map(str::to_owned).collect()
     }
 }
 
-/// The last thing the agent said before it started acting.
+/// Slice the log at each thing a person said.
 ///
-/// Prose *after* the work is a report, not a claim, and reviewing against a
+/// The event model has no turn — `Event`'s own comment says so, and says
+/// they are derived above the adapter rather than invented inside it. This
+/// is that derivation, and it rests on the adapter keeping a tool's result
+/// (`ToolResult`) apart from a person's words (`Text { role: User }`).
+/// Were those one variant, every turn would end at every tool call.
+fn turns(events: &[Event]) -> Vec<&[Event]> {
+    let starts: Vec<usize> = events
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            matches!(
+                e,
+                Event::Text {
+                    role: Role::User,
+                    ..
+                }
+            )
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    // Anything before the first thing a person said still happened, and a
+    // session resumed from a summary begins exactly that way.
+    let mut cuts = vec![0];
+    cuts.extend(starts.iter().copied().filter(|&i| i > 0));
+    cuts.push(events.len());
+
+    cuts.windows(2)
+        .map(|w| &events[w[0]..w[1]])
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// One turn, if it wrote anything.
+///
+/// The claim is the last thing said **before the first write of this turn**.
+/// Prose after the work is a report, not a claim, and reviewing against a
 /// report is how a reviewer gets talked into agreeing.
-fn intent_of(events: &[Event]) -> Option<String> {
-    let first_action = events.iter().position(is_action)?;
-    events[..first_action].iter().rev().find_map(|e| match e {
+fn episode(turn: &[Event]) -> Option<Episode> {
+    let first = turn.iter().position(is_action)?;
+    let intent = turn[..first].iter().rev().find_map(|e| match e {
         Event::Text {
             role: Role::Assistant,
             content,
             ..
         } if !content.trim().is_empty() => Some(content.clone()),
         _ => None,
+    });
+
+    Some(Episode {
+        touched: touched_by(turn),
+        at: turn[first].at(),
+        intent,
     })
 }
 
@@ -102,30 +137,6 @@ fn touched_by(events: &[Event]) -> Vec<String> {
     out.into_iter().collect()
 }
 
-/// Paths the prose names.
-///
-/// Deliberately crude: anything with a slash and a dot. A cleverer parser
-/// would find fewer false positives and more false negatives, and a missed
-/// announcement shows up as a deviation that is not one — which trains you to
-/// ignore the list.
-fn paths_named_in(text: &str) -> BTreeSet<String> {
-    text.split(|c: char| c.is_whitespace() || "`\"'()[],;".contains(c))
-        .filter(|w| w.contains('/') && w.contains('.') && w.len() > 3)
-        .map(|w| {
-            w.trim_matches(|c: char| {
-                !c.is_alphanumeric() && c != '/' && c != '.' && c != '-' && c != '_'
-            })
-            .to_owned()
-        })
-        .filter(|w| !w.is_empty())
-        .collect()
-}
-
-/// A path announced as `src/db.rs` covers a touch of `/repo/src/db.rs`.
-fn mentions(announced: &str, touched: &str) -> bool {
-    touched.ends_with(announced) || announced.ends_with(touched)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,10 +150,20 @@ mod tests {
             serde_json::to_string(text).unwrap()
         )
     }
+    fn asked(text: &str) -> String {
+        format!(
+            r#"{{"type":"user","sessionId":"s","timestamp":"2026-01-01T00:00:00Z","message":{{"content":{}}}}}"#,
+            serde_json::to_string(text).unwrap()
+        )
+    }
     fn edit(path: &str) -> String {
         format!(
             r#"{{"type":"assistant","sessionId":"s","timestamp":"2026-01-01T00:00:01Z","message":{{"content":[{{"type":"tool_use","id":"t","name":"Edit","input":{{"file_path":"{path}"}}}}]}}}}"#
         )
+    }
+    fn only(r: &Review) -> &Episode {
+        assert_eq!(r.episodes.len(), 1, "{:?}", r.episodes);
+        &r.episodes[0]
     }
 
     #[test]
@@ -152,61 +173,115 @@ mod tests {
             &edit("/repo/src/db.rs"),
             &assistant("Done — I also rewrote everything else"),
         ]);
-        assert!(Review::of(&l).intent.unwrap().starts_with("I will change"));
+        assert!(
+            only(&Review::of(&l))
+                .intent
+                .as_ref()
+                .unwrap()
+                .starts_with("I will change")
+        );
     }
 
     #[test]
-    fn a_file_that_was_announced_is_not_a_deviation() {
+    fn each_turn_carries_its_own_claim() {
+        // The whole reason this is split. One claim per session froze at the
+        // first thing ever said and called every later file a deviation.
         let l = log(&[
+            &asked("do the first thing"),
             &assistant("I will change src/db.rs"),
             &edit("/repo/src/db.rs"),
-        ]);
-        assert!(Review::of(&l).unannounced.is_empty());
-    }
-
-    #[test]
-    fn a_file_touched_and_never_named_is_the_deviation() {
-        let l = log(&[
-            &assistant("I will change src/db.rs"),
-            &edit("/repo/src/db.rs"),
+            &asked("now do the second"),
+            &assistant("I will change src/auth.rs"),
             &edit("/repo/src/auth.rs"),
         ]);
-        assert_eq!(Review::of(&l).unannounced, vec!["/repo/src/auth.rs"]);
+        let r = Review::of(&l);
+        assert_eq!(r.episodes.len(), 2);
+        assert!(r.episodes[0].touched == vec!["/repo/src/db.rs".to_owned()]);
+        assert!(
+            r.episodes[1]
+                .intent
+                .as_ref()
+                .unwrap()
+                .contains("src/auth.rs")
+        );
+    }
+
+    #[test]
+    fn a_turn_that_wrote_nothing_is_not_an_episode() {
+        // Nothing to hold against a claim. A question answered, a file read,
+        // a plan discussed — none of it belongs on a review screen.
+        let l = log(&[
+            &asked("what do you think?"),
+            &assistant("I think we should wait"),
+            &asked("fine, do it"),
+            &assistant("I will change src/db.rs"),
+            &edit("/repo/src/db.rs"),
+        ]);
+        assert_eq!(Review::of(&l).episodes.len(), 1);
+    }
+
+    #[test]
+    fn work_before_anybody_said_anything_is_still_a_turn() {
+        // A session resumed from a summary begins mid-thought, with no user
+        // line above the first edit. Dropping that would lose the work.
+        let l = log(&[&assistant("carrying on"), &edit("/repo/a.rs")]);
+        assert_eq!(Review::of(&l).episodes.len(), 1);
+    }
+
+    #[test]
+    fn a_tool_result_does_not_end_a_turn() {
+        // Claude Code files a tool's output under the user's role. Read as
+        // speech it would cut a turn at every command, and the claim above
+        // the next edit would be lost.
+        let result = r#"{"type":"user","sessionId":"s","timestamp":"2026-01-01T00:00:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"t","content":"ok"}]}}"#;
+        let l = log(&[
+            &assistant("I will change src/db.rs"),
+            result,
+            &edit("/repo/src/db.rs"),
+        ]);
+        let r = Review::of(&l);
+        assert_eq!(r.episodes.len(), 1);
+        assert!(
+            only(&r).intent.is_some(),
+            "the claim was cut off from its work"
+        );
     }
 
     #[test]
     fn work_with_no_claim_at_all_leaves_every_file_unannounced() {
         let l = log(&[&edit("/repo/a.rs"), &edit("/repo/b.rs")]);
         let r = Review::of(&l);
-        assert!(r.intent.is_none());
-        assert_eq!(r.unannounced.len(), 2, "silence is not agreement");
+        assert!(only(&r).intent.is_none(), "silence is not a claim");
     }
 
     #[test]
     fn reading_a_file_is_not_touching_it() {
         let read = r#"{"type":"assistant","sessionId":"s","timestamp":"2026-01-01T00:00:01Z","message":{"content":[{"type":"tool_use","id":"t","name":"Read","input":{"file_path":"/repo/x.rs"}}]}}"#;
         let l = log(&[&assistant("looking around"), read]);
-        assert!(Review::of(&l).touched.is_empty());
+        assert!(Review::of(&l).touched().is_empty());
     }
 
     #[test]
     fn a_session_that_changed_nothing_reviews_as_nothing() {
         let r = Review::of(&assistant("I had a look and there is nothing to do"));
-        assert!(r.touched.is_empty() && r.unannounced.is_empty());
+        assert!(r.episodes.is_empty());
+        assert!(r.touched().is_empty());
     }
 
     #[test]
-    fn prose_alone_still_yields_the_paths_it_names() {
-        let r = Review::of_text("I will touch `src/db.rs` and web/src/app.tsx");
-        assert_eq!(r.announced.len(), 2);
-        assert!(r.announced.contains(&"src/db.rs".to_owned()));
-    }
-    #[test]
     fn a_tool_call_before_any_prose_is_not_a_claim() {
-        // Only prose can announce. A session that opens by reading a file
-        // has said nothing, and the review has to know that.
+        // Only prose can announce. A turn that opens by reading a file has
+        // said nothing, and the review has to know that.
         let read = r#"{"type":"assistant","sessionId":"s","timestamp":"2026-01-01T00:00:00Z","message":{"content":[{"type":"tool_use","id":"r","name":"Read","input":{"file_path":"/repo/x.rs"}}]}}"#;
         let r = Review::of(&log(&[read, &edit("/repo/x.rs")]));
-        assert!(r.intent.is_none());
+        assert!(only(&r).intent.is_none());
+    }
+
+    #[test]
+    fn an_episode_is_stamped_by_the_write_that_started_it() {
+        // Several sessions are read in one order on the screen, and the
+        // order has to come from when the work happened.
+        let l = log(&[&assistant("go"), &edit("/repo/a.rs")]);
+        assert_eq!(only(&Review::of(&l)).at.as_millis(), 1_767_225_601_000);
     }
 }

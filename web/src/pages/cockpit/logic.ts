@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Queue } from "@/core/queue";
 import { idsOf, newcomers, phrase, raise, waiting } from "@/core/attention";
+import { live } from "@/core/live";
 import { useText } from "@/lib/language";
 
-/// Polling rather than watching, for now.
+/// Told, not asked — see ADR-022.
 ///
-/// The queue only changes when a log line lands, and a log is written while
-/// it is read. Ten seconds is far below any threshold the ranking uses, so
-/// nothing visible waits on it.
-export const EVERY_MS = 10_000;
+/// The queue only changes when a log line lands, and the core watches for
+/// exactly that. What remains here is the fallback: when it cannot watch,
+/// the window goes back to asking, and says so rather than looking live.
 
 export interface Cockpit {
   queue: Queue | null;
@@ -17,6 +17,10 @@ export interface Cockpit {
   failed: string | null;
   /// Why the product cannot get your attention, when it cannot.
   mute: string | null;
+  /// True while the window is asking on a timer because it could not be
+  /// told. Named so a screen can say it: one that looks live while it is a
+  /// minute behind lies with more confidence than one that admits it.
+  asking: boolean;
   reload: () => Promise<void>;
 }
 
@@ -65,18 +69,20 @@ export function useCockpit(): Cockpit {
     }
   }, [t]);
 
+  const [asking, setAsking] = useState(false);
   useEffect(() => {
     let alive = true;
     const tick = () => {
       if (alive) void reload();
     };
     tick();
-    const every = setInterval(tick, EVERY_MS);
+    const channel = live(tick);
+    void channel.asking.then((told) => alive && setAsking(!told));
     return () => {
       alive = false;
-      clearInterval(every);
+      channel.stop();
     };
   }, [reload]);
 
-  return { queue, failed, mute, reload };
+  return { queue, failed, mute, asking, reload };
 }

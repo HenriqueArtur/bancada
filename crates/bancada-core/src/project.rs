@@ -1,3 +1,4 @@
+use bancada_meta::Timestamp;
 use serde::{Deserialize, Serialize};
 
 /// One body of content with work happening in it.
@@ -21,6 +22,37 @@ pub struct Project {
     /// How long a finished turn stays quiet before it is worth your eyes.
     #[serde(default = "two")]
     pub idle_after_minutes: u32,
+    /// Set while the project is not allowed to ask for you.
+    ///
+    /// Absent is the normal state. See [`Muted`] for why it carries two
+    /// facts rather than being a flag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub muted: Option<Muted>,
+}
+
+/// When you silenced a project, and how much work it had then.
+///
+/// Not a boolean. You silence a project because the work there is finished,
+/// and the day you start working there again is the day you need it back —
+/// forgetting to un-silence it is the exact failure an attention supervisor
+/// exists to prevent. So a session that did not exist when you silenced it
+/// wakes the project on its own.
+///
+/// The count, not a timestamp comparison, is what makes that decidable in
+/// both places that need it. The queue and the work list both already know
+/// how many session logs a project has; neither reads a word of them, and a
+/// rule needing the *content* of every log would have made the work list
+/// pay for a diff it does not show. Two screens computing "is this asking
+/// for me" from two different signals is how a product ends up disagreeing
+/// with itself about what needs you.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Muted {
+    /// So a screen can say how long ago, and so silencing twice is
+    /// distinguishable from never having un-silenced.
+    pub at: Timestamp,
+    /// Sessions the project had at that moment.
+    pub sessions: usize,
 }
 
 fn one() -> u32 {
@@ -44,6 +76,18 @@ impl Project {
             .collect()
     }
 
+    /// Whether this project may ask for your attention right now.
+    ///
+    /// `sessions` is how many session logs it has. A silenced project comes
+    /// back on its own when one appears that was not there when you silenced
+    /// it: you silenced it because the work ended, and a new session is new
+    /// work. A log deleted and another created keeps the count level and so
+    /// misses — rare, and quieter than the alternative, which is waking on
+    /// every continuation of a conversation you already dismissed.
+    pub fn asking(&self, sessions: usize) -> bool {
+        self.muted.is_none_or(|m| sessions > m.sessions)
+    }
+
     pub fn idle_after_ms(&self) -> i64 {
         i64::from(self.idle_after_minutes) * 60_000
     }
@@ -53,6 +97,41 @@ impl Project {
 mod tests {
     use super::*;
 
+    fn silenced(at: i64, sessions: usize) -> Project {
+        Project {
+            muted: Some(Muted {
+                at: Timestamp::from_millis(at),
+                sessions,
+            }),
+            ..project("/mnt/dev/x")
+        }
+    }
+
+    #[test]
+    fn a_project_nobody_silenced_may_ask() {
+        assert!(project("/mnt/dev/x").asking(0));
+    }
+
+    #[test]
+    fn a_silenced_project_with_the_same_work_stays_quiet() {
+        assert!(!silenced(1_000, 3).asking(3));
+    }
+
+    #[test]
+    fn a_session_that_did_not_exist_then_wakes_it() {
+        // You silenced it because the work ended. A new session is new work,
+        // and forgetting to un-silence is the failure this product exists to
+        // prevent.
+        assert!(silenced(1_000, 3).asking(4));
+    }
+
+    #[test]
+    fn a_session_going_away_does_not_wake_it() {
+        // Fewer than there were is not new work. Reading it as "the count
+        // changed" would wake a project every time a log is cleaned up.
+        assert!(!silenced(1_000, 3).asking(1));
+    }
+
     fn project(path: &str) -> Project {
         Project {
             id: "p".into(),
@@ -61,6 +140,7 @@ mod tests {
             path: path.into(),
             weight: 1,
             idle_after_minutes: 2,
+            muted: None,
         }
     }
 

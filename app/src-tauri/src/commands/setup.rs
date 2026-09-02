@@ -2,7 +2,8 @@
 // the edge. This is the only command that writes anything at all.
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
-use bancada_core::{Config, Discovery, Project, RuntimeSpec};
+use bancada_core::{Cockpit, Config, Discovery, Muted, Project, RuntimeSpec};
+use bancada_runtime::HostRuntime;
 
 /// Everything registered, as the product currently sees it.
 #[tauri::command]
@@ -97,4 +98,38 @@ pub(super) fn save(config: Config) -> Result<Config, String> {
     std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))?;
 
     Ok(checked)
+}
+
+/// Silence a project, or let it speak again.
+///
+/// The clock and the session count are read at the edge and written in, the
+/// same way the queue reads the time: `Muted` records how much work the
+/// project had at the moment you silenced it, because that is what lets a
+/// session that did not exist then wake it back up on its own.
+#[tauri::command]
+pub fn mute_project(id: String, muted: bool) -> Result<Config, String> {
+    let mut config = super::queue::load_config()?;
+    let host = HostRuntime::local();
+    let now = bancada_meta::Timestamp::from_millis(super::queue::millis_now());
+
+    // Counted before the borrow: the scan needs the whole cockpit, and the
+    // project about to be edited is inside it.
+    let sessions = {
+        let cockpit = Cockpit::new(config.clone());
+        let project = cockpit
+            .config()
+            .projects
+            .iter()
+            .find(|p| p.id == id)
+            .ok_or_else(|| format!("no project registered as {id}"))?;
+        cockpit.scan(project, &host).logs.len()
+    };
+
+    let project = config
+        .projects
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no project registered as {id}"))?;
+    project.muted = muted.then_some(Muted { at: now, sessions });
+    save(config)
 }

@@ -10,6 +10,7 @@ export { Input } from "@/components/input";
 export { Badge } from "@/components/badge";
 export { Dialog, DialogTrigger, DialogClose, DialogFrame } from "@/components/dialog";
 export { Select, type Choice } from "@/components/select";
+export { Toggle } from "@/components/toggle";
 export { Disclosure } from "@/components/disclosure";
 export { Label } from "@/components/label";
 export { Mark } from "@/components/mark";

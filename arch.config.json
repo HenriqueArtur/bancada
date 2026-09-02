@@ -404,6 +404,70 @@
           "why_not": "That is where integration tests belong and they exist too \u2014 `app/src-tauri/tests` drives the commands against a real tree. A unit test put there stops being one the moment it can only see `pub` items."
         }
       ]
+    },
+    {
+      "id": "ADR-022",
+      "title": "The window is told, not asked",
+      "why": "A screen that polls is stale for as long as its interval, and the interval is a guess about how impatient the reader is; watching the logs is exact, and it turns out to cost nothing because the logs are always a host path.",
+      "link": "docs/DECISIONS.md#adr-022--the-window-is-told-not-asked",
+      "scope": [
+        "app/src-tauri/src",
+        "web/src/core"
+      ],
+      "enforcement": "none",
+      "why_not_enforceable": "Whether a screen listens or polls is behaviour. A rule can see that `setInterval` exists, not that it is a fallback rather than the mechanism \u2014 and the fallback is deliberate, so a rule forbidding the call would forbid the right code.",
+      "alternatives": [
+        {
+          "option": "Polling, on a short interval",
+          "why_not": "What shipped, at ten seconds, with `for now` written beside it. Every reader waits up to the interval for a change that already happened, and each poll runs `git diff` on every open project whether anything moved or not."
+        },
+        {
+          "option": "`Runtime::watch`, so a runtime watches its own tree",
+          "why_not": "The architecture's hard rule 3 names it and it is not needed: `configDir` is written in this machine's spelling by definition \u2014 it is how the logs are read at all \u2014 so the logs of a VM, a container or an ssh host are already a local path. The harder problem was anticipated than the one that exists."
+        },
+        {
+          "option": "An event carrying what changed",
+          "why_not": "A filesystem event says a line landed in some log, which is not a fact any screen is shaped around. A payload naming a path would invite a screen to believe it knows which of its questions went stale, and be wrong the first time two things moved at once."
+        },
+        {
+          "option": "Falling back to polling in silence",
+          "why_not": "A window that looks live while it is a minute behind lies with more confidence than one that admits it. The same argument `RuntimeError::Unsupported` already makes about a watch that reports nothing."
+        }
+      ]
+    },
+    {
+      "id": "ADR-023",
+      "title": "A project can be told not to ask, and new work unmutes it",
+      "why": "A project whose work has ended is noise in a queue whose whole value is that everything in it matters; but a silence you have to remember to lift is the exact forgetting an attention supervisor exists to prevent, so a session that did not exist when you silenced it wakes it on its own.",
+      "link": "docs/DECISIONS.md#adr-023--a-project-can-be-told-not-to-ask",
+      "scope": [
+        "crates/bancada-core/src",
+        "app/src-tauri/src"
+      ],
+      "enforcement": "none",
+      "why_not_enforceable": "It is a claim about what reaches the queue. A rule can see that `Project::asking` exists, not that every screen counting what needs you goes through it \u2014 and the check that matters is that two screens agree, which is a property of two call sites rather than of a shape.",
+      "alternatives": [
+        {
+          "option": "A plain `active: bool`",
+          "why_not": "Silence that only a click can lift. You silence a project the day the work ends and start working there again three weeks later; the queue then says nothing about it, which is the one failure this product cannot have. Forgetting is what it is for."
+        },
+        {
+          "option": "Unregister the project instead",
+          "why_not": "Loses the path, the workspace, the weight and the machine \u2014 everything you configured \u2014 to say \"not this week\". And re-registering is the long form, with a folder picker, for something that should be one click."
+        },
+        {
+          "option": "Wake on any activity, using the log's modification time",
+          "why_not": "Available for free on both screens, and wrong: a conversation you already dismissed continuing is a write, so every silenced project would come back within minutes. The count of sessions distinguishes new work from work you already declined to look at."
+        },
+        {
+          "option": "Wake on a session whose first event is after the silencing",
+          "why_not": "The exact rule, and it needs the *content* of every log to find the first event. The work list deliberately reads no content \u2014 it costs a process per project per open \u2014 so this rule would be computable on one screen and not the other, and two screens deciding \"is this asking for me\" two ways is how a product disagrees with itself about what needs you."
+        },
+        {
+          "option": "Stop reading a silenced project altogether",
+          "why_not": "Cheaper, and it makes the waking rule impossible: nothing would notice the new session. It also hides the project from the screen where you would go to bring it back."
+        }
+      ]
     }
   ],
   "rules": [

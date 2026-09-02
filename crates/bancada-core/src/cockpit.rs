@@ -1,8 +1,9 @@
-use crate::{Config, Diff, Project};
+use crate::{Config, Diff, Project, Summary};
 use bancada_adapter_claude::SessionLog;
 use bancada_meta::{MetaEvent, Timestamp};
 use bancada_rules::{Grouped, QueueItem, SessionState, Wip, group, rank};
 use bancada_runtime::{Runtime, RuntimeError};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 /// The whole pipeline, in one place: logs to queue.
@@ -44,6 +45,34 @@ impl Cockpit {
                 .join("projects")
                 .join(project.log_dir_name()),
         )
+    }
+
+    /// Every directory worth watching for a change.
+    ///
+    /// One per runtime that some project uses, not one per project: the
+    /// projects of a runtime all live under the same `projects` folder, and
+    /// a watch each would be a dozen watches on one directory.
+    ///
+    /// These are *host* paths, always. `configDir` is written in this
+    /// machine's spelling by definition — it is how the logs are read at all
+    /// — so a watch never has to cross into a guest, whatever kind of place
+    /// the project itself runs in. The architecture anticipated a harder
+    /// problem here than the one that exists.
+    pub fn watched(&self, config_path: &Path) -> Vec<PathBuf> {
+        let mut out: BTreeSet<PathBuf> = BTreeSet::new();
+        for project in &self.config.projects {
+            if let Some(spec) = self.config.runtime_of(project) {
+                out.insert(Path::new(&spec.config_dir).join("projects"));
+            }
+        }
+        // The configuration too, so registering a project or a machine
+        // reaches the screens without a restart. Its *directory*: an editor
+        // saves by writing a new file and renaming it over the old one, and
+        // a watch on the path itself follows the file that was replaced.
+        if let Some(parent) = config_path.parent() {
+            out.insert(parent.to_path_buf());
+        }
+        out.into_iter().collect()
     }
 
     /// List the logs of one project, through a runtime that can reach them.
@@ -133,6 +162,43 @@ impl Cockpit {
         Ok(Diff::parse(&text))
     }
 
+    /// How much has moved, without the diff itself.
+    ///
+    /// `--numstat` rather than `diff_of(..).summary()`: the footer is on all
+    /// four screens, and three numbers are not worth parsing thirty thousand
+    /// lines of hunks on the tree screen to reach. The untracked files still
+    /// cost a read each, exactly as they do for the diff.
+    pub fn summary_of(&self, project: &Project, host: &dyn Runtime) -> Result<Summary, String> {
+        let at = project.path.as_str();
+        let git = |args: &[&str]| -> Result<String, String> {
+            let mut cmd = vec!["git".to_owned(), "-C".to_owned(), at.to_owned()];
+            cmd.extend(args.iter().map(|a| (*a).to_owned()));
+            host.exec(&cmd).map_err(|e| format!("{e:?}"))
+        };
+
+        let mut out = Summary::default();
+        for line in git(&["diff", "HEAD", "--numstat", "--no-color", "--no-ext-diff"])?.lines() {
+            let mut cols = line.split('\t');
+            let (Some(added), Some(removed)) = (cols.next(), cols.next()) else {
+                continue;
+            };
+            out.files += 1;
+            // `-\t-\t` is git saying binary. It counts as a changed file
+            // and as no lines, which is the truth about it.
+            out.added += added.parse::<usize>().unwrap_or(0);
+            out.removed += removed.parse::<usize>().unwrap_or(0);
+        }
+        for name in git(&["ls-files", "--others", "--exclude-standard"])?.lines() {
+            if let Some(rendered) = Self::as_added_file(host, at, name) {
+                out.files += 1;
+                // Every line of it is an added line, which is what the diff
+                // screen already says about an untracked file.
+                out.added += rendered.lines().filter(|l| l.starts_with('+')).count();
+            }
+        }
+        Ok(out)
+    }
+
     /// One untracked file, spelled as a diff that adds every line.
     ///
     /// Returns `None` for anything unreadable or not text: a binary blob
@@ -185,6 +251,68 @@ mod tests {
         assert_eq!(
             dir,
             PathBuf::from("/state/claude/projects/-mnt-dev-neo-gitmoji-nvim")
+        );
+    }
+
+    #[test]
+    fn one_directory_is_watched_per_runtime_and_not_per_project() {
+        // The projects of a runtime share one `projects` folder. A watch
+        // each would be several watches on one directory, and several
+        // notifications for one line.
+        let c = Cockpit::new(
+            Config::parse(
+                r#"{
+      "workspaces": [{"id":"w"}],
+      "runtimes": [{"id":"r","kind":"local","configDir":"/state/claude","sharedFs":true}],
+      "projects": [{"id":"a","workspace":"w","runtime":"r","path":"/x","weight":1},
+                   {"id":"b","workspace":"w","runtime":"r","path":"/y","weight":1}]
+    }"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(
+            c.watched(Path::new("/cfg/bancada/config.json")),
+            vec![
+                PathBuf::from("/cfg/bancada"),
+                PathBuf::from("/state/claude/projects")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_project_whose_runtime_is_gone_is_not_watched() {
+        // Built by hand, because `Config::parse` refuses a dangling runtime
+        // and this guard is for a configuration that did not come through
+        // it — a half-applied edit, or a future caller assembling one.
+        let mut config = Config::default();
+        config.projects.push(
+            serde_json::from_str(
+                r#"{"id":"a","workspace":"w","runtime":"nowhere","path":"/x","weight":1}"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(
+            Cockpit::new(config).watched(Path::new("/cfg/config.json")),
+            vec![PathBuf::from("/cfg")]
+        );
+    }
+
+    #[test]
+    fn the_configuration_is_watched_even_with_nothing_registered() {
+        // It is how the first project ever registered reaches the screens
+        // without a restart.
+        assert_eq!(
+            Cockpit::new(Config::default()).watched(Path::new("/cfg/config.json")),
+            vec![PathBuf::from("/cfg")]
+        );
+    }
+
+    #[test]
+    fn a_configuration_at_the_root_watches_nothing_extra() {
+        assert!(
+            Cockpit::new(Config::default())
+                .watched(Path::new("/"))
+                .is_empty()
         );
     }
 
@@ -293,6 +421,89 @@ mod tests {
         assert!(d.files.iter().all(|f| f.path != "logo.png"));
     }
 
+    /// The same tree, answered with `--numstat` instead of a diff.
+    fn counted(numstat: &str, untracked: &[(&str, &str)]) -> FakeRuntime {
+        let names = untracked
+            .iter()
+            .map(|(n, _)| *n)
+            .collect::<Vec<_>>()
+            .join("\n");
+        FakeRuntime::new(Answers {
+            says: vec![
+                ("numstat".into(), numstat.into()),
+                ("ls-files".into(), names),
+            ],
+            files: untracked
+                .iter()
+                .map(|(n, body)| {
+                    (
+                        format!("/mnt/dev/neo-gitmoji.nvim/{n}"),
+                        body.as_bytes().to_vec(),
+                    )
+                })
+                .collect(),
+            ..Answers::default()
+        })
+    }
+
+    #[test]
+    fn the_summary_counts_both_directions_without_parsing_a_diff() {
+        // Three numbers, and the footer that shows them sits on all four
+        // screens — the tree screen has no reason to pay for the hunks.
+        let c = cockpit();
+        let rt = counted("12\t3\tsrc/db.rs\n4\t0\tsrc/x.rs\n", &[]);
+        let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
+        assert_eq!((s.files, s.added, s.removed), (2, 16, 3));
+    }
+
+    #[test]
+    fn a_binary_file_counts_as_changed_and_as_no_lines() {
+        // `-\t-\t` is git saying it cannot count them, which is the truth
+        // about the file and not a reason to leave it out of the count.
+        let c = cockpit();
+        let rt = counted("-\t-\tlogo.png\n", &[]);
+        let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
+        assert_eq!((s.files, s.added, s.removed), (1, 0, 0));
+    }
+
+    #[test]
+    fn an_untracked_file_counts_as_every_line_it_has() {
+        // Which is what the diff screen already says about one.
+        let c = cockpit();
+        let rt = counted("", &[("notes.md", "one\ntwo\nthree\n")]);
+        let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
+        assert_eq!((s.files, s.added, s.removed), (1, 3, 0));
+    }
+
+    #[test]
+    fn a_binary_untracked_file_is_not_counted_at_all() {
+        // Unreadable as lines. Counted, the footer would claim a number the
+        // diff screen refuses to show.
+        let c = cockpit();
+        let rt = counted("", &[("logo.png", "\u{0}\u{1}binary")]);
+        let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
+        assert_eq!(s.files, 0);
+    }
+
+    #[test]
+    fn a_clean_tree_summarises_as_nothing_rather_than_as_an_error() {
+        let c = cockpit();
+        let s = c
+            .summary_of(&c.config().projects[0], &counted("", &[]))
+            .unwrap();
+        assert_eq!(s, crate::Summary::default());
+    }
+
+    #[test]
+    fn a_numstat_line_git_did_not_finish_writing_is_skipped() {
+        // Defensive rather than observed: a half line counted as a file
+        // would make the footer disagree with the screen beside it.
+        let c = cockpit();
+        let rt = counted("12\n4\t0\tsrc/x.rs\n", &[]);
+        let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
+        assert_eq!((s.files, s.added), (1, 4));
+    }
+
     #[test]
     fn the_diff_never_asks_git_to_write() {
         // `add -N` would make untracked files appear in `git diff` for free,
@@ -315,6 +526,7 @@ mod tests {
                 path: "/x".into(),
                 weight: 1,
                 idle_after_minutes: 2,
+                muted: None,
             }],
         };
         let c = Cockpit::new(broken);

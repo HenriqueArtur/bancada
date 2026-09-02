@@ -26,6 +26,10 @@ bancada-runtime = { workspace = true }
 tauri = { version = "=2.11.5", features = [] }
 tauri-plugin-dialog = "=2.7.3"
 tauri-plugin-notification = "=2.4.0"
+tauri-plugin-window-state = "=2.4.1"
+# The window hears about a log landing instead of asking every few seconds.
+# See ADR-022.
+notify = "=8.2.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
 

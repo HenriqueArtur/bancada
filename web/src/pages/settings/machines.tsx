@@ -3,7 +3,7 @@ import { BinocularsIcon } from "@phosphor-icons/react";
 import type { Config, Discovery, RuntimeSpec } from "@/core/settings";
 import { BLANK_RUNTIME, THIS_MACHINE, whyNotRuntime } from "@/core/settings";
 import { Badge, Button, Card, Disclosure, Heading, Mono, Text } from "@/components";
-import { ChoiceField, Field } from "@/composites";
+import { ChoiceField, Field, ToggleField } from "@/composites";
 import { Grid, Inset, Row, Stack } from "@/frame";
 import { useDiscovery } from "@/pages/settings/logic";
 import { useText } from "@/lib/language";
@@ -44,6 +44,7 @@ export function MachinesPanel({
                 </Mono>
 
                 <Probed d={found.get(r.id)} />
+                <Running runtime={r} onSave={onRegister} />
               </Stack>
             </Inset>
           </Card>
@@ -52,15 +53,71 @@ export function MachinesPanel({
         <Row gap="normal" wrap>
           <Button tone="outline" onClick={probe} disabled={probing}>
             <BinocularsIcon size={15} />
-            {probing ? t("Probing…") : t("Ask them what they have")}
+            {probing ? t("Checking…") : t("Check every machine")}
           </Button>
           <Text tone="muted" size="sm">
-            {t("Discovery proposes; registering is yours.")}
+            {t(
+              "Looks for a harness on each one and reports its version and whether it is signed in. It registers nothing.",
+            )}
           </Text>
         </Row>
       </Stack>
 
       <AddRuntime config={config} onRegister={onRegister} />
+    </Stack>
+  );
+}
+
+/// What you say runs there, and the way to say it.
+///
+/// Editable on the card rather than only on the form that adds a machine:
+/// the machine bancada runs on is never added by anybody — it is synthesised
+/// — so a field only the add form carried was a field that could never be
+/// filled in for it. `register_runtime` replaces by id, so saying it again
+/// with two more fields *is* the edit.
+function Running({
+  runtime,
+  onSave,
+}: {
+  runtime: RuntimeSpec;
+  onSave: (r: RuntimeSpec) => void;
+}) {
+  const t = useText();
+  const [draft, setDraft] = useState(runtime);
+  const said = [runtime.harness, runtime.model].filter(Boolean).join(" · ");
+  const changed = draft.harness !== runtime.harness || draft.model !== runtime.model;
+
+  return (
+    <Stack gap="snug">
+      <Text as="span" size="sm" tone={said ? "muted" : "faint"}>
+        {said || t("Nothing said about what runs there")}
+      </Text>
+      <Disclosure summary={said ? t("Change it") : t("Say what runs there")}>
+        <Stack gap="normal">
+          <Grid columns={2}>
+            <Field
+              label={t("The harness")}
+              value={draft.harness ?? ""}
+              onChange={(v) => setDraft({ ...draft, harness: v.trim() || null })}
+              hint={t("Shown in the header of every project on this machine.")}
+            />
+            <Field
+              label={t("The model")}
+              value={draft.model ?? ""}
+              onChange={(v) => setDraft({ ...draft, model: v.trim() || null })}
+              hint={t("What you have it pointed at, spelled however you say it.")}
+            />
+          </Grid>
+          <Row gap="normal" wrap>
+            <Button tone="primary" disabled={!changed} onClick={() => onSave(draft)}>
+              {t("Save it")}
+            </Button>
+            <Text tone="faint" size="sm">
+              {t("Declared, never probed. Nothing here checks it against the machine.")}
+            </Text>
+          </Row>
+        </Stack>
+      </Disclosure>
     </Stack>
   );
 }
@@ -79,7 +136,7 @@ function Probed({ d }: { d?: Discovery }) {
   if (!d.harness) {
     return (
       <Text as="span" size="sm" tone="muted">
-        {t("No harness installed")}
+        {t("No harness there")}
       </Text>
     );
   }
@@ -112,16 +169,16 @@ function AddRuntime({
   return (
     <Card>
       <Inset pad="loose">
-        <Disclosure summary={t("Describe another machine")}>
+        <Disclosure summary={t("Add a machine")}>
           <Stack gap="normal">
             <Grid columns={2}>
               <Field
-                label={t("Call it")}
+                label={t("Name")}
                 value={draft.id}
                 onChange={(id) => setDraft({ ...draft, id })}
               />
               <ChoiceField
-                label={t("What kind")}
+                label={t("Kind")}
                 value={draft.kind}
                 onChange={(kind) => setDraft({ ...draft, kind })}
                 choices={["vm", "container", "ssh", "local"].map((v) => ({
@@ -130,27 +187,63 @@ function AddRuntime({
                 }))}
               />
               <Field
-                label={t("What runs in front of every command")}
+                label={t("Command prefix")}
                 value={draft.prefix.join(" ")}
                 onChange={(v) => setDraft({ ...draft, prefix: v.split(/\s+/).filter(Boolean) })}
-                hint={t("For a Lima VM: limactl shell devbox --")}
+                hint={t(
+                  "What goes in front of everything bancada runs there. Use absolute paths — this window does not inherit your shell's PATH.",
+                )}
               />
               <Field
-                label={t("Where the harness keeps state, as this machine spells it")}
+                label={t("The harness's state folder")}
                 value={draft.configDir}
                 onChange={(configDir) => setDraft({ ...draft, configDir })}
+                hint={t(
+                  "Where its sessions are written, as this machine spells it. When the harness runs elsewhere, this is wherever that folder is reachable from here.",
+                )}
               />
               <Field
-                label={t("Its tree, as this machine spells it")}
+                label={t("The folder you share with it")}
                 value={draft.hostRoot}
                 onChange={(hostRoot) => setDraft({ ...draft, hostRoot })}
+                hint={t("As this machine spells it.")}
               />
+              {/* The label names the machine you have just named. The "it"
+                  with no antecedent is not reworded — it stops existing,
+                  because the thing it referred to is on the screen. */}
               <Field
-                label={t("The same tree, as it spells it")}
+                label={t("The same folder, as {name} spells it", {
+                  name: draft.id.trim() || t("that machine"),
+                })}
                 value={draft.guestRoot}
                 onChange={(guestRoot) => setDraft({ ...draft, guestRoot })}
+                hint={t("Where it appears from inside.")}
+              />
+              {/* Declared, not probed. The probe reads a version off the
+                  binary; only you know which model you have it pointed at,
+                  and a header right about the half nobody asked about is
+                  worse than one that stays quiet. */}
+              <Field
+                label={t("The harness")}
+                value={draft.harness ?? ""}
+                onChange={(v) => setDraft({ ...draft, harness: v.trim() || null })}
+                hint={t("Which one runs there. Shown in the header of every project on it.")}
+              />
+              <Field
+                label={t("The model")}
+                value={draft.model ?? ""}
+                onChange={(v) => setDraft({ ...draft, model: v.trim() || null })}
+                hint={t("What you have it pointed at, spelled however you say it.")}
               />
             </Grid>
+            <ToggleField
+              label={t("It shares this machine's filesystem")}
+              on={draft.sharedFs}
+              onChange={(sharedFs) => setDraft({ ...draft, sharedFs })}
+              hint={t(
+                "On when the folder above is a real mount, so files are read directly instead of through a command. Faster, and true of most VM and container mounts.",
+              )}
+            />
             <Row gap="normal" wrap>
               <Button
                 tone="primary"
@@ -162,7 +255,7 @@ function AddRuntime({
                   }
                 }}
               >
-                {t("Register it")}
+                {t("Add it")}
               </Button>
               {blocked ? (
                 <Text tone="muted" size="sm">

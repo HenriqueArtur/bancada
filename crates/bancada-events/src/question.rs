@@ -4,7 +4,8 @@
 /// options each carrying a label, a description and a preview. It is
 /// already structured in the log, so rendering it as cards is drawing
 /// rather than parsing.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Question {
     pub header: String,
     pub prompt: String,
@@ -12,7 +13,8 @@ pub struct Question {
     pub options: Vec<QuestionOption>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionOption {
     pub label: String,
     pub description: String,

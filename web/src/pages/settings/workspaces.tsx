@@ -102,7 +102,7 @@ function held(config: Config, id: string, t: Translate): string {
 /// default and never the other way.
 const BLANK: Workspace = { id: "", export: "metadata" };
 
-function WorkspaceForm({
+export function WorkspaceForm({
   config,
   editing,
   onSubmit,

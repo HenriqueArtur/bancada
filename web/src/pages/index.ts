@@ -5,7 +5,7 @@
 export { CockpitView } from "@/pages/cockpit/view";
 export { useCockpit } from "@/pages/cockpit/logic";
 export { ChangesPage } from "@/pages/review/view";
-export { SaidPage } from "@/pages/said/view";
+export { SessionsPage } from "@/pages/sessions/view";
 export { GitPage } from "@/pages/git/view";
 export { FilesPage } from "@/pages/files/view";
 export { SettingsPage } from "@/pages/settings/view";

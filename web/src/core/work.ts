@@ -11,6 +11,11 @@ export interface Standing {
   /// When the most recent one was last written, in epoch milliseconds.
   lastActivity: number | null;
   unreachable: string | null;
+  /// Whether it may ask for your attention right now. Computed by the core
+  /// from the same rule and the same signal the queue uses — two screens
+  /// deciding this two ways is how a product disagrees with itself about
+  /// what needs you.
+  asking: boolean;
 }
 
 export interface Grouped {
@@ -27,6 +32,9 @@ export interface Work {
 }
 
 export const loadWork = (): Promise<Work> => invoke<Work>("work");
+/// Silence a project, or let it speak again.
+export const muteProject = (id: string, muted: boolean): Promise<Config> =>
+  invoke<Config>("mute_project", { id, muted });
 export const registerWorkspace = (workspace: Workspace, previous?: string): Promise<Config> =>
   invoke<Config>("register_workspace", { workspace, previous: previous ?? null });
 export const forgetWorkspace = (id: string): Promise<Config> =>

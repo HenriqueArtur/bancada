@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BellSlashIcon } from "@phosphor-icons/react";
 import { age, detail, label, type Glance, type Grouped } from "@/core/queue";
 import { Badge, Button, Card, Mono, RowButton, Text } from "@/components";
 import { Row, Stack } from "@/frame";
@@ -15,12 +16,18 @@ export function Group({
   group,
   glance,
   onOpen,
+  onMute,
 }: {
   group: Grouped;
   /// What this session is about. Absent is normal — a log the product could
   /// not read still has a queue row, and the row still works.
   glance?: Glance;
   onOpen?: (project: string) => void;
+  /// Silence the project this came from. Offered here because this is where
+  /// you notice: the row in front of you is the moment you decide a project
+  /// has stopped being yours to worry about, and making you go to another
+  /// screen to say so is how it stays in the queue for another week.
+  onMute?: (project: string) => void;
 }) {
   const t = useText();
   const [open, setOpen] = useState<number | null>(null);
@@ -38,11 +45,24 @@ export function Group({
             {project}
           </Text>
           <Mono tone="faint">{group.session.slice(0, 8)}</Mono>
-          {onOpen && project ? (
-            <Button tone="link" size="sm" className="ml-auto" onClick={() => onOpen(project)}>
-              {t("Open")}
-            </Button>
-          ) : null}
+          <Row gap="tight" align="baseline" className="ml-auto shrink-0">
+            {onMute && project ? (
+              <Button
+                tone="ghost"
+                size="sm"
+                onClick={() => onMute(project)}
+                title={t("Stop {project} asking until there is new work in it", { project })}
+              >
+                <BellSlashIcon size={13} />
+                {t("Silence")}
+              </Button>
+            ) : null}
+            {onOpen && project ? (
+              <Button tone="link" size="sm" onClick={() => onOpen(project)}>
+                {t("Open")}
+              </Button>
+            ) : null}
+          </Row>
         </Row>
         {glance?.title ? (
           <Text size="lg" className="pt-0.5">

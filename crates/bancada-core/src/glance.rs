@@ -26,8 +26,6 @@ pub struct Glance {
     pub says: BTreeMap<String, String>,
     /// Files this session wrote. What a `Review` row is worth saying.
     pub touched: usize,
-    /// Of those, how many no announcement named.
-    pub unannounced: usize,
 }
 
 /// How much of a first message is worth carrying to a queue row.
@@ -45,8 +43,7 @@ impl Glance {
                 .iter()
                 .filter_map(describe)
                 .collect::<BTreeMap<_, _>>(),
-            touched: review.touched.len(),
-            unannounced: review.unannounced.len(),
+            touched: review.touched().len(),
         }
     }
 }
@@ -85,7 +82,12 @@ fn first_human_words(events: &[Event]) -> Option<String> {
     })
 }
 
-fn strip_reminders(text: &str) -> String {
+/// The harness's own notes, cut out of what a person said.
+///
+/// Shared with the chat and the session reader: a `<system-reminder>` is
+/// bookkeeping wearing the user's voice, and every screen that shows their
+/// words has to take it out or show plumbing as speech.
+pub(crate) fn strip_reminders(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while let Some(start) = rest.find("<system-reminder>") {

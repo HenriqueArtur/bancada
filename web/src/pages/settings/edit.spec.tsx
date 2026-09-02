@@ -22,6 +22,8 @@ const config: Config = {
       guestRoot: "/",
       configDir: "/Users/h/.claude",
       sharedFs: true,
+      harness: null,
+      model: null,
     },
   ],
   projects: [
@@ -97,7 +99,7 @@ describe("editing a project", () => {
     render(<ProjectsPanel config={config} onRegister={vi.fn()} onForget={vi.fn()} />);
     fireEvent.click(screen.getByText("Edit"));
     await waitFor(() =>
-      expect((screen.getByPlaceholderText(/Users\/you/) as HTMLInputElement).value).toBe(
+      expect((screen.getByLabelText("Path") as HTMLInputElement).value).toBe(
         "/Users/h/dev/bancada",
       ),
     );

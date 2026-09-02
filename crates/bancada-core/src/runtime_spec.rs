@@ -27,6 +27,16 @@ pub struct RuntimeSpec {
     pub config_dir: String,
     #[serde(default)]
     pub shared_fs: bool,
+    /// Which harness runs here, and which model it is set to.
+    ///
+    /// Declared rather than probed. The probe can read a version off the
+    /// binary but not which model you have it pointed at, and a header that
+    /// named the harness and guessed the model would be right about the half
+    /// nobody was asking about. `None` where you have not said.
+    #[serde(default)]
+    pub harness: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 fn root() -> String {
@@ -58,6 +68,11 @@ impl RuntimeSpec {
             guest_root: "/".to_owned(),
             config_dir: home.join(".claude").display().to_string(),
             shared_fs: true,
+            // Not guessed. The machine bancada runs on may have no harness
+            // on it at all, and a default naming one would put a word in
+            // the header that nothing checked.
+            harness: None,
+            model: None,
         }
     }
 

@@ -4,14 +4,43 @@
 // surface the webview can reach is one folder somebody can read in a
 // sitting — which is what the architecture rule about it is protecting.
 
+use tauri_plugin_window_state::StateFlags;
+
 pub mod commands;
+pub mod watch;
 
 /// The window, and the seam to the core.
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // Where the window was and how big it was, across restarts. A
+        // supervisor is a window you put somewhere on purpose — beside the
+        // terminal, on the second screen — and one that reopens centred at
+        // its default size is one you move every morning.
+        //
+        // Four flags, not all six. `VISIBLE` would let a window that was
+        // hidden when you quit come back hidden, with the dock icon the only
+        // sign it started; `DECORATIONS` restores a title bar the product
+        // never takes away. Neither is a thing anybody meant to save.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    StateFlags::SIZE
+                        | StateFlags::POSITION
+                        | StateFlags::MAXIMIZED
+                        | StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
+        .manage(watch::Watching::default())
+        // Started once the app exists, because the watcher emits to it.
+        .setup(|app| {
+            watch::start(&app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
+            watch::watching,
             commands::attention::attention,
             commands::git::repo,
             commands::git::history,
@@ -20,6 +49,10 @@ pub fn run() {
             commands::preview::preview,
             commands::queue::queue,
             commands::review::review,
+            commands::review::summary,
+            commands::setup::mute_project,
+            commands::sessions::sessions,
+            commands::sessions::chat,
             commands::setup::settings,
             commands::setup::discover,
             commands::setup::register_project,

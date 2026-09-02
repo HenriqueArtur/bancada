@@ -55,7 +55,6 @@ export interface Glance {
   /// What each raised decision says, by the id that raised it.
   says: Record<string, string>;
   touched: number;
-  unannounced: number;
 }
 
 export interface Queue {
@@ -64,6 +63,12 @@ export interface Queue {
   /// How many projects are being read. Distinguishes a quiet cockpit from an
   /// unconfigured one — two states that look identical on an empty screen.
   watching: number;
+  /// How many of those may ask for you, and how many are silenced. Both,
+  /// rather than one and a subtraction: "6 active" beside an empty queue
+  /// says the product is watching and there is nothing to do; the second
+  /// number also says why the other two are not there.
+  asking: number;
+  silenced: number;
   /// Named rather than silent: a project the product could not read looks
   /// exactly like a project with nothing pending.
   unreachable: string[];
@@ -101,10 +106,7 @@ export function detail(r: Ranked, t: Translate, glance?: Glance): string | null 
   if (said) return said;
 
   if (r.item.kind === "Review" && glance && glance.touched > 0) {
-    const files = t.plural(glance.touched, "{n} file changed", "{n} files changed");
-    return glance.unannounced > 0
-      ? `${files} · ${t("{n} unannounced", { n: glance.unannounced })}`
-      : files;
+    return t.plural(glance.touched, "{n} file changed", "{n} files changed");
   }
   return null;
 }

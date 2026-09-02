@@ -22,6 +22,14 @@ export interface RuntimeSpec {
   guestRoot: string;
   configDir: string;
   sharedFs: boolean;
+  /// Which harness runs here, and which model it is set to.
+  ///
+  /// Declared rather than probed. The probe can read a version off the
+  /// binary but not which model you have it pointed at, and a header that
+  /// named the harness and guessed the model would be right about the half
+  /// nobody was asking about. `null` where you have not said.
+  harness: string | null;
+  model: string | null;
 }
 
 export interface Project {
@@ -32,6 +40,13 @@ export interface Project {
   path: string;
   weight: number;
   idleAfterMinutes: number;
+  /// Set while the project is not allowed to ask for you.
+  ///
+  /// Carries when you silenced it and how much work it had then, because a
+  /// session that did not exist then wakes it on its own — you silence a
+  /// project when the work ends, and forgetting to un-silence it is the
+  /// failure an attention supervisor exists to prevent.
+  muted?: { at: number; sessions: number } | null;
 }
 
 export interface Config {
@@ -123,6 +138,19 @@ export function whyNot(
   if (!config.workspaces.some((w) => w.id === p.workspace)) {
     return t("no workspace registered as {id}", { id: p.workspace });
   }
+  // The path is written the way the machine running it spells one, and the
+  // two spellings look alike enough to swap by accident — the form is filled
+  // top to bottom, so the path is often typed while the machine is still the
+  // default. Caught here, because the failure otherwise is silent: the
+  // product looks for logs in a directory computed from the wrong path,
+  // finds none, and shows an empty project.
+  const runs = config.runtimes.find((r) => r.id === p.runtime);
+  if (runs && runs.guestRoot !== "/" && !under(p.path, runs.guestRoot)) {
+    return t("{id} spells its shared folder {root}, and this is not under it", {
+      id: p.runtime,
+      root: runs.guestRoot,
+    });
+  }
   if (p.weight < 1) return t("weight 0 would erase the project from the order");
   return null;
 }
@@ -181,6 +209,9 @@ export const BLANK_RUNTIME: RuntimeSpec = {
   guestRoot: "/",
   configDir: "",
   sharedFs: true,
+  // Blank rather than guessed. The header stays quiet until you say.
+  harness: null,
+  model: null,
 };
 
 /// Why this runtime cannot be registered yet.
@@ -197,4 +228,13 @@ export function whyNotRuntime(r: RuntimeSpec, config: Config, t: Translate): str
   if (!r.configDir.startsWith("/")) return t("that path must be absolute");
   if (r.prefix.length === 0) return t("what goes in front of every command?");
   return null;
+}
+
+/// Whether a path sits inside a directory, by segment.
+///
+/// By segment and not by prefix: `/mnt/development` starts with the letters
+/// of `/mnt/dev` and is somewhere else entirely.
+function under(path: string, root: string): boolean {
+  const at = root.endsWith("/") ? root : `${root}/`;
+  return path === root || path.startsWith(at);
 }
