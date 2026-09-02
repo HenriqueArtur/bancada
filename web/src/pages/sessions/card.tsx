@@ -101,6 +101,17 @@ export function SessionCard({
                 {t("Quieted by a newer session.")}
               </Text>
             ) : null}
+            {/* The other side of the same silence, and never both: a
+                session's own activity is at least its own beginning, so the
+                one you moved to always speaks for itself. Said here rather
+                than only as a badge because this is where the rule is
+                explained, and the rule had only ever been shown from the
+                end where something goes quiet. */}
+            {session.current ? (
+              <Text as="span" size="sm" tone="faint">
+                {t("The session you moved to.")}
+              </Text>
+            ) : null}
           </Row>
         </Stack>
       </Inset>

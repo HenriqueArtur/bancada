@@ -277,6 +277,10 @@ fn the_seam_answers_about_a_real_tree() {
     assert_eq!(alone.len(), 1);
     assert!(row(&alone, "s1").waiting, "the only session there is");
     assert!(!row(&alone, "s1").quieted, "nothing to be quieted by");
+    assert!(
+        row(&alone, "s1").current,
+        "the only one opened, so the last"
+    );
 
     fs::write(bench.log_dir().join("s2.jsonl"), later_session()).expect("a second log");
     let both = bancada_app::commands::sessions::sessions("thing".into()).expect("the sessions");
@@ -286,6 +290,14 @@ fn the_seam_answers_about_a_real_tree() {
         "and it says which kind of silence it is, because only one has a switch"
     );
     assert!(row(&both, "s2").waiting, "the one you moved to");
+    // Both halves of the same rule, from opposite ends. Asserted together
+    // because the failure this fixes was having only the first: the old row
+    // went quiet and nothing on the new one said it was the reason.
+    assert!(row(&both, "s2").current, "nothing named the newer session");
+    assert!(
+        !row(&both, "s1").current,
+        "two sessions claimed to be the one"
+    );
 
     // Named by hand, it asks again — the long-running session that sits idle
     // on purpose. The queue has to agree: two screens deciding this two ways

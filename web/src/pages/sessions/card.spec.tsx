@@ -14,6 +14,7 @@ const session = (over: Partial<Session> = {}): Session => ({
   waiting: false,
   kept: false,
   quieted: false,
+  current: false,
   ...over,
 });
 
@@ -98,6 +99,23 @@ describe("SessionCard", () => {
 
   it("does not blame a newer session for a silence that is not one", () => {
     render(<SessionCard session={session()} now={NOW} onKeep={nothing} />);
+    expect(screen.queryByText("Quieted by a newer session.")).toBeNull();
+  });
+
+  it("says which session you moved to, opposite the silence it caused", () => {
+    // The half that was missing. The rule silenced the old rows and nothing
+    // said which session had done it, so the one you had just opened was
+    // the only row on the screen wearing no mark at all.
+    render(<SessionCard session={session({ current: true })} now={NOW} onKeep={nothing} />);
+    expect(screen.getByText("The session you moved to.")).toBeTruthy();
+  });
+
+  it("never calls one session both quieted and the one you moved to", () => {
+    // A session's own activity is at least its own beginning, so the newest
+    // always speaks for itself and the two can never both be true. The card
+    // draws them in one slot, and two sentences there would contradict.
+    render(<SessionCard session={session()} now={NOW} onKeep={nothing} />);
+    expect(screen.queryByText("The session you moved to.")).toBeNull();
     expect(screen.queryByText("Quieted by a newer session.")).toBeNull();
   });
 

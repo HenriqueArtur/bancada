@@ -152,6 +152,16 @@ impl Cockpit {
         SessionState::quieted(states, now, project.idle_after_ms(), &kept)
     }
 
+    /// Which session of a project you have moved to.
+    ///
+    /// No project and no clock: it is the last session opened, which is a
+    /// fact about the sessions alone. Beside `quieted_in` because the two
+    /// are the same rule from opposite sides, and a screen showing one
+    /// without the other says only which rows went quiet.
+    pub fn current_in(states: &[SessionState]) -> Option<SessionId> {
+        SessionState::current(states).map(|s| s.session.clone())
+    }
+
     /// Rank and group a whole queue.
     pub fn present(items: Vec<QueueItem>, now: Timestamp) -> (Vec<Grouped>, Wip) {
         let groups = group(rank(&items, now));
@@ -380,6 +390,23 @@ mod tests {
         assert_eq!(
             s.unreachable, None,
             "a project that never ran is not a failure"
+        );
+    }
+
+    #[test]
+    fn the_project_says_which_session_you_moved_to() {
+        // The other side of the silence. Held back and moved to are one
+        // rule read from either end, and a screen given only the first can
+        // say which rows went quiet but not which row did it.
+        let spoke = |who: &str, at: i64| MetaEvent::AgentSpoke {
+            session: bancada_meta::SessionId::new(who),
+            at: Timestamp::from_millis(at),
+        };
+        let states = Cockpit::states_of(&[spoke("old", 100), spoke("new", 200)]);
+
+        assert_eq!(
+            Cockpit::current_in(&states).as_ref().map(SessionId::as_str),
+            Some("new")
         );
     }
 

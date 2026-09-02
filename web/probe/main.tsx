@@ -803,6 +803,10 @@ function SESSIONS(now: number) {
       waiting: true,
       kept: false,
       quieted: false,
+      // The one you moved to, and the one that quieted the third. Waiting
+      // *and* current on the same row on purpose: the two badges have to
+      // read as two facts rather than as one repeated.
+      current: true,
     },
     {
       id: "55a56b23-995d-47eb-939e-043b2b441bd0",
@@ -816,6 +820,7 @@ function SESSIONS(now: number) {
       // newer session does not quiet it.
       kept: true,
       quieted: false,
+      current: false,
     },
     {
       id: "3edc4601-1111-2222-3333-444455556666",
@@ -829,6 +834,7 @@ function SESSIONS(now: number) {
       // since. The state that used to go on asking for you forever.
       kept: false,
       quieted: true,
+      current: false,
     },
   ];
 }

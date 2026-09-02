@@ -27,6 +27,13 @@ pub struct SessionView {
     /// Not the same silence as "nothing has happened here", and the screen
     /// says which: one of the two has a switch beside it.
     pub quieted: bool,
+    /// The session you moved to — the last one opened here.
+    ///
+    /// Sent for the same reason as `quieted` and from the same rule: with
+    /// only the subtraction the screen could say which sessions had gone
+    /// quiet and not which one had quieted them, so the session you had
+    /// just opened carried no mark at all.
+    pub current: bool,
 }
 
 /// Every session of one project, newest first.
@@ -86,6 +93,10 @@ pub fn sessions(project: String) -> Result<Vec<SessionView>, String> {
         .iter()
         .map(|s| s.as_str().to_owned())
         .collect();
+    // Every session, not only the ones that produced a row: a project whose
+    // newest session has said nothing yet still has a newest session, and it
+    // is the one doing the quieting.
+    let current = Cockpit::current_in(&states).map(|s| s.as_str().to_owned());
 
     let mut out: Vec<SessionView> = found
         .into_iter()
@@ -93,6 +104,7 @@ pub fn sessions(project: String) -> Result<Vec<SessionView>, String> {
             waiting: waiting.contains(&session.id),
             kept: project.kept.contains(&session.id),
             quieted: quieted.contains(&session.id),
+            current: current.as_deref() == Some(session.id.as_str()),
             session,
         })
         .collect();

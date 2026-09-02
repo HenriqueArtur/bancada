@@ -104,7 +104,7 @@ impl SessionState {
     ) -> Vec<QueueItem> {
         let mut items = Vec::new();
         // No sessions, so nothing to compare against and nothing to walk.
-        let Some(newest) = states.iter().map(|s| s.began).max() else {
+        let Some(newest) = Self::current(states).map(|s| s.began) else {
             return items;
         };
 
@@ -133,6 +133,28 @@ impl SessionState {
         }
 
         items
+    }
+
+    /// The session you moved to: the last one opened.
+    ///
+    /// The other half of [`SessionState::quieted`], and the half that was
+    /// missing. The rule reads opening a session as saying you have moved
+    /// on, but it said so only as a subtraction on the rows it silenced —
+    /// nothing named the session that did the silencing. On screen the one
+    /// you had just opened was drawn exactly like one that had merely gone
+    /// quiet without being quieted, which is the state every session sits
+    /// in for its first `idle_after_ms`. Reported as: the old ones went
+    /// inactive and the new one was never made active.
+    ///
+    /// `began`, not `last_activity`. The question is which session you
+    /// opened last, not which one is moving: a parallel session still
+    /// producing events is not the one you moved to, and it goes on asking
+    /// on its own account rather than on this one's.
+    ///
+    /// Never a session that is quieted — this one's own activity is at
+    /// least its own beginning, so it always speaks for itself.
+    pub fn current(states: &[Self]) -> Option<&Self> {
+        states.iter().max_by_key(|s| s.began)
     }
 
     /// The sessions this rule is holding back.
@@ -391,6 +413,45 @@ mod tests {
         ]);
         assert_eq!(sessions(&q), vec!["old"]);
         assert_eq!(q[0].kind, DecisionKind::Question);
+    }
+
+    #[test]
+    fn the_current_session_is_the_last_one_you_opened() {
+        // The other side of the same fact. `old` is quieted, and something
+        // has to say which session did the quieting — without it the new
+        // one is drawn exactly like a session that has merely gone silent.
+        let states = SessionState::fold(&walked_away());
+        assert_eq!(
+            SessionState::current(&states).map(|s| s.session.clone()),
+            Some(s("new"))
+        );
+    }
+
+    #[test]
+    fn the_one_you_opened_last_is_current_even_while_another_still_runs() {
+        // `busy` is the more recently *active* of the two and is not
+        // quieted, but you did not move to it. Answered from `began`, which
+        // is why the two questions are separate fields.
+        let states = SessionState::fold(&[
+            human("new", 600_000),
+            spoke("new", 610_000),
+            human("busy", 10),
+            spoke("busy", 700_000),
+        ]);
+        assert_eq!(
+            SessionState::current(&states).map(|s| s.session.clone()),
+            Some(s("new"))
+        );
+    }
+
+    #[test]
+    fn the_current_session_is_never_one_of_the_quieted() {
+        // Two names for one row would be a screen contradicting itself, and
+        // the rule makes it impossible: a session's last activity is at
+        // least its own beginning, so the newest always speaks for itself.
+        let states = SessionState::fold(&walked_away());
+        let current = SessionState::current(&states).expect("one").session.clone();
+        assert!(!SessionState::quieted(&states, NOW, IDLE, &[]).contains(&current));
     }
 
     #[test]

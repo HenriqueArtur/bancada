@@ -40,6 +40,12 @@ export interface Session {
   /// happened here. The two look identical on a screen and only one of them
   /// has a switch, so the screen is told which.
   quieted: boolean;
+  /// The session you moved to — the last one opened here.
+  ///
+  /// The other half of `quieted`, and the half that was missing: the rule
+  /// silenced the old rows and nothing said which session had done it, so
+  /// the one you had just opened wore no mark at all.
+  current: boolean;
 }
 
 export const loadSessions = (project: string): Promise<Session[]> =>

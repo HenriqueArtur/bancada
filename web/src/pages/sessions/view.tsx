@@ -44,6 +44,11 @@ export function SessionIndex({
                 </Text>
                 <Row gap="tight">
                   {s.waiting ? <Badge tone="clay">{t("waiting")}</Badge> : null}
+                  {/* Plain, not clay, and for the same reason as `kept`
+                      below: where you are is a fact about the list, not a
+                      summons. Without it the session you had just opened
+                      was the only row on the screen wearing nothing. */}
+                  {s.current ? <Badge>{t("current")}</Badge> : null}
                   {/* Plain, not clay: clay means "this wants you", and a
                       kept session is one you told the queue to go on asking
                       about — which is a setting, not a summons. */}

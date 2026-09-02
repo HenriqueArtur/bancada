@@ -946,6 +946,23 @@ than what to drop is deliberate — you abandon many more sessions than you
 hold, so the list of exceptions stays short and a forgotten mark costs noise
 rather than silence.
 
+### Why the session you moved to is a state of its own
+
+The rule was shipped as a subtraction and nothing else. Old rows went quiet;
+nothing named the session whose opening had quieted them. On the screen that
+left the session you had just opened wearing no mark at all — identical to a
+session that had merely fallen silent without being quieted, which is the
+state every session sits in for its first `idleAfterMinutes`. It was reported
+in exactly those terms: the old ones went inactive and the new one was never
+made active.
+
+So `SessionState::current` names it, read from `began` rather than from
+`last_activity`. The question is which session you opened last, not which one
+is moving — a session running in parallel is more recently *active* and is
+not the one you moved to, and it goes on asking on its own account. The two
+can never both be true of one row: a session's own last activity is at least
+its own beginning, so the newest always speaks for itself.
+
 ### Why a raised decision is exempt
 
 A finished turn can wait; an agent stopped on a question cannot continue at
@@ -967,6 +984,10 @@ before the rule is consulted.
   rather than a second copy of the rule. The screen needs it: a session quiet
   because you moved on and a session quiet because nothing happened look
   identical, and only one of them has a switch.
+- `SessionState::current` names the other end of it, and `queue` takes its own
+  `newest` from there so the two cannot drift. The index, the conversation
+  picker and the card all show it — the picker especially, because it is the
+  one place the whole list is visible while you read one session.
 - The end-to-end test over the three recorded fixtures proves it, and caught
   the wrong expectation first — written the obvious way, one file at a time,
   every call sees a single session and the test passes while proving nothing.
