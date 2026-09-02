@@ -17,6 +17,14 @@ pub struct FileDiff {
     pub path: String,
     pub added: usize,
     pub removed: usize,
+    /// What happened to the file, not just how much of it moved.
+    ///
+    /// A deleted file and a heavily cut one both read as "−300" and are not
+    /// the same news. Taken from the header lines git already prints above
+    /// the first hunk, so nothing extra is asked of the runtime.
+    pub status: Status,
+    /// Where a renamed file used to be. `None` for everything else.
+    pub from: Option<String>,
     pub hunks: Vec<Hunk>,
     /// Stable across runs, changes when the file's diff changes.
     pub fingerprint: String,
@@ -27,8 +35,20 @@ pub struct FileDiff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Hunk {
     pub header: String,
+    /// Where the hunk sits in each side of the file, 1-based, as `@@` says.
+    ///
+    /// Carried across the seam rather than left in `header` because the
+    /// reader needs the lines *between* two hunks — the unchanged body a
+    /// reviewer occasionally has to see to judge the change — and computing
+    /// that from a string means writing a second parser for these six
+    /// characters on the other side, in a language with no tests over it.
+    pub old_start: usize,
+    pub old_lines: usize,
+    pub new_start: usize,
+    pub new_lines: usize,
     pub lines: Vec<Line>,
 }
 
@@ -37,6 +57,19 @@ pub struct Hunk {
 pub struct Line {
     pub kind: LineKind,
     pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Status {
+    /// The default, and deliberately the dullest of the four: a header this
+    /// parser did not recognise describes a file that exists and changed,
+    /// which is true of every case it could have been.
+    #[default]
+    Modified,
+    Added,
+    Deleted,
+    Renamed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -61,6 +94,8 @@ impl Diff {
                     path,
                     added: 0,
                     removed: 0,
+                    status: Status::Modified,
+                    from: None,
                     hunks: Vec::new(),
                     fingerprint: String::new(),
                     fresh: true,
@@ -71,9 +106,30 @@ impl Diff {
                 continue;
             };
 
+            // Between `diff --git` and the first `@@`, git states what it
+            // did to the file. Read before the hunk check below, because
+            // after the first `@@` these words can only be file content.
+            if file.hunks.is_empty()
+                && let Some(what) = told(line)
+            {
+                match what {
+                    Told::Status(s) => file.status = s,
+                    Told::From(old) => {
+                        file.status = Status::Renamed;
+                        file.from = Some(old);
+                    }
+                }
+                continue;
+            }
+
             if line.starts_with("@@") {
+                let (old_start, old_lines, new_start, new_lines) = spans(line);
                 file.hunks.push(Hunk {
                     header: line.to_owned(),
+                    old_start,
+                    old_lines,
+                    new_start,
+                    new_lines,
                     lines: Vec::new(),
                 });
                 continue;
@@ -133,6 +189,58 @@ fn header_path(line: &str) -> Option<String> {
     // now, and that is the one a reviewer opens.
     let b = rest.rfind(" b/")?;
     Some(rest[b + 3..].to_owned())
+}
+
+/// What one of git's header lines says about the file, if anything.
+enum Told {
+    Status(Status),
+    From(String),
+}
+
+/// Read a header line for what git did to the file.
+///
+/// Prefix matching rather than equality: the mode is part of the line
+/// (`new file mode 100644`) and it varies, and a symlink or an executable
+/// bit is still a new file.
+fn told(line: &str) -> Option<Told> {
+    if line.starts_with("new file mode") {
+        return Some(Told::Status(Status::Added));
+    }
+    if line.starts_with("deleted file mode") {
+        return Some(Told::Status(Status::Deleted));
+    }
+    // `rename from` rather than `rename to`: the path the reviewer opens is
+    // already the new one, taken from the `diff --git` line, and what is
+    // missing is where it came from.
+    line.strip_prefix("rename from ")
+        .map(|old| Told::From(old.to_owned()))
+}
+
+/// The two spans in `@@ -12,7 +12,9 @@`, as `(old start, old len, new start,
+/// new len)`.
+///
+/// A missing length means one line — `@@ -1 +1 @@` is what git prints for a
+/// single-line file — and reading that as zero makes the reader believe the
+/// hunk covers nothing, which turns the gap above the next one into an
+/// invitation to expand lines the hunk is already showing.
+///
+/// Anything unparseable gives zeroes rather than an error. This is text a
+/// command printed, so the honest failure is a hunk that offers no expander,
+/// not a review screen that refuses to open.
+fn spans(header: &str) -> (usize, usize, usize, usize) {
+    let mut it = header.split_whitespace().skip(1);
+    let old = span(it.next().unwrap_or_default().strip_prefix('-'));
+    let new = span(it.next().unwrap_or_default().strip_prefix('+'));
+    (old.0, old.1, new.0, new.1)
+}
+
+fn span(s: Option<&str>) -> (usize, usize) {
+    let Some(s) = s else { return (0, 0) };
+    let (start, len) = s.split_once(',').unwrap_or((s, "1"));
+    (
+        start.parse().unwrap_or_default(),
+        len.parse().unwrap_or_default(),
+    )
 }
 
 /// A cheap, stable hash of what the file's diff currently says.
@@ -227,6 +335,91 @@ mod tests {
     fn output_before_any_file_header_is_ignored_rather_than_crashing() {
         let noise = "warning: LF will be replaced\n@@ -1 +1 @@\n+x\n";
         assert!(Diff::parse(noise).files.is_empty());
+    }
+
+    #[test]
+    fn a_hunk_says_where_it_sits_in_both_sides() {
+        let h = &Diff::parse(SAMPLE).files[0].hunks[0];
+        assert_eq!((h.old_start, h.old_lines), (1, 3));
+        assert_eq!((h.new_start, h.new_lines), (1, 4));
+    }
+
+    #[test]
+    fn a_hunk_with_no_length_covers_one_line() {
+        // `@@ -1 +1 @@` is what git prints for a single-line file. Read as
+        // zero, the reader thinks the hunk shows nothing and offers to
+        // expand the line it is already displaying.
+        let h = &Diff::parse("diff --git a/a b/a\n@@ -1 +1 @@\n-x\n+y\n").files[0].hunks[0];
+        assert_eq!((h.old_lines, h.new_lines), (1, 1));
+    }
+
+    #[test]
+    fn a_new_file_starts_at_nothing_on_the_old_side() {
+        let h = &Diff::parse("diff --git a/a b/a\n@@ -0,0 +1,2 @@\n+x\n+y\n").files[0].hunks[0];
+        assert_eq!((h.old_start, h.old_lines), (0, 0));
+        assert_eq!((h.new_start, h.new_lines), (1, 2));
+    }
+
+    #[test]
+    fn the_function_name_git_appends_does_not_confuse_the_spans() {
+        let h = &Diff::parse("diff --git a/a b/a\n@@ -4,2 +9,3 @@ fn open() {\n x\n+y\n").files[0]
+            .hunks[0];
+        assert_eq!((h.old_start, h.new_start), (4, 9));
+    }
+
+    #[test]
+    fn an_unreadable_header_gives_zeroes_rather_than_refusing_the_file() {
+        let h = &Diff::parse("diff --git a/a b/a\n@@ garbage @@\n+x\n").files[0].hunks[0];
+        assert_eq!(
+            (h.old_start, h.old_lines, h.new_start, h.new_lines),
+            (0, 0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn an_ordinary_edit_is_modified() {
+        assert_eq!(Diff::parse(SAMPLE).files[0].status, Status::Modified);
+    }
+
+    #[test]
+    fn a_new_file_says_so_rather_than_looking_like_a_large_edit() {
+        let d = Diff::parse("diff --git a/a b/a\nnew file mode 100644\n@@ -0,0 +1 @@\n+x\n");
+        assert_eq!(d.files[0].status, Status::Added);
+    }
+
+    #[test]
+    fn a_deleted_file_says_so_rather_than_looking_like_a_large_cut() {
+        // Both read as `-300`, and they are not the same news.
+        let d = Diff::parse("diff --git a/a b/a\ndeleted file mode 100644\n@@ -1 +0,0 @@\n-x\n");
+        assert_eq!(d.files[0].status, Status::Deleted);
+    }
+
+    #[test]
+    fn a_rename_carries_where_the_file_used_to_be() {
+        let d = Diff::parse(
+            "diff --git a/old.rs b/new.rs\nsimilarity index 96%\nrename from old.rs\nrename to new.rs\n@@ -1 +1 @@\n-a\n+b\n",
+        );
+        assert_eq!(d.files[0].status, Status::Renamed);
+        assert_eq!(d.files[0].from.as_deref(), Some("old.rs"));
+        assert_eq!(d.files[0].path, "new.rs");
+    }
+
+    #[test]
+    fn the_words_only_count_before_the_first_hunk() {
+        // A file whose *content* contains `new file mode 100644` — this
+        // parser's own test fixtures do. Read as a header it would relabel
+        // an ordinary edit as an addition.
+        let d = Diff::parse("diff --git a/a b/a\n@@ -1,2 +1,2 @@\n-old\n+new file mode 100644\n");
+        assert_eq!(d.files[0].status, Status::Modified);
+    }
+
+    #[test]
+    fn a_header_this_parser_does_not_know_leaves_the_file_modified() {
+        // The dullest of the four answers, and true of every case it could
+        // have been: the file exists and something in it changed.
+        let d = Diff::parse("diff --git a/a b/a\nold mode 100644\n@@ -1 +1 @@\n-a\n+b\n");
+        assert_eq!(d.files[0].status, Status::Modified);
+        assert_eq!(d.files[0].from, None);
     }
 
     fn fingerprints(d: &Diff) -> HashMap<String, String> {
