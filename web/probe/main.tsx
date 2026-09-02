@@ -15,14 +15,28 @@
 /// could not switch off, and a licence file was one line six hundred
 /// characters long.
 import { createRoot } from "react-dom/client";
+import {
+  ClockCounterClockwiseIcon,
+  FolderOpenIcon,
+  GitDiffIcon,
+  QuotesIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
 import { Badge, Card, Heading, Mono, RowButton, Text } from "../src/components";
 import { aliveness, exportsAs } from "../src/core/work";
-import { Divider, Listing, ListingItem, Mount, Page, Row, Stack } from "../src/frame";
-import { Workbench } from "../src/layouts";
+import { Divider, Listing, ListingItem, Mount, Page, Row, Scroller, Stack } from "../src/frame";
+import { Panes, ProjectShell } from "../src/layouts";
+import { FileTree } from "../src/pages/files/tree";
+import { CodeView } from "../src/pages/files/code";
+import { Prose } from "../src/components";
+import { prose } from "../src/core/prose";
 import { WorkspacesPanel } from "../src/pages/settings/workspaces";
+import { ChangedFiles } from "../src/pages/review/changed";
+import { FileSection } from "../src/pages/review/diff";
+import { NOTHING_FILTERED, openOnArrival, sift, totals } from "../src/pages/review/logic";
+import type { FileDiff } from "../src/core/review";
 import { THEME, definition, paletteFor } from "../src/core/monaco-theme";
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() };
@@ -283,11 +297,339 @@ function Settings() {
   );
 }
 
+/// A third thing to look at: the changes workbench, with an invented diff.
+///
+/// Every case that is easy to get wrong and impossible to see in the code:
+/// the four statuses side by side, a joined directory chain, a hunk that
+/// does not start at line one so the gap control appears, a file already
+/// viewed arriving folded, and a rewritten line whose changed words have to
+/// read against the wash they sit on rather than against the page.
+const HUNKS = [
+  {
+    header: "@@ -29,7 +29,15 @@ pub struct FileDiff {",
+    oldStart: 29,
+    oldLines: 7,
+    newStart: 29,
+    newLines: 15,
+    lines: [
+      { kind: "context", text: "#[derive(Debug, Clone, PartialEq, Eq, Serialize)]" },
+      { kind: "added", text: '#[serde(rename_all = "camelCase")]' },
+      { kind: "context", text: "pub struct Hunk {" },
+      { kind: "removed", text: "    pub lines: Vec<Line>," },
+      { kind: "added", text: "    pub old_start: usize," },
+      { kind: "added", text: "    pub lines: Vec<Line>," },
+      { kind: "context", text: "}" },
+    ],
+  },
+  {
+    header: "@@ -88,4 +96,4 @@ impl Diff {",
+    oldStart: 88,
+    oldLines: 4,
+    newStart: 96,
+    newLines: 4,
+    lines: [
+      { kind: "context", text: '            if line.starts_with("@@") {' },
+      { kind: "removed", text: "                let count = old_lines_only(line);" },
+      { kind: "added", text: "                let count = both_spans_of(line);" },
+      { kind: "context", text: "                file.hunks.push(Hunk {" },
+    ],
+  },
+] as FileDiff["hunks"];
+
+const CHANGED: FileDiff[] = [
+  {
+    path: "crates/bancada-core/src/diff.rs",
+    added: 31,
+    removed: 4,
+    status: "modified",
+    from: null,
+    fingerprint: "a",
+    fresh: true,
+    hunks: HUNKS,
+  },
+  {
+    path: "web/src/pages/review/status.tsx",
+    added: 48,
+    removed: 0,
+    status: "added",
+    from: null,
+    fingerprint: "b",
+    fresh: true,
+    hunks: [HUNKS[1]],
+  },
+  {
+    path: "web/src/pages/review/intent.tsx",
+    added: 0,
+    removed: 39,
+    status: "deleted",
+    from: null,
+    fingerprint: "c",
+    fresh: true,
+    hunks: [],
+  },
+  {
+    path: "web/src/pages/said/panel.tsx",
+    added: 2,
+    removed: 2,
+    status: "renamed",
+    from: "web/src/pages/review/intent.tsx",
+    fingerprint: "d",
+    fresh: false,
+    hunks: [HUNKS[1]],
+  },
+  {
+    path: "README.md",
+    added: 4,
+    removed: 1,
+    status: "modified",
+    from: null,
+    fingerprint: "e",
+    fresh: false,
+    hunks: [HUNKS[1]],
+  },
+];
+
+function Changes() {
+  const [filters, setFilters] = useState(NOTHING_FILTERED);
+  const [at, setAt] = useState<string | null>(CHANGED[0].path);
+  const showing = sift(CHANGED, UNANNOUNCED, filters);
+  const sum = totals(showing, UNANNOUNCED);
+  const unfolded = openOnArrival(showing);
+
+  return (
+    <ProjectShell
+      back={
+        <Text as="span" size="sm" tone="muted">
+          ← Needs you
+        </Text>
+      }
+      title={
+        <Row gap="tight" align="baseline">
+          <Text as="span" className="font-medium">
+            bancada
+          </Text>
+          <Text as="span" size="sm" tone="faint">
+            ·
+          </Text>
+          <Text as="span" size="sm" tone="muted">
+            personal
+          </Text>
+        </Row>
+      }
+      aside={
+        <Text as="span" size="sm" tone="faint">
+          2 waiting
+        </Text>
+      }
+      tabs={
+        <Row gap="tight">
+          {(
+            [
+              ["What they said", QuotesIcon],
+              ["Files changed", GitDiffIcon],
+              ["Files", FolderOpenIcon],
+              ["History", ClockCounterClockwiseIcon],
+            ] as const
+          ).map(([n, Glyph]) => (
+            <Row
+              key={n}
+              gap="tight"
+              className={
+                n === "Files changed"
+                  ? "rounded-lg border border-line bg-raised px-2.5 py-1"
+                  : "px-2.5 py-1 text-ink-muted"
+              }
+            >
+              <Glyph size={13} />
+              <Text as="span" size="sm" className="text-inherit">
+                {n}
+              </Text>
+            </Row>
+          ))}
+        </Row>
+      }
+    >
+      <Panes
+        index={
+          <ChangedFiles
+            files={CHANGED}
+            unannounced={UNANNOUNCED}
+            filters={filters}
+            onFilters={setFilters}
+            at={at}
+            onGoTo={setAt}
+          />
+        }
+        subject={
+          <Stack gap="none" className="min-h-0 flex-1">
+            <Row
+              gap="snug"
+              align="baseline"
+              className="shrink-0 border-line border-b bg-ground px-4 py-2.5"
+            >
+              <Text as="span" size="sm">
+                {sum.files} changed files
+              </Text>
+              <Text as="span" size="sm" className="text-sage tabular-nums">
+                +{sum.added}
+              </Text>
+              <Text as="span" size="sm" className="text-alarm tabular-nums">
+                −{sum.removed}
+              </Text>
+              <Text as="span" size="sm" tone="alarm">
+                ▲ {sum.unannounced} unannounced
+              </Text>
+            </Row>
+            <Scroller className="min-h-0 flex-1">
+              <Stack gap="snug" className="p-3">
+                {showing.map((f) => (
+                  <FileSection
+                    key={f.path}
+                    project="bancada"
+                    file={f}
+                    unannounced={UNANNOUNCED.includes(f.path)}
+                    startOpen={unfolded.has(f.path)}
+                    onVouch={() => {}}
+                    onEnter={setAt}
+                  />
+                ))}
+              </Stack>
+            </Scroller>
+          </Stack>
+        }
+      />
+    </ProjectShell>
+  );
+}
+
+const UNANNOUNCED = ["crates/bancada-core/src/diff.rs"];
+
+
+/// A fourth thing to look at: the file pane before anything is open, and the
+/// tree coloured by what git says. Both are cases the code cannot show.
+const TRACKED = {
+  files: {
+    "web/src/app.tsx": "modified" as const,
+    "web/src/core/prose.ts": "untracked" as const,
+    "README.md": "modified" as const,
+  },
+  dirs: { target: "ignored" as const, "web/node_modules": "ignored" as const },
+};
+
+function Files() {
+  const [query, setQuery] = useState("");
+  return (
+    <ProjectShell
+      back={
+        <Text as="span" size="sm" tone="muted">
+          ← Needs you
+        </Text>
+      }
+      title={
+        <Row gap="tight" align="baseline">
+          <Text as="span" className="font-medium">
+            bancada
+          </Text>
+          <Text as="span" size="sm" tone="faint">
+            ·
+          </Text>
+          <Text as="span" size="sm" tone="muted">
+            personal
+          </Text>
+        </Row>
+      }
+      tabs={
+        <Row gap="tight">
+          {(
+            [
+              ["What they said", QuotesIcon],
+              ["Files changed", GitDiffIcon],
+              ["Files", FolderOpenIcon],
+              ["History", ClockCounterClockwiseIcon],
+            ] as const
+          ).map(([n, Glyph]) => (
+            <Row
+              key={n}
+              gap="tight"
+              className={
+                n === "Files"
+                  ? "rounded-lg border border-line bg-raised px-2.5 py-1"
+                  : "px-2.5 py-1 text-ink-muted"
+              }
+            >
+              <Glyph size={13} />
+              <Text as="span" size="sm" className="text-inherit">
+                {n}
+              </Text>
+            </Row>
+          ))}
+        </Row>
+      }
+    >
+      <Panes
+        index={
+          <FileTree
+            project="bancada"
+            onOpen={() => {}}
+            selected={null}
+            worktree={TRACKED}
+            paths={null}
+            query={query}
+            onQuery={setQuery}
+          />
+        }
+        subject={<CodeView project="bancada" path={null} />}
+      />
+    </ProjectShell>
+  );
+}
+
+/// And the commit message, which came out as one ragged blob before it was
+/// parsed. Every construct a commit here actually uses, in one string.
+const MESSAGE = `The application had no mark of its own and wore the Tauri
+default, and in the menu bar it introduced itself as \`bancada\` — the slug,
+not the noun.
+
+Both are the **same mistake**: the identifiers leaked into the places meant
+for a person to read.
+
+- three shapes leaning on a bench, because one is a logo for a thing
+  that does one thing at a time
+- not four, because at 32px the fourth is a smudge
+
+Run it with:
+
+\`\`\`sh
+make check
+\`\`\`
+
+> A summary of a claim is a second claim.`;
+
+function Message() {
+  return (
+    <Page>
+      <Stack gap="normal">
+        <Heading level={1} as="h1">
+          🎨 | a face, and a name that is a name
+        </Heading>
+        <Divider soft />
+        <Prose blocks={prose(MESSAGE)} className="max-w-[68ch]" />
+      </Stack>
+    </Page>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   q.has("settings") ? (
     <Settings />
   ) : q.has("work") ? (
     <Work />
+  ) : q.has("changes") ? (
+    <Changes />
+  ) : q.has("files") ? (
+    <Files />
+  ) : q.has("message") ? (
+    <Message />
   ) : (
     <Workbench
       bar={
