@@ -146,7 +146,12 @@ impl Cockpit {
         }
         let body = String::from_utf8(bytes).ok()?;
         let count = body.lines().count();
-        let mut out = format!("diff --git a/{name} b/{name}\n@@ -0,0 +1,{count} @@\n");
+        // `new file mode` is not decoration: it is what makes the parser
+        // call this added rather than modified, on the same path every
+        // other file takes. Without it, untracked files would need a second
+        // rule somewhere else that says so.
+        let mut out =
+            format!("diff --git a/{name} b/{name}\nnew file mode 100644\n@@ -0,0 +1,{count} @@\n");
         for line in body.lines() {
             out.push('+');
             out.push_str(line);
