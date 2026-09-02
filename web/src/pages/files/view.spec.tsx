@@ -34,7 +34,10 @@ describe("CodeView", () => {
   it("asks for nothing until a file is picked", () => {
     loadFile.mockReset();
     render(<CodeView project="p" path={null} />);
-    expect(screen.getByText("Pick a file.")).toBeTruthy();
+    // The empty pane says what the tree beside it is for. A bare rectangle
+    // asks the reader to work out whether the product is broken or waiting.
+    expect(screen.getByText("Nothing open.")).toBeTruthy();
+    expect(screen.getByText(/Colours and letters beside a name/)).toBeTruthy();
     expect(loadFile).not.toHaveBeenCalled();
   });
 

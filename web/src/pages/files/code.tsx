@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { loadFile } from "@/core/review";
 import { THEME, definition, paletteFor } from "@/core/monaco-theme";
-import { PlainText, Text } from "@/components";
-import { Inset, Mount } from "@/frame";
+import { Mark, PlainText, Text } from "@/components";
+import { Inset, Mount, Stack } from "@/frame";
 import { useText } from "@/lib/language";
 
 /// Whether the document is currently in the dark.
@@ -110,7 +110,7 @@ export function CodeView({ project, path }: { project: string; path: string | nu
     // performs twice a day.
   }, [text, path, dark]);
 
-  if (!path) return <Aside>{t("Pick a file.")}</Aside>;
+  if (!path) return <Nothing />;
   if (failed) return <Aside tone="alarm">{failed}</Aside>;
   if (text === null) return <Aside>{t("Reading…")}</Aside>;
   if (plain) return <PlainText text={text} />;
@@ -159,4 +159,32 @@ const BY_EXT: Record<string, string> = {
 export function languageOf(path: string): string {
   const ext = path.split(".").pop() ?? "";
   return BY_EXT[ext] ?? "plaintext";
+}
+
+/// The pane before anything is open.
+///
+/// The mark, set close enough to the page to be nearly not there, and a
+/// sentence saying what the tree beside it is for. An empty rectangle asks
+/// the reader to work out whether the product is broken or waiting.
+///
+/// No keyboard shortcuts listed. An editor's empty pane lists them because
+/// they exist; naming ones this product has not built yet would be an
+/// advertisement for a feature.
+function Nothing() {
+  const t = useText();
+  return (
+    <Stack gap="normal" align="center" justify="center" className="h-full select-none px-8">
+      <Mark size={104} className="text-line" />
+      <Stack gap="tight" align="center">
+        <Text tone="muted" className="text-center">
+          {t("Nothing open.")}
+        </Text>
+        <Text tone="faint" size="sm" className="max-w-[46ch] text-center">
+          {t(
+            "Pick a file from the tree to read it. Colours and letters beside a name are what git says about it — modified, added, untracked, deleted.",
+          )}
+        </Text>
+      </Stack>
+    </Stack>
+  );
 }

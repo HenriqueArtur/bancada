@@ -1,51 +1,49 @@
 import { useState } from "react";
-import type { Queue } from "@/core/queue";
-import { Mono, Text } from "@/components";
-import { Row } from "@/frame";
-import { Workbench } from "@/layouts";
-import { BackToQueue, type Origin } from "@/pages/_shared";
+import { Mono } from "@/components";
+import { Row, Stack } from "@/frame";
+import { Panes } from "@/layouts";
+import { InsideProject, type Inside } from "@/pages/_shared";
+import { useTracking } from "@/pages/files/logic";
 import { FileTree } from "@/pages/files/tree";
 import { CodeView } from "@/pages/files/code";
 
 /// The tree, and whatever is selected in it.
 ///
-/// Owns its own shell rather than sitting inside the measured one. This is
-/// the screen you came to read a file on, and every pixel spent on margin is
-/// a character of the file you cannot see.
-export function FilesPage({
-  project,
-  queue,
-  from,
-  onBack,
-  tabs,
-}: {
-  project: string;
-  queue: Queue;
-  from: Origin;
-  onBack: () => void;
-  tabs: React.ReactNode;
-}) {
+/// Wears the same chrome as every other screen inside a project, and puts
+/// the path of the open file on its own line under it. The path belongs to
+/// this screen and not to the shell: no other tab has one, and a slot in the
+/// shared bar that only one screen fills is a slot the others have to leave
+/// a hole for.
+export function FilesPage(inside: Inside) {
   const [path, setPath] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const { worktree, paths } = useTracking(inside.project, query.trim() !== "");
 
   return (
-    <Workbench
-      bar={
-        <>
-          <Row gap="snug" align="baseline" className="min-w-0">
-            <BackToQueue queue={queue} from={from} onBack={onBack} />
-            <Text as="span" size="sm" tone="muted">
-              {project}
-            </Text>
-            {/* Where you are, the way an editor says it. Truncated from the
-                left, because the end of a path is the part that identifies
-                the file. */}
-            {path ? <Mono className="truncate">/ {path}</Mono> : null}
+    <InsideProject {...inside}>
+      <Stack gap="none" className="min-h-0 flex-1">
+        {path ? (
+          <Row gap="snug" className="shrink-0 border-line-soft border-b bg-ground px-4 py-1.5">
+            {/* Truncated from the left, because the end of a path is the
+                part that identifies the file. */}
+            <Mono className="truncate">{path}</Mono>
           </Row>
-          {tabs}
-        </>
-      }
-      index={<FileTree project={project} onOpen={setPath} selected={path} />}
-      subject={<CodeView project={project} path={path} />}
-    />
+        ) : null}
+        <Panes
+          index={
+            <FileTree
+              project={inside.project}
+              onOpen={setPath}
+              selected={path}
+              worktree={worktree}
+              paths={paths}
+              query={query}
+              onQuery={setQuery}
+            />
+          }
+          subject={<CodeView project={inside.project} path={path} />}
+        />
+      </Stack>
+    </InsideProject>
   );
 }
