@@ -35,36 +35,6 @@ export function useReview(project: string): Review {
   return { data, failed, vouch };
 }
 
-/// Unannounced first, then what moved since you last looked, then by name.
-///
-/// The index no longer renders in this order — it is a tree, and a tree is
-/// ordered by path or it is not a tree. What this decides now is *where the
-/// screen opens*, which is the same argument doing the same work through a
-/// different affordance: the ranking was never about the shape of the list,
-/// it was about not making you find the surprising file yourself.
-export function readingOrder(files: FileDiff[], unannounced: string[]): FileDiff[] {
-  const surprising = new Set(unannounced);
-  return [...files].sort(
-    (a, b) =>
-      Number(surprising.has(b.path)) - Number(surprising.has(a.path)) ||
-      Number(b.fresh) - Number(a.fresh) ||
-      a.path.localeCompare(b.path),
-  );
-}
-
-/// The file worth scrolling to on arrival, or `null` for none.
-///
-/// Nothing is *not* the same as the first file. Every file is on the page
-/// now, so this decides only where the page lands — and landing on an
-/// arbitrary file when nothing is urgent would claim there is something to
-/// check when there is not. Then the top of the page is the right answer.
-export function firstToRead(files: FileDiff[], unannounced: string[]): string | null {
-  const worth = readingOrder(files, unannounced).filter(
-    (f) => f.fresh || unannounced.includes(f.path),
-  );
-  return worth[0]?.path ?? null;
-}
-
 // ── the index ────────────────────────────────────────────────────────────
 
 /// The extension a file filters under.
@@ -109,7 +79,6 @@ export interface Filters {
   /// opened would be missing from an explicit set and silently hidden.
   exts: string[] | null;
   query: string;
-  onlyUnannounced: boolean;
   hideViewed: boolean;
   hideDeleted: boolean;
 }
@@ -117,19 +86,12 @@ export interface Filters {
 export const NOTHING_FILTERED: Filters = {
   exts: null,
   query: "",
-  onlyUnannounced: false,
   hideViewed: false,
   hideDeleted: false,
 };
 
 export function filtering(f: Filters): boolean {
-  return (
-    f.exts !== null ||
-    f.query.trim() !== "" ||
-    f.onlyUnannounced ||
-    f.hideViewed ||
-    f.hideDeleted
-  );
+  return f.exts !== null || f.query.trim() !== "" || f.hideViewed || f.hideDeleted;
 }
 
 /// The files the filters leave standing, in path order.
@@ -137,12 +99,10 @@ export function filtering(f: Filters): boolean {
 /// Path order and not reading order: this feeds a tree, and a tree whose
 /// leaves are sorted by urgency puts `z.rs` above `a.rs` inside the same
 /// directory for a reason nothing on screen explains.
-export function sift(files: FileDiff[], unannounced: string[], f: Filters): FileDiff[] {
-  const surprising = new Set(unannounced);
+export function sift(files: FileDiff[], f: Filters): FileDiff[] {
   const needle = f.query.trim().toLowerCase();
   return files
     .filter((x) => f.exts === null || f.exts.includes(extensionOf(x.path)))
-    .filter((x) => !f.onlyUnannounced || surprising.has(x.path))
     .filter((x) => !f.hideViewed || x.fresh)
     .filter((x) => !f.hideDeleted || x.status !== "deleted")
     .filter((x) => needle === "" || x.path.toLowerCase().includes(needle))
@@ -153,17 +113,14 @@ export interface Totals {
   files: number;
   added: number;
   removed: number;
-  unannounced: number;
 }
 
 /// The one line at the top: how much there is to read.
-export function totals(files: FileDiff[], unannounced: string[]): Totals {
-  const surprising = new Set(unannounced);
+export function totals(files: FileDiff[]): Totals {
   return {
     files: files.length,
     added: files.reduce((n, f) => n + f.added, 0),
     removed: files.reduce((n, f) => n + f.removed, 0),
-    unannounced: files.filter((f) => surprising.has(f.path)).length,
   };
 }
 

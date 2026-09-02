@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import type { FileDiff } from "@/core/review";
 import { loadFile } from "@/core/review";
-import { Badge, CodeBlock, CodeGap, Mono, RowButton, Text } from "@/components";
+import { CodeBlock, CodeGap, Mono, RowButton, Text } from "@/components";
 import { Row, Stack } from "@/frame";
 import { gapAbove, gapRows, rows, tooBig } from "@/pages/review/logic";
 import { Churn, lookOf, nameOf, StatusIcon } from "@/pages/review/status";
@@ -24,14 +24,12 @@ import { useText } from "@/lib/language";
 export function FileSection({
   project,
   file,
-  unannounced,
   startOpen = true,
   onVouch,
   onEnter,
 }: {
   project: string;
   file: FileDiff;
-  unannounced: boolean;
   /// Whether this one arrives showing its diff. Decided by the page, which
   /// is the only thing that can see how much is already on it.
   startOpen?: boolean;
@@ -130,11 +128,6 @@ export function FileSection({
         >
           {file.path}
         </Mono>
-        {unannounced ? (
-          <Badge tone="alarm" title={t("No session's announcement names this file")}>
-            {t("Unannounced")}
-          </Badge>
-        ) : null}
         <Row gap="none" className="ml-auto">
           <Churn file={file} />
         </Row>

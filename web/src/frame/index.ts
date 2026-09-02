@@ -9,5 +9,6 @@ export { Bleed } from "@/frame/bleed";
 export { Grid, Full } from "@/frame/grid";
 export { Inset, Divider, Scroller } from "@/frame/inset";
 export { Measure, Page } from "@/frame/page";
+export { Resizable } from "@/frame/resizable";
 export { Mount } from "@/frame/mount";
 export { Listing, ListingItem, Region } from "@/frame/listing";

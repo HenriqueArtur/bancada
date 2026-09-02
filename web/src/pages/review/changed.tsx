@@ -32,14 +32,12 @@ import { useText } from "@/lib/language";
 /// and why the screen no longer needs a way out of one.
 export function ChangedFiles({
   files,
-  unannounced,
   filters,
   onFilters,
   at,
   onGoTo,
 }: {
   files: FileDiff[];
-  unannounced: string[];
   filters: Filters;
   onFilters: (f: Filters) => void;
   /// The file the page is showing, so the tree can say where you are
@@ -48,9 +46,8 @@ export function ChangedFiles({
   onGoTo: (path: string) => void;
 }) {
   const t = useText();
-  const showing = sift(files, unannounced, filters);
+  const showing = sift(files, filters);
   const nodes = tree(showing);
-  const surprising = new Set(unannounced);
 
   // Every directory open, and closing is what costs a click. A tree of
   // *changed* files is small and exists to be scanned; arriving to a column
@@ -83,15 +80,7 @@ export function ChangedFiles({
         </Text>
       ) : (
         <Region label={t("Changed files")} className="text-[13.5px]">
-          <Level
-            nodes={nodes}
-            shut={shut}
-            onFold={fold}
-            surprising={surprising}
-            at={at}
-            onGoTo={onGoTo}
-            top
-          />
+          <Level nodes={nodes} shut={shut} onFold={fold} at={at} onGoTo={onGoTo} top />
         </Region>
       )}
     </Stack>
@@ -102,7 +91,6 @@ function Level({
   nodes,
   shut,
   onFold,
-  surprising,
   at,
   onGoTo,
   top,
@@ -110,7 +98,6 @@ function Level({
   nodes: Node[];
   shut: Set<string>;
   onFold: (path: string) => void;
-  surprising: Set<string>;
   at: string | null;
   onGoTo: (path: string) => void;
   top?: boolean;
@@ -127,24 +114,12 @@ function Level({
               </Text>
             </RowButton>
             {shut.has(n.path) ? null : (
-              <Level
-                nodes={n.children}
-                shut={shut}
-                onFold={onFold}
-                surprising={surprising}
-                at={at}
-                onGoTo={onGoTo}
-              />
+              <Level nodes={n.children} shut={shut} onFold={onFold} at={at} onGoTo={onGoTo} />
             )}
           </ListingItem>
         ) : (
           <ListingItem key={n.file.path}>
-            <FileRow
-              file={n.file}
-              unannounced={surprising.has(n.file.path)}
-              at={at === n.file.path}
-              onGoTo={onGoTo}
-            />
+            <FileRow file={n.file} at={at === n.file.path} onGoTo={onGoTo} />
           </ListingItem>
         ),
       )}
@@ -154,12 +129,10 @@ function Level({
 
 function FileRow({
   file,
-  unannounced,
   at,
   onGoTo,
 }: {
   file: FileDiff;
-  unannounced: boolean;
   at: boolean;
   onGoTo: (path: string) => void;
 }) {
@@ -177,20 +150,6 @@ function FileRow({
       <Text as="span" size="sm" className={cn("truncate", look.struck && "line-through")}>
         {leaf(file.path)}
       </Text>
-      {/* The one thing the icon cannot say. Unannounced is not a state of
-          the file — it is a state of what was promised about it — so it
-          rides beside the status rather than replacing it. */}
-      {unannounced ? (
-        <Text
-          as="span"
-          size="sm"
-          tone="alarm"
-          className="shrink-0"
-          title={t("No session announced this file")}
-        >
-          ▲
-        </Text>
-      ) : null}
       <Row gap="none" className="ml-auto">
         <Churn file={file} />
       </Row>
@@ -273,11 +232,6 @@ export function FilterPanel({
         />
       ))}
       <Divider soft />
-      <Tick
-        on={filters.onlyUnannounced}
-        onPick={() => onFilters({ ...filters, onlyUnannounced: !filters.onlyUnannounced })}
-        label={t("Only unannounced")}
-      />
       <Tick
         on={filters.hideViewed}
         onPick={() => onFilters({ ...filters, hideViewed: !filters.hideViewed })}

@@ -63,21 +63,24 @@ fn main() {
                 continue;
             };
             let r = Review::of(&String::from_utf8_lossy(&bytes));
-            if r.touched.is_empty() {
+            if r.episodes.is_empty() {
                 continue;
             }
             let id = log.file_stem().unwrap_or_default().to_string_lossy();
             println!(
-                "\n  {} — {} file(s) touched",
+                "\n  {} — {} turn(s), {} file(s) touched",
                 &id[..8.min(id.len())],
-                r.touched.len()
+                r.episodes.len(),
+                r.touched().len()
             );
-            match &r.intent {
-                Some(i) => println!("    said: {}", first_line(i)),
-                None => println!("    said: nothing before it started"),
-            }
-            for p in &r.unannounced {
-                println!("    unannounced: {p}");
+            // The last few. An afternoon is a hundred turns and the recent
+            // ones are the only ones whose work is still uncommitted.
+            for e in r.episodes.iter().rev().take(5) {
+                match &e.intent {
+                    Some(i) => println!("    said: {}", first_line(i)),
+                    None => println!("    said: nothing before it started"),
+                }
+                println!("      wrote {} file(s)", e.touched.len());
             }
         }
     }

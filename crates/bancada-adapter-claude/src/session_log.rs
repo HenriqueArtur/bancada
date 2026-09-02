@@ -51,6 +51,15 @@ impl SessionLog {
 
         match kind {
             "assistant" => assistant(v, &session, at, out),
+            // `isMeta` is the harness annotating its own transcript — an
+            // image's dimensions, a note about a local command — wearing the
+            // user's role. Reported as a skip rather than as speech, so
+            // `Text { role: User }` can be trusted to mean a person said
+            // this. Anything deriving turns from the log splits on exactly
+            // that, and a turn boundary at every screenshot is no boundary.
+            "user" if v.get("isMeta").and_then(Value::as_bool).unwrap_or(false) => {
+                out.skipped.push(Skip::not_an_event(no, "user:isMeta"));
+            }
             "user" => user(v, &session, at, out),
             k if NOT_EVENTS.contains(&k) => out.skipped.push(Skip::not_an_event(no, k)),
             k => out.skipped.push(Skip::unknown(no, k)),
@@ -257,6 +266,17 @@ mod tests {
             &p.events[0],
             Event::Text { role: Role::User, content, .. } if content == "do the thing"
         ));
+    }
+
+    #[test]
+    fn the_harness_annotating_its_own_transcript_is_not_a_person_speaking() {
+        // `isMeta` carries an image's dimensions, or a note about a local
+        // command. Read as speech it becomes a turn boundary, and a boundary
+        // at every screenshot is no boundary at all.
+        let raw = r#"{"type":"user","isMeta":true,"sessionId":"s1","timestamp":"2026-01-01T00:00:00Z","message":{"content":"[Image: 2200x1240]"}}"#;
+        let p = SessionLog::parse(raw);
+        assert!(p.events.is_empty(), "{:?}", p.events);
+        assert!(matches!(&p.skipped[0].reason, SkipReason::NotAnEvent(k) if k == "user:isMeta"));
     }
 
     #[test]

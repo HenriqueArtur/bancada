@@ -85,7 +85,7 @@ export function LandedView({
   }
 
   const files = landed.diff.files;
-  const sum = totals(files, []);
+  const sum = totals(files);
   const unfolded = openOnArrival(files.map((f) => ({ ...f, fresh: true })));
 
   return (
@@ -138,7 +138,6 @@ export function LandedView({
                 key={f.path}
                 project={project}
                 file={f}
-                unannounced={false}
                 startOpen={unfolded.has(f.path)}
                 onEnter={() => {}}
               />

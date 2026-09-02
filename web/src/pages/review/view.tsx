@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { FileDiff } from "@/core/review";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
@@ -9,7 +9,6 @@ import { ChangedFiles } from "@/pages/review/changed";
 import { anchor, FileSection } from "@/pages/review/diff";
 import {
   type Filters,
-  firstToRead,
   NOTHING_FILTERED,
   openOnArrival,
   sift,
@@ -37,21 +36,6 @@ export function ChangesPage(inside: Inside) {
     // of refs would be a second copy of the list to keep in step.
     document.getElementById(anchor(path))?.scrollIntoView({ block: "start" });
   }, []);
-
-  // Jump to the first file nobody announced, and only that. Arriving
-  // already scrolled is the page deciding you were somewhere else, and it
-  // has to earn that — "you have not read this yet" is true of most of the
-  // list and is not a reason to move anybody. A deviation is.
-  //
-  // Once, too. Vouching for a file reloads the review, and jumping again
-  // would throw the reader back up the page they were working down.
-  const [landed, setLanded] = useState(false);
-  useEffect(() => {
-    if (landed || !data) return;
-    setLanded(true);
-    const first = firstToRead(data.diff.files, data.unannounced);
-    if (first && data.unannounced.includes(first)) requestAnimationFrame(() => goTo(first));
-  }, [data, landed, goTo]);
 
   const shell = (index: React.ReactNode, subject: React.ReactNode) => (
     <InsideProject {...inside}>
@@ -94,13 +78,12 @@ export function ChangesPage(inside: Inside) {
     );
   }
 
-  const showing = sift(data.diff.files, data.unannounced, filters);
+  const showing = sift(data.diff.files, filters);
   const unfolded = openOnArrival(showing);
 
   return shell(
     <ChangedFiles
       files={data.diff.files}
-      unannounced={data.unannounced}
       filters={filters}
       onFilters={setFilters}
       at={at}
@@ -112,7 +95,7 @@ export function ChangesPage(inside: Inside) {
     // pane you cannot reach — with `scrollIntoView` scrolling the whole
     // window instead and carrying the header off screen.
     <Stack gap="none" className="min-h-0 flex-1">
-      <Summary all={data.diff.files} showing={showing} unannounced={data.unannounced} />
+      <Summary all={data.diff.files} showing={showing} />
       <Scroller className="min-h-0 flex-1">
         {showing.length === 0 ? (
           <Text tone="muted" size="sm" className="p-6">
@@ -127,7 +110,6 @@ export function ChangesPage(inside: Inside) {
                 key={f.path}
                 project={project}
                 file={f}
-                unannounced={data.unannounced.includes(f.path)}
                 startOpen={unfolded.has(f.path)}
                 onVouch={vouch}
                 onEnter={setAt}
@@ -145,17 +127,9 @@ export function ChangesPage(inside: Inside) {
 /// The counts are of what is *showing*, and it says so when that is not
 /// everything. A header that keeps reporting seventeen files while the
 /// filter has left you three is a header you learn to ignore.
-function Summary({
-  all,
-  showing,
-  unannounced,
-}: {
-  all: FileDiff[];
-  showing: FileDiff[];
-  unannounced: string[];
-}) {
+function Summary({ all, showing }: { all: FileDiff[]; showing: FileDiff[] }) {
   const t = useText();
-  const sum = totals(showing, unannounced);
+  const sum = totals(showing);
   const hidden = all.length - showing.length;
 
   return (
@@ -173,11 +147,6 @@ function Summary({
       <Text as="span" size="sm" className="text-alarm tabular-nums">
         −{sum.removed}
       </Text>
-      {sum.unannounced > 0 ? (
-        <Text as="span" size="sm" tone="alarm">
-          ▲ {t.plural(sum.unannounced, "{n} unannounced", "{n} unannounced")}
-        </Text>
-      ) : null}
       {hidden > 0 ? (
         <Text as="span" size="sm" tone="faint" className="ml-auto">
           {t.plural(hidden, "{n} filtered out", "{n} filtered out")}

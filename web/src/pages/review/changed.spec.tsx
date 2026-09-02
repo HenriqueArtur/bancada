@@ -27,7 +27,6 @@ const show = (over: Partial<Parameters<typeof ChangedFiles>[0]> = {}) =>
   render(
     <ChangedFiles
       files={files}
-      unannounced={["crates/bancada-core/src/diff.rs"]}
       filters={NOTHING_FILTERED}
       onFilters={vi.fn()}
       at={null}
@@ -76,23 +75,14 @@ describe("ChangedFiles", () => {
     );
   });
 
-  it("marks what nobody announced beside the status, not instead of it", () => {
-    // The two say different things: one is what happened to the file, the
-    // other is what was promised about it.
-    show();
-    expect(screen.getByTitle("No session announced this file")).toBeTruthy();
-    expect(screen.getByTitle("Added")).toBeTruthy();
-  });
-
   it("names each status for anybody who cannot read the icon", () => {
-    show({ files: [file("gone.ts", { status: "deleted" })], unannounced: [] });
+    show({ files: [file("gone.ts", { status: "deleted" })] });
     expect(screen.getByTitle("Deleted")).toBeTruthy();
   });
 
   it("says where a renamed file came from", () => {
     show({
       files: [file("new.ts", { status: "renamed", from: "old.ts" })],
-      unannounced: [],
     });
     expect(screen.getByTitle("Renamed from old.ts")).toBeTruthy();
   });
@@ -116,7 +106,7 @@ describe("ChangedFiles", () => {
   });
 
   it("says a clean tree differently, because it is different news", () => {
-    show({ files: [], unannounced: [] });
+    show({ files: [] });
     expect(screen.getByText(/matches its last commit/)).toBeTruthy();
   });
 });
@@ -164,13 +154,6 @@ describe("the filter panel", () => {
     open({ onFilters });
     fireEvent.click(screen.getByText("Hide viewed"));
     expect(onFilters).toHaveBeenCalledWith(expect.objectContaining({ hideViewed: true }));
-  });
-
-  it("carries the one GitHub does not", () => {
-    const onFilters = vi.fn();
-    open({ onFilters });
-    fireEvent.click(screen.getByText("Only unannounced"));
-    expect(onFilters).toHaveBeenCalledWith(expect.objectContaining({ onlyUnannounced: true }));
   });
 
   it("offers nothing to clear until something is set", () => {

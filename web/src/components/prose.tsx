@@ -29,7 +29,13 @@ export type ProseBlock =
 export function Prose({ blocks, className }: { blocks: ProseBlock[]; className?: string }) {
   return (
     <div
-      className={cn("flex flex-col gap-3 font-serif text-[15px] leading-relaxed", className)}
+      // `anywhere` rather than `break-word`: only `anywhere` also shrinks the
+      // element's min-content width, and without that a long path inside a
+      // flex column still pushes the whole panel sideways.
+      className={cn(
+        "flex flex-col gap-3 font-serif text-[15px] leading-relaxed [overflow-wrap:anywhere]",
+        className,
+      )}
     >
       {blocks.map((b, i) => {
         if (b.kind === "code") {

@@ -8,6 +8,7 @@ pub mod git;
 pub mod preview;
 pub mod queue;
 pub mod review;
+pub mod sessions;
 pub mod setup;
 pub mod tree;
 pub mod work;
