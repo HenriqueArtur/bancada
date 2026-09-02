@@ -59,18 +59,27 @@ export function percent(level: number): number {
   return Math.round(scale(level) * 100);
 }
 
-/// Put the scale on the document.
+/// Put the scale on the document, and say what it is.
 ///
 /// `zoom` rather than a font size. Every measurement in this product is in
 /// pixels — a 248px index, an 11px gutter, a hairline border — and scaling
 /// the root font would leave all of them where they were, growing the text
 /// inside boxes that did not grow with it.
 ///
+/// `--zoom` is written beside it because **`zoom` does not scale `vh`**.
+/// Viewport units resolve against the initial containing block, which zoom
+/// never touches, so a `100vh` box becomes 100vh × scale once scaled and
+/// the whole document starts to scroll — carrying the header off the top,
+/// which is exactly what it did. Anything sized to the window divides by
+/// this to get back to it.
+///
 /// One writer, and everything else reads the document. Two independent
 /// readings of "how large is this" is the shape of the bug that once put a
 /// dark editor on a light page.
 export function apply(level: number): void {
-  document.documentElement.style.zoom = String(scale(level));
+  const factor = scale(level);
+  document.documentElement.style.zoom = String(factor);
+  document.documentElement.style.setProperty("--zoom", String(factor));
 }
 
 /// What a keystroke means, or `null` for one this product has no use for.

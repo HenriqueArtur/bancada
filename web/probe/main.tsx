@@ -57,6 +57,17 @@ document.documentElement.classList.toggle("dark", dark);
 const level = Number(q.get("zoom") ?? 0);
 if (level !== 0) applyZoom(level);
 
+// The bug this guards against does not show in a screenshot: the document
+// gains a scrollbar and the header rides off the top only once somebody
+// scrolls. Printed into the title so a headless render can read it.
+if (q.has("measure")) {
+  setTimeout(() => {
+    const root = document.documentElement;
+    const over = root.scrollHeight - root.clientHeight;
+    document.title = `document overflows by ${over}px`;
+  }, 500);
+}
+
 const LICENSE = `MIT License
 
 Copyright (c) 2026 Henrique Artur

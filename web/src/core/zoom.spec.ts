@@ -160,4 +160,21 @@ describe("apply", () => {
     apply(0);
     expect(document.documentElement.style.zoom).toBe("1");
   });
+
+  it("says what the scale is, because `zoom` does not scale `vh`", () => {
+    // Viewport units resolve against the initial containing block, which
+    // zoom never touches. Without this, a `100vh` pane becomes 100vh × the
+    // scale, the document starts to scroll, and the header rides off the
+    // top of the window — which is exactly what it did.
+    apply(2);
+    expect(document.documentElement.style.getPropertyValue("--zoom")).toBe(String(scale(2)));
+  });
+
+  it("keeps the two in step, so nothing compensates by the wrong number", () => {
+    for (const level of [-3, 0, 4]) {
+      apply(level);
+      const css = document.documentElement.style;
+      expect(css.getPropertyValue("--zoom")).toBe(css.zoom);
+    }
+  });
 });

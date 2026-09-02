@@ -10,8 +10,18 @@ import { cn } from "@/lib/cn";
 /// Owns the viewport height so the panes inside can divide it: a workbench
 /// whose height comes from its content cannot have two independently
 /// scrolling halves.
+///
+/// The height is `100vh` divided by the zoom, and the division is the whole
+/// point. `zoom` does not scale viewport units — they resolve against the
+/// initial containing block, which zoom never touches — so a plain `h-screen`
+/// becomes 100vh × scale the moment somebody presses ⌘+, the document starts
+/// to scroll, and the header rides off the top of the window.
 export function Bleed({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <main className={cn("flex h-screen flex-col overflow-hidden", className)}>{children}</main>
+    <main
+      className={cn("flex h-[calc(100vh/var(--zoom,1))] flex-col overflow-hidden", className)}
+    >
+      {children}
+    </main>
   );
 }
