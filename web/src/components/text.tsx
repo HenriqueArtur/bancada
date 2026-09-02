@@ -69,13 +69,20 @@ export function Mono({
   children,
   tone = "muted",
   className,
+  title,
 }: {
   children: ReactNode;
   tone?: keyof typeof TONE;
   className?: string;
+  /// What the text means when it is truncated, or when the glyph beside it
+  /// is doing the explaining. A path is the common case for both.
+  title?: string;
 }) {
   return (
-    <span className={cn("font-mono text-[12.5px] tabular-nums", TONE[tone], className)}>
+    <span
+      title={title}
+      className={cn("font-mono text-[12.5px] tabular-nums", TONE[tone], className)}
+    >
       {children}
     </span>
   );
