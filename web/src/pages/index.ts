@@ -4,7 +4,9 @@
 /// how it looks. Everything under it is reusable; a page never is.
 export { CockpitView } from "@/pages/cockpit/view";
 export { useCockpit } from "@/pages/cockpit/logic";
-export { ReviewPage } from "@/pages/review/view";
+export { ChangesPage } from "@/pages/review/view";
+export { SaidPage } from "@/pages/said/view";
+export { GitPage } from "@/pages/git/view";
 export { FilesPage } from "@/pages/files/view";
 export { SettingsPage } from "@/pages/settings/view";
 export { WorkPage } from "@/pages/work/view";

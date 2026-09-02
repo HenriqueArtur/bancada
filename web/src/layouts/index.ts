@@ -5,4 +5,4 @@
 /// shell learning about either.
 export { AppShell } from "@/layouts/app-shell";
 export { SettingsDialog, type SettingsSection } from "@/layouts/settings-dialog";
-export { Workbench } from "@/layouts/workbench";
+export { Panes, ProjectShell } from "@/layouts/project-shell";

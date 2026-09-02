@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { Ref, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const GAP = {
@@ -35,6 +35,13 @@ interface Props {
   wrap?: boolean;
   grow?: boolean;
   className?: string;
+  /// An anchor to scroll to, and a handle to watch.
+  ///
+  /// Here rather than in a page because a page may not render a `<div>` at
+  /// all — the whole point of this layer. Two properties of the box, and
+  /// neither of them says anything about what is in it.
+  id?: string;
+  ref?: Ref<HTMLDivElement>;
 }
 
 /// Things in a column, evenly spaced.
@@ -49,9 +56,13 @@ export function Stack({
   justify = "start",
   grow,
   className,
+  id,
+  ref,
 }: Props) {
   return (
     <div
+      id={id}
+      ref={ref}
       className={cn(
         "flex flex-col",
         GAP[gap],
