@@ -22,6 +22,12 @@ export function Tally({ summary }: { summary: Summary | null }) {
         <Text as="span" size="sm" tone="faint">
           {t("Counting what changed…")}
         </Text>
+      ) : !summary.versioned ? (
+        // Not "nothing uncommitted". That is a claim about a repository, and
+        // this project is pointed at a plain directory.
+        <Text as="span" size="sm" tone="faint">
+          {t("Not a git repository.")}
+        </Text>
       ) : summary.files === 0 ? (
         <Text as="span" size="sm" tone="faint">
           {t("Nothing uncommitted.")}

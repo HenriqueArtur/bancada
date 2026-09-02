@@ -27,7 +27,17 @@ import { useEffect, useRef, useState } from "react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "../src/theme.css";
 import { Card, Heading, Mono, RowButton, Text } from "../src/components";
-import { Divider, Listing, ListingItem, Mount, Page, Row, Scroller, Stack } from "../src/frame";
+import {
+  Divider,
+  Inset,
+  Listing,
+  ListingItem,
+  Mount,
+  Page,
+  Row,
+  Scroller,
+  Stack,
+} from "../src/frame";
 import { Panes, ProjectShell } from "../src/layouts";
 import { FileTree } from "../src/pages/files/tree";
 import { CodeView } from "../src/pages/files/code";
@@ -37,6 +47,7 @@ import { SessionCard } from "../src/pages/sessions/card";
 import { ChatPanel } from "../src/pages/sessions/panel";
 import { SessionIndex } from "../src/pages/sessions/view";
 import { Tally } from "../src/pages/_shared/tally";
+import { EmptyState } from "../src/composites";
 import { WorkPage } from "../src/pages/work/view";
 import { ProjectList } from "../src/pages/_shared/switcher";
 import { KeysPanel } from "../src/pages/settings/keys";
@@ -915,6 +926,45 @@ function Talking() {
   );
 }
 
+/// A project pointed at a folder git has never been told about.
+///
+/// The state that produced the bug: `git diff HEAD` in a plain directory
+/// exits 129 with a *usage message*, and the screen printed it. Reproduced
+/// here rather than reasoned about — the whole reason this file exists.
+function Bare() {
+  return (
+    <Page>
+      <Stack gap="airy">
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="This project is not a git repository."
+            detail="Nothing to compare against, so there is no diff and no history. The Files tab still reads the tree, and the sessions still say what happened here."
+          />
+        </Inset>
+        <Divider soft />
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="Nothing has changed here."
+            detail="The tree matches its last commit, down to the last line."
+          />
+        </Inset>
+        <Divider soft />
+        <Inset pad="loose">
+          <EmptyState
+            mark
+            headline="No session has run here yet."
+            detail="When one does, what it is doing and what it last said will be here."
+          />
+        </Inset>
+        <Divider soft />
+        <Tally summary={{ files: 0, added: 0, removed: 0, versioned: false }} />
+      </Stack>
+    </Page>
+  );
+}
+
 /// The list the header's project name opens onto.
 ///
 /// Rendered without its popover, for the reason the test is written that way
@@ -1022,6 +1072,8 @@ createRoot(document.getElementById("root")!).render(
     <Keys />
   ) : q.has("switcher") ? (
     <Switcher />
+  ) : q.has("bare") ? (
+    <Bare />
   ) : (
     <Workbench
       bar={

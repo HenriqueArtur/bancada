@@ -162,6 +162,24 @@ impl Cockpit {
         Ok(Diff::parse(&text))
     }
 
+    /// Whether git has ever been told about this tree.
+    ///
+    /// Asked before the diff rather than read out of its failure. Run in a
+    /// plain directory, `git diff HEAD` exits 129 with a *usage message* —
+    /// so a screen that reported the error reported a crash for one of the
+    /// most ordinary states a project can be in. Pattern-matching that text
+    /// would be reading one version of git's help output.
+    pub fn versioned(&self, project: &Project, host: &dyn Runtime) -> bool {
+        host.exec(&[
+            "git".to_owned(),
+            "-C".to_owned(),
+            project.path.clone(),
+            "rev-parse".to_owned(),
+            "--git-dir".to_owned(),
+        ])
+        .is_ok()
+    }
+
     /// How much has moved, without the diff itself.
     ///
     /// `--numstat` rather than `diff_of(..).summary()`: the footer is on all
@@ -169,6 +187,11 @@ impl Cockpit {
     /// lines of hunks on the tree screen to reach. The untracked files still
     /// cost a read each, exactly as they do for the diff.
     pub fn summary_of(&self, project: &Project, host: &dyn Runtime) -> Result<Summary, String> {
+        if !self.versioned(project, host) {
+            // Three zeroes would be a claim about a repository there is none
+            // of. The footer says which it is.
+            return Ok(Summary::default());
+        }
         let at = project.path.as_str();
         let git = |args: &[&str]| -> Result<String, String> {
             let mut cmd = vec!["git".to_owned(), "-C".to_owned(), at.to_owned()];
@@ -176,7 +199,10 @@ impl Cockpit {
             host.exec(&cmd).map_err(|e| format!("{e:?}"))
         };
 
-        let mut out = Summary::default();
+        let mut out = Summary {
+            versioned: true,
+            ..Summary::default()
+        };
         for line in git(&["diff", "HEAD", "--numstat", "--no-color", "--no-ext-diff"])?.lines() {
             let mut cols = line.split('\t');
             let (Some(added), Some(removed)) = (cols.next(), cols.next()) else {
@@ -430,6 +456,9 @@ mod tests {
             .join("\n");
         FakeRuntime::new(Answers {
             says: vec![
+                // Asked before anything else: a plain directory answers the
+                // diff with a usage message, not with an empty diff.
+                ("rev-parse".into(), ".git".into()),
                 ("numstat".into(), numstat.into()),
                 ("ls-files".into(), names),
             ],
@@ -447,6 +476,27 @@ mod tests {
     }
 
     #[test]
+    fn a_directory_git_has_never_heard_of_is_not_versioned() {
+        // `Answers` refuses an unscripted command, so a runtime told nothing
+        // about `rev-parse` is exactly a machine where it fails.
+        let c = cockpit();
+        let bare = FakeRuntime::new(Answers::default());
+        assert!(!c.versioned(&c.config().projects[0], &bare));
+    }
+
+    #[test]
+    fn a_project_that_is_not_a_repository_summarises_as_nothing_of_the_kind() {
+        // Three zeroes would be a claim about a repository there is none of,
+        // and "nothing uncommitted" is the wrong thing for a screen to say
+        // about a folder somebody is working in.
+        let c = cockpit();
+        let bare = FakeRuntime::new(Answers::default());
+        let s = c.summary_of(&c.config().projects[0], &bare).unwrap();
+        assert!(!s.versioned);
+        assert_eq!((s.files, s.added, s.removed), (0, 0, 0));
+    }
+
+    #[test]
     fn the_summary_counts_both_directions_without_parsing_a_diff() {
         // Three numbers, and the footer that shows them sits on all four
         // screens — the tree screen has no reason to pay for the hunks.
@@ -454,6 +504,7 @@ mod tests {
         let rt = counted("12\t3\tsrc/db.rs\n4\t0\tsrc/x.rs\n", &[]);
         let s = c.summary_of(&c.config().projects[0], &rt).unwrap();
         assert_eq!((s.files, s.added, s.removed), (2, 16, 3));
+        assert!(s.versioned);
     }
 
     #[test]
@@ -491,7 +542,14 @@ mod tests {
         let s = c
             .summary_of(&c.config().projects[0], &counted("", &[]))
             .unwrap();
-        assert_eq!(s, crate::Summary::default());
+        assert_eq!(
+            s,
+            crate::Summary {
+                versioned: true,
+                ..crate::Summary::default()
+            },
+            "a clean repository is not the same fact as no repository"
+        );
     }
 
     #[test]

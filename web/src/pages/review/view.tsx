@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { FileDiff } from "@/core/review";
 import { Text } from "@/components";
-import { Banner } from "@/composites";
+import { Banner, EmptyState } from "@/composites";
 import { Inset, Row, Scroller, Stack } from "@/frame";
 import { Panes } from "@/layouts";
 import { InsideProject, type Inside } from "@/pages/_shared";
@@ -65,6 +65,23 @@ export function ChangesPage(inside: Inside) {
       </Inset>,
     );
   }
+  if (!data.versioned) {
+    // A state, not a failure. Plenty of projects are a folder somebody is
+    // working in, and this screen used to report git's own usage message
+    // for one — which reads as a crash.
+    return shell(
+      null,
+      <Inset pad="loose">
+        <EmptyState
+          mark
+          headline={t("This project is not a git repository.")}
+          detail={t(
+            "Nothing to compare against, so there is no diff and no history. The Files tab still reads the tree, and the sessions still say what happened here.",
+          )}
+        />
+      </Inset>,
+    );
+  }
   if (data.unreachable) {
     return shell(
       null,
@@ -98,11 +115,20 @@ export function ChangesPage(inside: Inside) {
       <Summary all={data.diff.files} showing={showing} />
       <Scroller className="min-h-0 flex-1">
         {showing.length === 0 ? (
-          <Text tone="muted" size="sm" className="p-6">
-            {data.diff.files.length === 0
-              ? t("The tree matches its last commit.")
-              : t("Every file is filtered out.")}
-          </Text>
+          <Inset pad="loose">
+            {data.diff.files.length === 0 ? (
+              <EmptyState
+                mark
+                headline={t("Nothing has changed here.")}
+                detail={t("The tree matches its last commit, down to the last line.")}
+              />
+            ) : (
+              <EmptyState
+                headline={t("Every file is filtered out.")}
+                detail={t("Widen the filter, or clear the search, to see the rest.")}
+              />
+            )}
+          </Inset>
         ) : (
           <Stack gap="snug" className="p-3">
             {showing.map((f) => (

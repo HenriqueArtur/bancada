@@ -31,6 +31,7 @@ const view: ReviewView = {
   diff: { files: [file] },
   told: [],
   unreachable: null,
+  versioned: true,
 };
 
 describe("useReview", () => {

@@ -11,4 +11,10 @@ pub struct Summary {
     pub files: usize,
     pub added: usize,
     pub removed: usize,
+    /// Whether git has been told about this tree at all.
+    ///
+    /// False and three zeroes are not the same fact. "Nothing uncommitted"
+    /// is a claim about a repository, and a project pointed at a plain
+    /// directory has none to make it about.
+    pub versioned: bool,
 }

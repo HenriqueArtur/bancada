@@ -92,6 +92,7 @@ export function SessionsPage(
   ) : sessions.length === 0 ? (
     <Inset pad="loose">
       <EmptyState
+        mark
         headline={t("No session has run here yet.")}
         detail={t("When one does, what it is doing and what it last said will be here.")}
       />
