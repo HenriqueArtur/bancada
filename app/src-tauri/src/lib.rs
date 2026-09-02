@@ -5,13 +5,21 @@
 // sitting — which is what the architecture rule about it is protecting.
 
 pub mod commands;
+pub mod watch;
 
 /// The window, and the seam to the core.
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .manage(watch::Watching::default())
+        // Started once the app exists, because the watcher emits to it.
+        .setup(|app| {
+            watch::start(&app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
+            watch::watching,
             commands::attention::attention,
             commands::git::repo,
             commands::git::history,
@@ -20,6 +28,9 @@ pub fn run() {
             commands::preview::preview,
             commands::queue::queue,
             commands::review::review,
+            commands::review::summary,
+            commands::sessions::sessions,
+            commands::sessions::chat,
             commands::setup::settings,
             commands::setup::discover,
             commands::setup::register_project,

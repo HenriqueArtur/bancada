@@ -15,12 +15,15 @@ import { useText } from "@/lib/language";
 export function CockpitView({
   queue,
   mute,
+  asking,
   onOpenProject,
   onOpenSettings,
   onOpenWork,
 }: {
   queue: Queue;
   mute: string | null;
+  /// The window is asking on a timer because it could not be told.
+  asking: boolean;
   onOpenProject: (project: string) => void;
   onOpenSettings: () => void;
   /// The other surface: everything being watched, waiting or not.
@@ -78,6 +81,17 @@ export function CockpitView({
             />
           ))
         )}
+
+        {/* Said out loud, because the alternative is a window that looks
+            live and is a minute behind. The core could not watch the log
+            folders, so this is a timer. */}
+        {asking ? (
+          <Banner label={t("Not hearing about changes")}>
+            <Text as="span" size="sm" tone="muted">
+              {t("Checking again every minute instead.")}
+            </Text>
+          </Banner>
+        ) : null}
 
         {mute ? (
           <Banner label={t("Cannot reach you outside this window")} tone="alarm">

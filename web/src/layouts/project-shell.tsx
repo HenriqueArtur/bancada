@@ -19,6 +19,9 @@ export function ProjectShell({
   tabs,
   notice,
   measured,
+  footer,
+  chat,
+  chatSide = "right",
   children,
 }: {
   /// The way out, at the far left where it is in every other application.
@@ -32,6 +35,16 @@ export function ProjectShell({
   notice?: ReactNode;
   /// A reading column rather than the whole width.
   measured?: boolean;
+  /// A strip along the bottom, the same on every screen. Outside the panes
+  /// deliberately: it is true of the project, not of whichever half of the
+  /// screen you are reading.
+  footer?: ReactNode;
+  /// The conversation, present on every screen inside a project. A real
+  /// column rather than a drawer over the content: read beside a diff it has
+  /// to stay put, and something that covers what you are comparing it to is
+  /// not a comparison.
+  chat?: ReactNode;
+  chatSide?: "left" | "right";
   children: ReactNode;
 }) {
   return (
@@ -52,13 +65,18 @@ export function ProjectShell({
         </Row>
       </Stack>
       {notice}
-      {measured ? (
-        <Scroller className="min-h-0 flex-1">
-          <Measure className="px-7 pt-8 pb-24">{children}</Measure>
-        </Scroller>
-      ) : (
-        <Fill className="flex min-h-0 flex-col">{children}</Fill>
-      )}
+      <Row gap="none" align="stretch" className="min-h-0 flex-1">
+        {chat && chatSide === "left" ? chat : null}
+        {measured ? (
+          <Scroller className="min-h-0 flex-1">
+            <Measure className="px-7 pt-8 pb-24">{children}</Measure>
+          </Scroller>
+        ) : (
+          <Fill className="flex min-h-0 flex-col">{children}</Fill>
+        )}
+        {chat && chatSide === "right" ? chat : null}
+      </Row>
+      {footer}
     </Bleed>
   );
 }

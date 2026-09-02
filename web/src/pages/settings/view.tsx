@@ -1,13 +1,15 @@
 import { useState } from "react";
 import {
   DesktopTowerIcon,
+  KeyboardIcon,
   PaletteIcon,
   ShieldIcon,
   StackIcon,
   TranslateIcon,
 } from "@phosphor-icons/react";
-import type { Theme } from "@/core/appearance";
+import type { Side, Theme } from "@/core/appearance";
 import type { Language } from "@/core/language";
+import type { Action, Chord } from "@/core/shortcuts";
 import { Text } from "@/components";
 import { Banner } from "@/composites";
 import { Stack } from "@/frame";
@@ -18,6 +20,8 @@ import { MachinesPanel } from "@/pages/settings/machines";
 import { WorkspacesPanel } from "@/pages/settings/workspaces";
 import { AppearancePanel } from "@/pages/settings/appearance";
 import { ZoomPanel } from "@/pages/settings/zoom";
+import { SidePanel } from "@/pages/settings/side";
+import { KeysPanel } from "@/pages/settings/keys";
 import { LanguagePanel } from "@/pages/settings/language";
 import { useText } from "@/lib/language";
 
@@ -32,6 +36,10 @@ export function SettingsPage({
   onChooseLanguage,
   zoom,
   onChooseZoom,
+  side,
+  onChooseSide,
+  keys,
+  onChooseKeys,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,6 +50,10 @@ export function SettingsPage({
   onChooseLanguage: (l: Language | null) => void;
   zoom: number;
   onChooseZoom: (level: number) => void;
+  side: Side;
+  onChooseSide: (s: Side) => void;
+  keys: Record<Action, Chord>;
+  onChooseKeys: (keys: Record<Action, Chord>) => void;
 }) {
   const { config, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
     useSettings(onChanged);
@@ -107,15 +119,23 @@ export function SettingsPage({
           label: t("Appearance"),
           icon: <PaletteIcon size={15} />,
           blurb: t("How the window looks while you read in it."),
-          // Both live here: they are the two things about how the window
-          // looks while you read in it, and a section apiece would make the
-          // list longer without making either easier to find.
+          // All three live here: they are what the window looks like while
+          // you read in it, and a section apiece would make the list longer
+          // without making any of them easier to find.
           panel: (
             <Stack gap="loose">
               <AppearancePanel theme={theme} onChoose={onChooseTheme} />
               <ZoomPanel level={zoom} onChoose={onChooseZoom} />
+              <SidePanel side={side} onChoose={onChooseSide} />
             </Stack>
           ),
+        },
+        {
+          id: "keys",
+          label: t("Keys"),
+          icon: <KeyboardIcon size={15} />,
+          blurb: t("Which keystroke does what, and what is already taken."),
+          panel: <KeysPanel keys={keys} onChange={onChooseKeys} />,
         },
         {
           id: "language",
