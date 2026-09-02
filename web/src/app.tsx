@@ -56,7 +56,15 @@ import {
 } from "@/pages";
 import { Button } from "@/components";
 
-import type { Inside as Shared, Origin } from "@/pages/_shared";
+import type { Inside as Shared } from "@/pages/_shared";
+import {
+  INSIDE,
+  NOWHERE,
+  recall,
+  remember as rememberPlace,
+  type Inside,
+  type Place,
+} from "@/core/place";
 import { useText } from "@/lib/language";
 
 /// What the configuration says about one project, for the chrome above it.
@@ -66,22 +74,17 @@ interface About {
   model: string | null;
 }
 
-type Where =
-  | { at: "cockpit" }
-  | { at: "work" }
-  /// `from` is where the project was opened, so the way back leads there.
-  /// Always sending you to the queue is right half the time, and the other
-  /// half is the product deciding you were somewhere else.
-  | { at: "sessions"; project: string; from: Origin }
-  | { at: "changes"; project: string; from: Origin }
-  | { at: "files"; project: string; from: Origin }
-  | { at: "git"; project: string; from: Origin };
+/// Where you are.
+///
+/// `from` is where the project was opened, so the way back leads there.
+/// Always sending you to the queue is right half the time, and the other
+/// half is the product deciding you were somewhere else.
+type Where = Place;
 
 /// The screens a project has, in the order somebody works through them:
 /// who is working and on what, what changed, the tree it changed, and what
-/// has already landed.
-const INSIDE = ["sessions", "changes", "files", "git"] as const;
-type Inside = (typeof INSIDE)[number];
+/// has already landed. Named in `core/place`, which has to know them to
+/// decide whether where you were last still exists.
 
 /// Out here rather than beside the names: a glyph reads nothing from the
 /// translator, and the tab strip below needs it too.
@@ -125,7 +128,7 @@ function Cockpit({
   onChooseLanguage: (l: Language | null) => void;
 }) {
   const { queue, failed, mute, asking } = useCockpit();
-  const [where, setWhere] = useState<Where>({ at: "cockpit" });
+  const [where, setWhere] = useState<Where>(NOWHERE.place);
   const [settings, setSettings] = useState(false);
   const t = useText();
   const [theme, setTheme] = useState<Theme>(stored);
@@ -182,9 +185,21 @@ function Cockpit({
   // is a diff whose rules nobody stated. The harness rides along because it
   // comes from the same read and answers the same kind of question.
   const [about, setAbout] = useState<Record<string, About>>({});
+  // Nothing is drawn until this has answered. Where you were last is only
+  // restorable once the configuration says which projects still exist, and a
+  // window that opened at the queue and then jumped would read as a bug.
+  const [restored, setRestored] = useState(false);
   useEffect(() => {
     loadSettings()
       .then((c) => {
+        // Where you were, restored here rather than in an effect of its own:
+        // it needs the project list this read just produced, and an effect
+        // watching that list would drag you back to where you started the
+        // morning every time the configuration is re-read.
+        const kept = recall(c.projects.map((p) => p.id));
+        setWhere(kept.place);
+        setChatOpen(kept.chat);
+
         const machine = Object.fromEntries(c.runtimes.map((r) => [r.id, r]));
         setAbout(
           Object.fromEntries(
@@ -201,8 +216,17 @@ function Cockpit({
       })
       // The settings screen says so far better than a header can. Here the
       // honest fallback is to name the project and not its workspace.
-      .catch(() => {});
+      .catch(() => {})
+      // Either way. A configuration that could not be read is a reason to
+      // open at the queue, not a reason to never draw anything.
+      .finally(() => setRestored(true));
   }, []);
+
+  // And kept, whenever it changes. Beside the palette and the zoom, because
+  // it is the same kind of fact: about this window on this machine.
+  useEffect(() => {
+    if (restored) rememberPlace({ place: where, chat: chatOpen });
+  }, [where, chatOpen, restored]);
 
   // Whether the open project is a repository at all. The history tab is only
   // a tab if there is a history; a directory git has never been told about
@@ -290,7 +314,7 @@ function Cockpit({
       </AppShell>
     );
   }
-  if (!queue) return <AppShell title={t("Needs you")}>{null}</AppShell>;
+  if (!queue || !restored) return <AppShell title={t("Needs you")}>{null}</AppShell>;
 
   const dialog = (
     <SettingsPage

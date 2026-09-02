@@ -4,7 +4,11 @@ import { Badge, Button } from "@/components";
 import { useText } from "@/lib/language";
 
 /// Where a project screen was opened from.
-export type Origin = "cockpit" | "work";
+// Imported rather than declared: `core/place` has to know the same two words
+// to decide whether a remembered way back still makes sense, and two
+// declarations of one vocabulary is how they drift.
+import type { Origin } from "@/core/place";
+export type { Origin };
 
 /// The way back to wherever you came from, carrying the count.
 ///
