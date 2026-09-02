@@ -27,6 +27,8 @@ describe("the seam", () => {
       { project: "p", sub: "src" },
     ],
     ["file", () => review.loadFile("p", "a.rs"), "file", { project: "p", path: "a.rs" }],
+    ["worktree", () => review.loadWorktree("p"), "worktree", { project: "p" }],
+    ["paths", () => review.loadPaths("p"), "paths", { project: "p" }],
     ["settings", () => settings.loadSettings(), "settings", {}],
     ["discover", () => settings.discover(), "discover", {}],
     [

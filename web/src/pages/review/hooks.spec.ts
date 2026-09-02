@@ -4,12 +4,14 @@ import type { ReviewView } from "@/core/review";
 
 const loadReview = vi.fn();
 const markSeen = vi.fn();
+const unmarkSeen = vi.fn();
 vi.mock("@/core/review", async () => {
   const real = await vi.importActual<typeof import("@/core/review")>("@/core/review");
   return {
     ...real,
     loadReview: (...a: unknown[]) => loadReview(...a),
     markSeen: (...a: unknown[]) => markSeen(...a),
+    unmarkSeen: (...a: unknown[]) => unmarkSeen(...a),
   };
 });
 
@@ -19,6 +21,8 @@ const file = {
   path: "src/db.rs",
   added: 1,
   removed: 0,
+  status: "modified" as const,
+  from: null,
   fingerprint: "abc",
   fresh: true,
   hunks: [],
@@ -67,5 +71,19 @@ describe("useReview", () => {
     loadReview.mockImplementation(() => Promise.reject(new Error("not a repository")));
     const { result } = renderHook(() => useReview("bancada"));
     await waitFor(() => expect(result.current.failed).toMatch(/not a repository/));
+  });
+
+  it("takes the review back when the file has already been vouched for", async () => {
+    // The same control both ways. A checkbox that only ever ticks is a
+    // checkbox that lied about being one.
+    loadReview.mockReset().mockResolvedValue(view);
+    markSeen.mockReset();
+    unmarkSeen.mockReset();
+    const { result } = renderHook(() => useReview("bancada"));
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+
+    act(() => result.current.vouch({ ...file, fresh: false }));
+    expect(unmarkSeen).toHaveBeenCalledWith("bancada", "src/db.rs");
+    expect(markSeen).not.toHaveBeenCalled();
   });
 });

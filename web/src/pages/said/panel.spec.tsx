@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { IntentPanel } from "@/pages/review/intent";
+import { IntentPanel } from "@/pages/said/panel";
 
 describe("IntentPanel", () => {
   it("quotes the claim rather than summarising it", () => {
