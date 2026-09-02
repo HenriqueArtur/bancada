@@ -86,6 +86,8 @@ describe("useSettings", () => {
         guestRoot: "/",
         configDir: "/s",
         sharedFs: true,
+        harness: null,
+        model: null,
       }),
     );
     act(() => result.current.addWorkspace({ id: "w" }, "old"));

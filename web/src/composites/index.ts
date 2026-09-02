@@ -4,7 +4,7 @@
 /// about the product: `Field` does not know what a project is, `Notice` does
 /// not know what a session is. Whatever needs to know that belongs in a
 /// page.
-export { Field, ChoiceField } from "@/composites/field";
+export { Field, ChoiceField, ToggleField } from "@/composites/field";
 export { Notice, type Tone } from "@/composites/notice";
 export { Section } from "@/composites/section";
 export { EmptyState } from "@/composites/empty-state";

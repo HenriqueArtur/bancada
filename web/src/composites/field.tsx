@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { Input, Label, Select, Text, type Choice } from "@/components";
+import { Input, Label, Select, Text, Toggle, type Choice } from "@/components";
 import { Row, Stack } from "@/frame";
 
 /// A label, its control, and the thing the label could not say.
@@ -58,12 +58,16 @@ export function ChoiceField({
   onChange,
   choices,
   placeholder,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   choices: Choice[];
   placeholder?: string;
+  /// The thing the label could not say, as on `Field`. A choice needs one
+  /// as often as a box does — more, when the options are bare names.
+  hint?: string;
 }) {
   const id = useId();
   return (
@@ -76,6 +80,39 @@ export function ChoiceField({
         choices={choices}
         placeholder={placeholder}
       />
+      {hint ? (
+        <Text size="sm" tone="faint">
+          {hint}
+        </Text>
+      ) : null}
+    </Stack>
+  );
+}
+
+/// A switch, with the thing the switch could not say underneath it.
+///
+/// The label sits *beside* the control rather than above, unlike `Field`:
+/// a switch reads as a sentence you are agreeing with, and a heading over a
+/// tick box asks the reader to work out which way is which.
+export function ToggleField({
+  label,
+  on,
+  onChange,
+  hint,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+  hint?: string;
+}) {
+  return (
+    <Stack gap="tight">
+      <Toggle on={on} onChange={onChange} label={label} />
+      {hint ? (
+        <Text size="sm" tone="faint">
+          {hint}
+        </Text>
+      ) : null}
     </Stack>
   );
 }

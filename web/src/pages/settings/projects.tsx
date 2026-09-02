@@ -162,11 +162,22 @@ function ProjectForm({
         <Grid columns={2}>
           <Full>
             <Field
-              label={t("Where does it live?")}
+              label={t("Path")}
               value={draft.path}
               onChange={setPath}
-              placeholder={
-                local ? "/Users/you/dev/thing" : t("The path as the guest spells it")
+              // The critical fact used to live in the placeholder, which
+              // disappears on the first keystroke — exactly when it is
+              // needed. It names the machine, so there is nothing to work
+              // out about which spelling is wanted.
+              hint={
+                local
+                  ? t("The folder itself.")
+                  : t(
+                      "As {id} spells it — the path you would use inside it, not the one here.",
+                      {
+                        id: draft.runtime,
+                      },
+                    )
               }
               after={
                 // Only for this machine. A guest path cannot be browsed
@@ -195,7 +206,7 @@ function ProjectForm({
           ) : null}
 
           <Field
-            label={t("Call it")}
+            label={t("Name")}
             value={draft.id}
             onChange={(id) => setDraft({ ...draft, id })}
             placeholder={t("From the folder name")}
@@ -210,15 +221,21 @@ function ProjectForm({
             }))}
           />
 
+          {/* Not folded away. This is the confidentiality boundary — which
+              supervisor may read this work, and what it may let out — and it
+              is the one field on the form whose wrong answer is not
+              recoverable by noticing later. */}
+          <ChoiceField
+            label={t("Workspace")}
+            value={draft.workspace}
+            onChange={(workspace) => setDraft({ ...draft, workspace })}
+            choices={config.workspaces.map((w) => ({ value: w.id, label: w.id }))}
+            hint={t("Who this work belongs to, and what its supervisor may let out.")}
+          />
+
           <Full>
-            <Disclosure summary={t("Whose it is, and how fast waiting hurts")}>
+            <Disclosure summary={t("How fast waiting hurts")}>
               <Grid columns={2}>
-                <ChoiceField
-                  label={t("Workspace")}
-                  value={draft.workspace}
-                  onChange={(workspace) => setDraft({ ...draft, workspace })}
-                  choices={config.workspaces.map((w) => ({ value: w.id, label: w.id }))}
-                />
                 <Field
                   label={t("Weight")}
                   value={String(draft.weight)}
@@ -228,9 +245,10 @@ function ProjectForm({
                   )}
                 />
                 <Field
-                  label={t("Quiet for (minutes) before it counts")}
+                  label={t("Quiet for (minutes)")}
                   value={String(draft.idleAfterMinutes)}
                   onChange={(v) => setDraft({ ...draft, idleAfterMinutes: Number(v) || 1 })}
+                  hint={t("How long a finished turn stays quiet before it is worth your eyes.")}
                 />
                 {draft.path ? (
                   <Stack gap="tight" justify="end">

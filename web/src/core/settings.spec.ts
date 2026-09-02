@@ -27,6 +27,8 @@ const config: Config = {
       guestRoot: "/",
       configDir: "/Users/h/.claude",
       sharedFs: true,
+      harness: null,
+      model: null,
     },
     {
       id: "devbox",
@@ -36,6 +38,8 @@ const config: Config = {
       guestRoot: "/",
       configDir: "/state/claude",
       sharedFs: true,
+      harness: null,
+      model: null,
     },
   ],
   projects: [],
@@ -67,6 +71,44 @@ describe("whyNot", () => {
     expect(whyNot({ ...good, runtime: "sunne" }, config, t)).toBe(
       "no runtime registered as sunne",
     );
+  });
+
+  it("refuses a path the machine running it could never see", () => {
+    // The two spellings look alike, and the form is filled top to bottom —
+    // the path is often typed while the machine is still the default. Caught
+    // here because the failure is otherwise silent: the product looks for
+    // logs in a directory computed from the wrong path and finds none.
+    const mounted: Config = {
+      ...config,
+      runtimes: config.runtimes.map((r) =>
+        r.id === "devbox" ? { ...r, guestRoot: "/mnt/dev" } : r,
+      ),
+    };
+    const project = { ...good, runtime: "devbox", path: "/Users/h/dev/thing" };
+    expect(whyNot(project, mounted, t)).toBe(
+      "devbox spells its shared folder /mnt/dev, and this is not under it",
+    );
+    expect(whyNot({ ...project, path: "/mnt/dev/thing" }, mounted, t)).toBeNull();
+  });
+
+  it("does not read a directory whose name merely starts the same", () => {
+    // `/mnt/development` starts with the letters of `/mnt/dev` and is
+    // somewhere else entirely.
+    const mounted: Config = {
+      ...config,
+      runtimes: config.runtimes.map((r) =>
+        r.id === "devbox" ? { ...r, guestRoot: "/mnt/dev" } : r,
+      ),
+    };
+    const project = { ...good, runtime: "devbox", path: "/mnt/development/thing" };
+    expect(whyNot(project, mounted, t)).toMatch(/not under it/);
+    expect(whyNot({ ...project, path: "/mnt/dev" }, mounted, t)).toBeNull();
+  });
+
+  it("asks nothing about the path when a machine maps the whole tree", () => {
+    // `guestRoot` of `/` is the identity, which every path is under. A check
+    // there would refuse nothing and cost a reading.
+    expect(whyNot({ ...good, runtime: "devbox", path: "/anywhere" }, config, t)).toBeNull();
   });
 
   it("refuses a workspace nobody registered", () => {

@@ -22,6 +22,8 @@ const config: Config = {
       guestRoot: "/",
       configDir: "/Users/h/.claude",
       sharedFs: true,
+      harness: null,
+      model: null,
     },
     {
       id: "devbox",
@@ -31,6 +33,8 @@ const config: Config = {
       guestRoot: "/mnt/dev",
       configDir: "/state",
       sharedFs: true,
+      harness: null,
+      model: null,
     },
   ],
 };
@@ -75,7 +79,7 @@ describe("MachinesPanel", () => {
       },
     ]);
     render(<MachinesPanel config={config} onRegister={vi.fn()} />);
-    fireEvent.click(screen.getByText("Ask them what they have"));
+    fireEvent.click(screen.getByText("Check every machine"));
     expect(await screen.findByText(/2\.1\.221 · a@b\.c/)).toBeTruthy();
   });
 
@@ -88,7 +92,7 @@ describe("MachinesPanel", () => {
       },
     ]);
     render(<MachinesPanel config={config} onRegister={vi.fn()} />);
-    fireEvent.click(screen.getByText("Ask them what they have"));
+    fireEvent.click(screen.getByText("Check every machine"));
     expect(await screen.findByText(/logged out/)).toBeTruthy();
   });
 
@@ -98,8 +102,8 @@ describe("MachinesPanel", () => {
       { runtime: "devbox", harness: null, error: "vz: CanRequestStop is not supported" },
     ]);
     render(<MachinesPanel config={config} onRegister={vi.fn()} />);
-    fireEvent.click(screen.getByText("Ask them what they have"));
-    expect(await screen.findByText("No harness installed")).toBeTruthy();
+    fireEvent.click(screen.getByText("Check every machine"));
+    expect(await screen.findByText("No harness there")).toBeTruthy();
     expect(screen.getByText(/CanRequestStop/)).toBeTruthy();
   });
 
@@ -107,34 +111,34 @@ describe("MachinesPanel", () => {
     // Most people describe a runtime a handful of times ever, and a
     // six-field form sitting open makes the common case look as hard.
     render(<MachinesPanel config={config} onRegister={vi.fn()} />);
-    expect(screen.getByText("Describe another machine")).toBeTruthy();
-    expect(screen.queryByText("Register it")).toBeNull();
+    expect(screen.getByText("Add a machine")).toBeTruthy();
+    expect(screen.queryByText("Add it")).toBeNull();
   });
 
   it("refuses a machine until it is described, one reason at a time", () => {
     render(<MachinesPanel config={config} onRegister={vi.fn()} />);
-    fireEvent.click(screen.getByText("Describe another machine"));
+    fireEvent.click(screen.getByText("Add a machine"));
     expect(screen.getByText("give the machine a name")).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Call it"), { target: { value: "this-machine" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "this-machine" } });
     expect(screen.getByText(/belongs to the machine bancada runs on/)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Call it"), { target: { value: "devbox" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "devbox" } });
     expect(screen.getByText("devbox is already registered")).toBeTruthy();
   });
 
   it("hands up a machine once it is fully described", async () => {
     const onRegister = vi.fn();
     render(<MachinesPanel config={config} onRegister={onRegister} />);
-    fireEvent.click(screen.getByText("Describe another machine"));
-    fireEvent.change(screen.getByLabelText("Call it"), { target: { value: "sunne" } });
-    fireEvent.change(screen.getByLabelText(/in front of every command/), {
+    fireEvent.click(screen.getByText("Add a machine"));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "sunne" } });
+    fireEvent.change(screen.getByLabelText("Command prefix"), {
       target: { value: "limactl shell sunne --" },
     });
-    fireEvent.change(screen.getByLabelText(/harness keeps state/), {
+    fireEvent.change(screen.getByLabelText(/state folder/), {
       target: { value: "/state/sunne" },
     });
-    fireEvent.click(screen.getByText("Register it"));
+    fireEvent.click(screen.getByText("Add it"));
 
     await waitFor(() =>
       expect(onRegister).toHaveBeenCalledWith(
