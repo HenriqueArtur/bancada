@@ -14,8 +14,6 @@ pub enum DecisionKind {
     Permission,
     /// A turn ended with work to look at.
     Review,
-    /// The session touched something outside the agreed scope.
-    ScopeEscape,
     /// Nothing has happened for longer than this project's normal.
     Stalled,
 }
@@ -27,7 +25,7 @@ impl DecisionKind {
     /// underlying judgement does not have.
     pub const fn weight(self) -> u32 {
         match self {
-            Self::PlanApproval | Self::ScopeEscape => 4,
+            Self::PlanApproval => 4,
             Self::Question => 3,
             Self::Stalled => 2,
             Self::Review => 2,
