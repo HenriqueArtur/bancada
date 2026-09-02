@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import type { Queue } from "@/core/queue";
 import type { Summary } from "@/core/review";
+import type { Work } from "@/core/work";
 import { Text } from "@/components";
 import { Row } from "@/frame";
 import { ProjectShell } from "@/layouts";
-import { BackToQueue, type Origin } from "@/pages/_shared/back";
+import { BackToQueue } from "@/pages/_shared/back";
 import { Elsewhere } from "@/pages/_shared/elsewhere";
+import { ProjectSwitcher } from "@/pages/_shared/switcher";
 import { Tally } from "@/pages/_shared/tally";
 import { WipBar } from "@/pages/_shared/wip";
 
@@ -21,13 +23,17 @@ export interface Inside {
   /// answer safe.
   workspace: string | null;
   queue: Queue;
-  from: Origin;
   onBack: () => void;
   tabs: ReactNode;
   /// The conversation panel, built once by the shell and shown on every
   /// screen inside the project.
   chat?: ReactNode;
   chatSide?: "left" | "right";
+  /// Every project there is, for the switcher in the header. `null` while
+  /// it is being read.
+  work?: Work | null;
+  onOpen: (project: string) => void;
+  onMute: (project: string, muted: boolean) => void;
   /// How much has moved, for the strip along the bottom. `null` while it is
   /// still being counted — which is not the same as nothing having moved.
   summary?: Summary | null;
@@ -46,11 +52,13 @@ export function InsideProject({
   project,
   workspace,
   queue,
-  from,
   onBack,
   tabs,
   chat,
   chatSide,
+  work,
+  onOpen,
+  onMute,
   summary,
   harness,
   model,
@@ -59,26 +67,16 @@ export function InsideProject({
 }: Inside & { measured?: boolean; children: ReactNode }) {
   return (
     <ProjectShell
-      back={<BackToQueue queue={queue} from={from} onBack={onBack} />}
+      back={<BackToQueue queue={queue} onBack={onBack} />}
       title={
-        <Row gap="tight" align="baseline" className="min-w-0">
-          <Text as="span" className="truncate font-medium">
-            {project}
-          </Text>
-          {workspace ? (
-            <>
-              <Text as="span" size="sm" tone="faint" className="shrink-0">
-                ·
-              </Text>
-              {/* Muted, not faint. This is the confidentiality boundary, and
-                  a word set so light it reads as decoration is a word nobody
-                  checks before trusting what is on the screen. */}
-              <Text as="span" size="sm" tone="muted" className="shrink-0">
-                {workspace}
-              </Text>
-            </>
-          ) : null}
-        </Row>
+        <ProjectSwitcher
+          project={project}
+          workspace={workspace}
+          queue={queue}
+          work={work ?? null}
+          onOpen={onOpen}
+          onMute={onMute}
+        />
       }
       aside={
         <Row gap="normal" align="baseline">

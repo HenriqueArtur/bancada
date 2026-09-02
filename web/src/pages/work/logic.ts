@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { live } from "@/core/live";
 import type { Queue } from "@/core/queue";
 import { loadWork, type Work } from "@/core/work";
 
@@ -21,7 +22,14 @@ export function useWork(): WorkView {
       .catch((e) => setFailed(String(e)));
   }, []);
 
-  useEffect(reload, [reload]);
+  // Kept current the same way everything else is. What this lists is a
+  // session count and a last-written time per project, and both move while
+  // you are looking at them.
+  useEffect(() => {
+    reload();
+    const channel = live(reload);
+    return () => channel.stop();
+  }, [reload]);
   return { work, failed, reload };
 }
 

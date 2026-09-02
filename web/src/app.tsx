@@ -44,6 +44,8 @@ import { AppShell } from "@/layouts";
 import type { Session } from "@/core/sessions";
 import { ChatPanel } from "@/pages/sessions/panel";
 import { useSessions } from "@/pages/sessions/view";
+import { useWork } from "@/pages/work/logic";
+import { muteProject } from "@/core/work";
 import {
   ChangesPage,
   CockpitView,
@@ -127,7 +129,12 @@ function Cockpit({
   language: Language | null;
   onChooseLanguage: (l: Language | null) => void;
 }) {
-  const { queue, failed, mute, asking } = useCockpit();
+  const { queue, failed, mute, asking, reload } = useCockpit();
+  // Every project there is. Read here rather than by the screen that lists
+  // them, because the switcher in every project header lists them too — and
+  // two readings of "which projects exist" is two answers to the question
+  // the whole product is about.
+  const { work, failed: workFailed, reload: reloadWork } = useWork();
   const [where, setWhere] = useState<Where>(NOWHERE.place);
   const [settings, setSettings] = useState(false);
   const t = useText();
@@ -161,6 +168,20 @@ function Cockpit({
   // One step through the project's screens, skipping the one that is not
   // offered. Wraps, because four tabs is a ring and stopping at the end
   // would make the key do nothing once in every four presses.
+  // Silencing writes to the configuration, so both readings of it have to
+  // be told: the queue decides what needs you, and the work list is where
+  // the switch you just flipped is drawn.
+  const silence = (project: string, muted: boolean) => {
+    muteProject(project, muted)
+      .then(() => {
+        reloadWork();
+        void reload();
+      })
+      // The screen keeps showing what the configuration still says. A switch
+      // that moved without the write landing would be a lie.
+      .catch(() => {});
+  };
+
   const move = (what: "tab.next" | "tab.previous") =>
     setWhere((now) => {
       if (!("project" in now)) return now;
@@ -341,7 +362,8 @@ function Cockpit({
           queue={queue}
           mute={mute}
           asking={asking}
-          onOpenProject={(project) => setWhere({ at: "changes", project, from: "cockpit" })}
+          onOpenProject={(project) => setWhere({ at: "changes", project })}
+          onMuteProject={silence}
           onOpenSettings={() => setSettings(true)}
           onOpenWork={() => setWhere({ at: "work" })}
         />
@@ -355,7 +377,14 @@ function Cockpit({
       <>
         <WorkPage
           queue={queue}
-          onOpen={(project) => setWhere({ at: "changes", project, from: "work" })}
+          work={work}
+          failed={workFailed}
+          onReload={() => {
+            reloadWork();
+            void reload();
+          }}
+          onMute={silence}
+          onOpen={(project) => setWhere({ at: "changes", project })}
           onOpenSettings={() => setSettings(true)}
           onOpenQueue={() => setWhere({ at: "cockpit" })}
         />
@@ -370,7 +399,7 @@ function Cockpit({
       shown={shown}
       at={where.at}
       name={NAME}
-      onGo={(at) => setWhere({ at, project: where.project, from: where.from })}
+      onGo={(at) => setWhere({ at, project: where.project })}
       chatOpen={chatOpen}
       chatSide={chatSide}
       chord={keys.chat}
@@ -385,8 +414,13 @@ function Cockpit({
     model: about[where.project]?.model ?? null,
     summary,
     queue,
-    from: where.from,
-    onBack: () => setWhere({ at: where.from }),
+    onBack: () => setWhere({ at: "cockpit" }),
+    work,
+    // The screen comes with you. Switching from one project's diff to
+    // another's and landing on the queue would make the switcher a way to
+    // lose your place.
+    onOpen: (project: string) => setWhere({ at: where.at, project }),
+    onMute: silence,
     tabs,
     chat: chatOpen ? (
       <ChatPanel

@@ -16,7 +16,8 @@ const show = (over: Partial<Parameters<typeof InsideProject>[0]> = {}) =>
       project="bancada"
       workspace="personal"
       queue={queue}
-      from="cockpit"
+      onOpen={vi.fn()}
+      onMute={vi.fn()}
       onBack={vi.fn()}
       tabs={<Text as="span">tabs</Text>}
       {...over}

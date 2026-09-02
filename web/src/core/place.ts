@@ -15,9 +15,7 @@ export type Origin = (typeof OUTSIDE)[number];
 /// ruling out "cockpit" and then "work" leaves a member TypeScript will not
 /// reduce away — and every `where.project` after those two checks is an
 /// error about a property that is provably there.
-export type Place =
-  | { [K in Origin]: { at: K } }[Origin]
-  | { at: Inside; project: string; from: Origin };
+export type Place = { [K in Origin]: { at: K } }[Origin] | { at: Inside; project: string };
 
 export interface Kept {
   place: Place;
@@ -51,18 +49,8 @@ export function recall(known: readonly string[]): Kept {
     if (!INSIDE.includes(at as Inside)) return NOWHERE;
 
     const project = place.project;
-    const from = place.from;
     if (typeof project !== "string" || !known.includes(project)) return { ...NOWHERE, chat };
-    return {
-      place: {
-        at: at as Inside,
-        project,
-        // A `from` that is not one of the two is the queue: the way back has
-        // to lead somewhere, and the queue is where the product starts.
-        from: OUTSIDE.includes(from as Origin) ? (from as Origin) : "cockpit",
-      },
-      chat,
-    };
+    return { place: { at: at as Inside, project }, chat };
   } catch {
     // A window that cannot remember still has to open somewhere.
     return NOWHERE;

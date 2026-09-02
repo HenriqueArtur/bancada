@@ -11,9 +11,9 @@ describe("where you were", () => {
   });
 
   it("comes back to the screen you left, in the project you left it in", () => {
-    remember({ place: { at: "changes", project: "bancada", from: "work" }, chat: true });
+    remember({ place: { at: "changes", project: "bancada" }, chat: true });
     expect(recall(KNOWN)).toEqual({
-      place: { at: "changes", project: "bancada", from: "work" },
+      place: { at: "changes", project: "bancada" },
       chat: true,
     });
   });
@@ -26,7 +26,7 @@ describe("where you were", () => {
   it("refuses a project that is no longer registered, keeping the panel", () => {
     // Reopening onto a diff of something you removed last week is a window
     // whose first act is an error about a name you no longer recognise.
-    remember({ place: { at: "files", project: "gone", from: "cockpit" }, chat: true });
+    remember({ place: { at: "files", project: "gone" }, chat: true });
     expect(recall(KNOWN)).toEqual({ place: { at: "cockpit" }, chat: true });
   });
 
@@ -38,15 +38,18 @@ describe("where you were", () => {
     expect(recall(KNOWN)).toEqual(NOWHERE);
   });
 
-  it("sends you back to the queue when the way back was nonsense", () => {
+  it("ignores a way back that an older build recorded", () => {
+    // `from` used to say which list you opened the project from. The way
+    // back is the queue now, always, and a leftover field is not a reason
+    // to throw away a place that is otherwise still good.
     localStorage.setItem(
       "bancada.place",
       JSON.stringify({
-        place: { at: "git", project: "bancada", from: "elsewhere" },
+        place: { at: "git", project: "bancada", from: "work" },
         chat: false,
       }),
     );
-    expect(recall(KNOWN).place).toEqual({ at: "git", project: "bancada", from: "cockpit" });
+    expect(recall(KNOWN).place).toEqual({ at: "git", project: "bancada" });
   });
 
   it("treats a half-written record as nothing kept", () => {
