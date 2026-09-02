@@ -34,6 +34,14 @@
   --sage: #5d7a4f;
   --sage-wash: #e9efe4;
 
+  /* One step deeper than the wash, for the words inside a changed line.
+     A second tint rather than a border or a weight: the line already sits
+     on the wash, and anything with an edge would draw a box in the middle
+     of running code. It has to be visible *against the wash*, not against
+     the page — which is why these are not just the wash again. */
+  --sage-mark: #cfe0c2;
+  --alarm-mark: #f4cec2;
+
   --ring: color-mix(in srgb, var(--clay) 35%, transparent);
 }
 
@@ -55,6 +63,8 @@
   --alarm-wash: #3b2822;
   --sage: #8ea87c;
   --sage-wash: #2a3126;
+  --sage-mark: #3d4a35;
+  --alarm-mark: #55342a;
 }
 
 @theme inline {
@@ -73,6 +83,8 @@
   --color-alarm-wash: var(--alarm-wash);
   --color-sage: var(--sage);
   --color-sage-wash: var(--sage-wash);
+  --color-sage-mark: var(--sage-mark);
+  --color-alarm-mark: var(--alarm-mark);
   --color-ring: var(--ring);
 
   --font-sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
