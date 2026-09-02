@@ -174,13 +174,26 @@ fn the_seam_answers_about_a_real_tree() {
         "an untracked file is part of the work: {changed:?}"
     );
     assert!(
-        review.unannounced.iter().any(|p| p == "new.md"),
-        "nobody announced new.md: {:?}",
-        review.unannounced
-    );
-    assert!(
         review.diff.files.iter().all(|f| f.fresh),
         "nothing was vouched for yet"
+    );
+
+    // ── how much moved, without the diff ──────────────────────────────────
+    // The footer sits on all four screens, so it counts through its own
+    // call. Whatever it says has to agree with the diff beside it.
+    let summary = bancada_app::commands::review::summary("thing".into()).expect("a summary");
+    assert_eq!(
+        summary.files,
+        review.diff.files.len(),
+        "the footer and the diff must count the same files: {summary:?}"
+    );
+    assert_eq!(
+        (summary.added, summary.removed),
+        (
+            review.diff.files.iter().map(|f| f.added).sum(),
+            review.diff.files.iter().map(|f| f.removed).sum(),
+        ),
+        "and the same lines: {summary:?}"
     );
 
     // ── the file pane ─────────────────────────────────────────────────────
@@ -275,6 +288,18 @@ fn the_seam_answers_about_a_real_tree() {
     bancada_app::commands::setup::register_project(plain, None).expect("registered");
     let none = bancada_app::commands::git::repo("plain".into()).expect("an answer");
     assert!(!none.is_git, "a directory with no repository says so");
+    // And the file list falls back to walking it. `ls-files` is one call in a
+    // repository and nothing at all outside one, so the walk is the only way
+    // the search box has anything to search.
+    let walked = bancada_app::commands::tree::paths("plain".into()).expect("a walk");
+    assert!(
+        walked.iter().any(|p| p.ends_with("s1.jsonl")),
+        "the walk did not recurse into a nested directory: {walked:?}"
+    );
+    assert!(
+        !walked.iter().any(|p| p.contains(".git/")),
+        "the walk went into a repository's own directory: {walked:?}"
+    );
     assert!(
         bancada_app::commands::git::history("plain".into(), 0, 30).is_err(),
         "and asking it for a history is an error"

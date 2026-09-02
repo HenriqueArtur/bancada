@@ -42,17 +42,37 @@ export interface Diff {
   files: FileDiff[];
 }
 
-export interface SessionReview {
+/// How much has moved, in three numbers.
+///
+/// Its own call rather than a corner of the review: the footer sits on all
+/// four screens, and the tree screen asking for thirty thousand lines of
+/// hunks to print "12 files" is the payload mistake this codebase already
+/// made once.
+export interface Summary {
+  files: number;
+  added: number;
+  removed: number;
+}
+
+export const loadSummary = (project: string): Promise<Summary> =>
+  invoke<Summary>("summary", { project });
+
+/// One turn's claim, and the session it came from.
+///
+/// A turn and not a session. A session is an afternoon of them, and one
+/// claim for the whole log freezes at the first thing ever said.
+export interface Told {
   session: string;
   intent: string | null;
   touched: string[];
+  /// Milliseconds, so several sessions read in one order.
+  at: number;
 }
 
 export interface ReviewView {
   diff: Diff;
-  sessions: SessionReview[];
-  /// Changed in the tree and named by no session's announcement.
-  unannounced: string[];
+  /// Newest first.
+  told: Told[];
   unreachable: string | null;
 }
 

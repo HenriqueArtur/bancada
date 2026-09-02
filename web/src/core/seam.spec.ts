@@ -6,6 +6,8 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: (...a: unknown[]) => invoke(...
 const review = await import("@/core/review");
 const settings = await import("@/core/settings");
 const work = await import("@/core/work");
+const sessions = await import("@/core/sessions");
+const chat = await import("@/core/chat");
 const attention = await import("@/core/attention");
 
 /// Every call the webview can make into the core, and what it must be named.
@@ -28,6 +30,7 @@ describe("the seam", () => {
     ],
     ["file", () => review.loadFile("p", "a.rs"), "file", { project: "p", path: "a.rs" }],
     ["worktree", () => review.loadWorktree("p"), "worktree", { project: "p" }],
+    ["how much moved", () => review.loadSummary("p"), "summary", { project: "p" }],
     ["paths", () => review.loadPaths("p"), "paths", { project: "p" }],
     ["settings", () => settings.loadSettings(), "settings", {}],
     ["discover", () => settings.discover(), "discover", {}],
@@ -38,6 +41,13 @@ describe("the seam", () => {
       { path: "/x", runtime: "r" },
     ],
     ["forget a project", () => settings.forgetProject("p"), "forget_project", { id: "p" }],
+    ["sessions", () => sessions.loadSessions("p"), "sessions", { project: "p" }],
+    [
+      "one session's conversation",
+      () => chat.loadChat("p", "s", 20),
+      "chat",
+      { project: "p", session: "s", skip: 20 },
+    ],
     ["work", () => work.loadWork(), "work", {}],
     ["forget a workspace", () => work.forgetWorkspace("w"), "forget_workspace", { id: "w" }],
   ];
@@ -88,6 +98,8 @@ describe("the seam", () => {
       guestRoot: "/",
       configDir: "/s",
       sharedFs: true,
+      harness: null,
+      model: null,
     };
     void settings.registerRuntime(runtime);
     expect(invoke).toHaveBeenCalledWith("register_runtime", { runtime });
