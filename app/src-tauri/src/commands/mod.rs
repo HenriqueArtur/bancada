@@ -4,6 +4,7 @@
 // sibling that `generate_handler!` resolves by path, and a tidy `pub use`
 // silently hides it.
 pub mod attention;
+pub mod git;
 pub mod preview;
 pub mod queue;
 pub mod review;
