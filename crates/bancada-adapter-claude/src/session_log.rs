@@ -60,7 +60,7 @@ impl SessionLog {
             "user" if v.get("isMeta").and_then(Value::as_bool).unwrap_or(false) => {
                 out.skipped.push(Skip::not_an_event(no, "user:isMeta"));
             }
-            "user" => user(v, &session, at, out),
+            "user" => user(v, &session, at, no, out),
             k if NOT_EVENTS.contains(&k) => out.skipped.push(Skip::not_an_event(no, k)),
             k => out.skipped.push(Skip::unknown(no, k)),
         }
@@ -180,18 +180,82 @@ fn question_of(b: &Value) -> Option<Question> {
     })
 }
 
-fn user(v: &Value, session: &SessionId, at: Timestamp, out: &mut Parsed) {
+/// A turn the harness wrote *about* a local command rather than words.
+///
+/// A slash command reaches the log wearing the user's role, spelled as tags
+/// and indented as it was in the terminal:
+///
+/// ```text
+/// <command-name>/clear</command-name>
+///             <command-message>clear</command-message>
+///             <command-args></command-args>
+/// ```
+///
+/// and whatever it printed arrives as a second turn of
+/// `<local-command-stdout>`. Both used to pass through as the person's own
+/// words, so after `/clear` the session card read the markup back at you —
+/// three tags under a heading that says "What you asked for".
+enum Local {
+    /// The command as it was typed.
+    Typed(String),
+    /// What the command printed, or the harness's caveat about it.
+    Echo,
+}
+
+/// The harness's spelling of a local command, if that is what this turn is.
+fn local(text: &str) -> Option<Local> {
+    let t = text.trim_start();
+    if t.starts_with("<local-command-stdout>") || t.starts_with("<local-command-caveat>") {
+        return Some(Local::Echo);
+    }
+    // Only when the turn *begins* with the tag. Somebody pasting it to
+    // report the bug is still somebody speaking — which is how this one
+    // arrived, and matching anywhere would have eaten the report.
+    if !t.starts_with("<command-name>") {
+        return None;
+    }
+    let name = between(t, "command-name")?;
+    // Every recorded invocation carries this tag and every one is empty, so
+    // the joined form is unproven. Dropping the tag instead would show
+    // `/loop` for `/loop 5m` — losing the half that says what was asked.
+    let args = between(t, "command-args").unwrap_or_default();
+    Some(Local::Typed(if args.is_empty() {
+        name.to_owned()
+    } else {
+        format!("{name} {args}")
+    }))
+}
+
+/// What one `<tag>…</tag>` holds, trimmed. `None` if it is not closed.
+fn between<'a>(text: &'a str, tag: &str) -> Option<&'a str> {
+    let rest = &text[text.find(&format!("<{tag}>"))? + tag.len() + 2..];
+    Some(rest[..rest.find(&format!("</{tag}>"))?].trim())
+}
+
+fn user(v: &Value, session: &SessionId, at: Timestamp, no: usize, out: &mut Parsed) {
     let Some(content) = v.get("message").and_then(|m| m.get("content")) else {
         return;
     };
 
     // A human turn spells content as a bare string.
     if let Some(s) = content.as_str() {
+        let said = match local(s) {
+            // Nobody wrote it. Kept as speech it became the last thing you
+            // said, so a session that had just printed `Login successful`
+            // reported that as what you asked the agent for.
+            Some(Local::Echo) => {
+                out.skipped
+                    .push(Skip::not_an_event(no, "user:local-command"));
+                return;
+            }
+            Some(Local::Typed(cmd)) => cmd,
+            None => s.to_owned(),
+        };
         out.events.push(Event::Text {
             session: session.clone(),
             at,
             role: Role::User,
-            content: s.to_owned(),
+            content: said,
         });
         return;
     }
@@ -277,6 +341,104 @@ mod tests {
         let p = SessionLog::parse(raw);
         assert!(p.events.is_empty(), "{:?}", p.events);
         assert!(matches!(&p.skipped[0].reason, SkipReason::NotAnEvent(k) if k == "user:isMeta"));
+    }
+
+    /// A slash command as the harness writes it, indentation included.
+    fn typed(name: &str, args: &str) -> String {
+        line(
+            "user",
+            &format!(
+                r#","message":{{"content":"<command-name>{name}</command-name>\n            <command-message>{}</command-message>\n            <command-args>{args}</command-args>"}}"#,
+                name.trim_start_matches('/')
+            ),
+        )
+    }
+
+    fn spoke(p: &Parsed) -> Vec<&str> {
+        p.events
+            .iter()
+            .filter_map(|e| match e {
+                Event::Text {
+                    role: Role::User,
+                    content,
+                    ..
+                } => Some(content.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_slash_command_reads_as_the_command_and_not_as_its_markup() {
+        // The bug, at the level it was reported: after `/clear`, the card
+        // headed "What you asked for" showed three tags.
+        let p = SessionLog::parse(&typed("/clear", ""));
+        assert_eq!(spoke(&p), vec!["/clear"]);
+    }
+
+    #[test]
+    fn a_command_keeps_the_arguments_it_was_given() {
+        let p = SessionLog::parse(&typed("/code-review", "high"));
+        assert_eq!(spoke(&p), vec!["/code-review high"]);
+    }
+
+    #[test]
+    fn what_a_local_command_printed_is_not_somebody_speaking() {
+        // `/login` prints `Login successful`, and that reported as the last
+        // thing you said is a sentence you never wrote. The whole exchange,
+        // so what survives is visible beside what does not.
+        let raw = [
+            typed("/login", ""),
+            line(
+                "user",
+                r#","message":{"content":"<local-command-stdout>Login successful</local-command-stdout>"}"#,
+            ),
+            line(
+                "assistant",
+                r#","message":{"content":[{"type":"text","text":"Logged in."}]}"#,
+            ),
+        ]
+        .join("\n");
+        let p = SessionLog::parse(&raw);
+        assert_eq!(spoke(&p), vec!["/login"]);
+        assert!(
+            p.skipped.iter().any(
+                |s| matches!(&s.reason, SkipReason::NotAnEvent(k) if k == "user:local-command")
+            )
+        );
+    }
+
+    #[test]
+    fn the_caveat_the_harness_attaches_to_a_command_is_not_speech_either() {
+        let raw = line(
+            "user",
+            r#","message":{"content":"<local-command-caveat>Caveat: the messages below…</local-command-caveat>"}"#,
+        );
+        assert!(SessionLog::parse(&raw).events.is_empty());
+    }
+
+    #[test]
+    fn somebody_quoting_the_markup_is_still_somebody_speaking() {
+        // How this bug was reported: the tags pasted into a sentence. Read
+        // anywhere in the turn rather than at the start of it, the parser
+        // would have eaten the report.
+        let raw = line(
+            "user",
+            r#","message":{"content":"it broke: <command-name>/clear</command-name> came out raw"}"#,
+        );
+        let p = SessionLog::parse(&raw);
+        assert_eq!(
+            spoke(&p),
+            vec!["it broke: <command-name>/clear</command-name> came out raw"]
+        );
+    }
+
+    #[test]
+    fn a_command_line_cut_in_half_stays_the_text_it_is() {
+        // A log truncated mid-write. Guessing a name out of an unclosed tag
+        // would put half a tag on the screen as if it were a command.
+        let raw = line("user", r#","message":{"content":"<command-name>/cle"}"#);
+        assert_eq!(spoke(&SessionLog::parse(&raw)), vec!["<command-name>/cle"]);
     }
 
     #[test]

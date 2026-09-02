@@ -100,6 +100,24 @@ fn criterion_3_a_question_keeps_its_options_labels_descriptions_and_previews() {
 }
 
 #[test]
+fn a_slash_command_is_the_command_and_what_it_printed_is_not_speech() {
+    // Against the recorded turns rather than against tags typed here: the
+    // indentation, the second turn, and the empty `<command-args>` are all
+    // the harness's own, and a hand-written version of them would stop
+    // matching without saying so.
+    let p = parse("events/local-command/event.jsonl");
+    let said: Vec<&str> = p
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            Event::Text { content, .. } => Some(content.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(said, vec!["/clear"], "the markup reached the screen");
+}
+
+#[test]
 fn criterion_4_an_unknown_line_type_is_named_and_parsing_continues() {
     let mut log = load("simple-read/session.jsonl");
     log.push_str(r#"{"type":"widget","sessionId":"s","timestamp":"2026-01-01T00:00:00.000Z"}"#);

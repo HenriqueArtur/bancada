@@ -1,0 +1,16 @@
+{
+  "kind": "extracted",
+  "event": "local command",
+  "why": "A slash command is typed at a prompt, so no scripted print-mode session can record one. Taken from a real interactive session: `/clear`, and the turn carrying what it printed.",
+  "verbatim": "message.content",
+  "normalised": [
+    "sessionId",
+    "uuid",
+    "parentUuid",
+    "promptId",
+    "timestamp",
+    "cwd"
+  ],
+  "dropped": ["session_id", "slug"],
+  "lines": 2
+}

@@ -366,6 +366,19 @@ mod tests {
     }
 
     #[test]
+    fn a_slash_command_is_a_bubble_saying_the_command() {
+        // The conversation shows the same turn the card does, so the markup
+        // came out raw in both places. What it printed is not a bubble at
+        // all: an empty `<local-command-stdout>` is nobody speaking.
+        let c = chat(&log(&[
+            &user("<command-name>/clear</command-name>\n            <command-args></command-args>"),
+            &user("<local-command-stdout></local-command-stdout>"),
+        ]));
+        assert_eq!(c.said.len(), 1);
+        assert_eq!(words(&c.said[0]), "/clear");
+    }
+
+    #[test]
     fn blank_prose_beside_a_tool_call_is_not_a_message() {
         // The harness writes one. Kept, every working session's conversation
         // is half empty bubbles.
