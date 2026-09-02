@@ -27,7 +27,6 @@ const glance = (over: Partial<Glance> = {}): Glance => ({
   title: null,
   says: {},
   touched: 0,
-  unannounced: 0,
   ...over,
 });
 
@@ -43,14 +42,6 @@ describe("detail", () => {
 
   it("says the singular, because one file will happen constantly", () => {
     expect(detail(ranked(), t, glance({ touched: 1 }))).toBe("1 file changed");
-  });
-
-  it("puts the deviation in the row, where it can be triaged", () => {
-    // The short list worth reading is the one nobody announced. Making you
-    // open the row to find that out is what this whole line exists to stop.
-    expect(detail(ranked(), t, glance({ touched: 12, unannounced: 3 }))).toBe(
-      "12 files changed · 3 unannounced",
-    );
   });
 
   it("adds nothing rather than something empty", () => {

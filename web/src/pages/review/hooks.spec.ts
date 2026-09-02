@@ -29,8 +29,7 @@ const file = {
 };
 const view: ReviewView = {
   diff: { files: [file] },
-  sessions: [],
-  unannounced: [],
+  told: [],
   unreachable: null,
 };
 

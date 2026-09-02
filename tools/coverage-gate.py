@@ -45,6 +45,13 @@ POLICY = [
         "a dock badge and a notification and nothing else; every decision it "
         "acts on is made in `core/attention.ts`, which is at a hundred",
     ),
+    (
+        "app/src-tauri/src/watch.rs",
+        None,
+        "a filesystem watcher and the thread that owns it; every decision it "
+        "makes — which directories are worth watching — is `Cockpit::watched`, "
+        "which is at a hundred. What is left needs a live window to emit to",
+    ),
     ("web/src/main.tsx", None, "the root render"),
     ("web/src/app.tsx", None, "which screen is showing — arrangement, and the shell"),
     ("web/src/frame/", None, "how things sit; there is nothing in it to decide"),

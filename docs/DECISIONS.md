@@ -776,3 +776,57 @@ not the same thing.
 - Narrow with `find_map(…).expect(…)` rather than `let … else { panic! }`.
   The failure arm then lives in `Option::expect`, in the standard library,
   instead of in a line no passing test ever reaches.
+
+---
+
+## ADR-022 · The window is told, not asked
+
+**Accepted.** The core watches the harness's log folders and emits one event;
+the window listens. Polling stays as a named fallback.
+
+### Context
+
+The queue asked the core every ten seconds, with `for now` written beside the
+constant. That is stale for as long as the interval, and the interval is a
+guess about how impatient the reader is. It also runs `git diff` on every open
+project on every tick, whether anything moved or not.
+
+The reason it had not been fixed is that watching looked hard: a project can
+run in a VM, a container or over ssh, and the architecture's hard rule 3 names
+a `Runtime.watch` that does not exist.
+
+It turns out not to be needed. **`configDir` is written in this machine's
+spelling by definition** — it is how the logs are read at all, and the review
+command already reads them through `HostRuntime::local()` with a comment
+saying so. So the logs of a guest are already a host path, and watching them
+never crosses a boundary. The architecture anticipated a harder problem than
+the one that exists.
+
+That it works over a mount was measured rather than assumed: a write made
+*inside* a Lima guest produces `Create` and `Modify` on the macOS host, with
+the path, because the host side of virtiofs does ordinary filesystem writes.
+
+### The shape
+
+- `Cockpit::watched(config_path)` decides which directories matter — one per
+  runtime rather than one per project, plus the configuration's own folder so
+  registering something reaches the screens without a restart.
+- `watch.rs` owns the watcher and the thread. Events are coalesced by time:
+  a working session writes several lines a second and that is one thing
+  happening.
+- The event carries **nothing**. Every screen re-asks.
+- `watching` reports which mode the core settled into, and the queue says
+  *"Not hearing about changes · checking again every minute instead"* when it
+  is the fallback.
+
+### Consequences
+
+- `notify` is a new dependency, pinned exact.
+- The application owns a thread and long-lived state for the first time.
+- `watch.rs` is excluded from the coverage floor, and the exclusion is only
+  honest because the decision inside it moved out: which directories to watch
+  is `Cockpit::watched`, which is at a hundred.
+- The fallback is visible on screen. A window that looks live while it is a
+  minute behind lies with more confidence than one that admits it — the same
+  argument `RuntimeError::Unsupported` already makes about a watch that
+  reports nothing.

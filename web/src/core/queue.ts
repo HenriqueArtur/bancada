@@ -55,7 +55,6 @@ export interface Glance {
   /// What each raised decision says, by the id that raised it.
   says: Record<string, string>;
   touched: number;
-  unannounced: number;
 }
 
 export interface Queue {
@@ -101,10 +100,7 @@ export function detail(r: Ranked, t: Translate, glance?: Glance): string | null 
   if (said) return said;
 
   if (r.item.kind === "Review" && glance && glance.touched > 0) {
-    const files = t.plural(glance.touched, "{n} file changed", "{n} files changed");
-    return glance.unannounced > 0
-      ? `${files} · ${t("{n} unannounced", { n: glance.unannounced })}`
-      : files;
+    return t.plural(glance.touched, "{n} file changed", "{n} files changed");
   }
   return null;
 }
