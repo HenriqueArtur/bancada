@@ -13,6 +13,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             commands::attention::attention,
+            commands::git::repo,
+            commands::git::history,
+            commands::git::branches,
+            commands::git::commit,
             commands::preview::preview,
             commands::queue::queue,
             commands::review::review,
@@ -22,6 +26,8 @@ pub fn run() {
             commands::setup::forget_project,
             commands::setup::register_runtime,
             commands::tree::tree,
+            commands::tree::worktree,
+            commands::tree::paths,
             commands::tree::file,
             commands::work::work,
             commands::work::register_workspace,

@@ -202,6 +202,85 @@ fn the_seam_answers_about_a_real_tree() {
         "climbing out of the project must be refused"
     );
 
+    // ── what git says about the tree ──────────────────────────────────────
+    let w = bancada_app::commands::tree::worktree("thing".into()).expect("a worktree");
+    assert_eq!(
+        w.of("new.md"),
+        Some(bancada_core::Track::Untracked),
+        "the bench leaves one file git has never heard of: {w:?}"
+    );
+    assert_eq!(
+        w.of("kept.rs"),
+        Some(bancada_core::Track::Modified),
+        "and one tracked change"
+    );
+
+    let paths = bancada_app::commands::tree::paths("thing".into()).expect("the paths");
+    assert!(paths.contains(&"kept.rs".to_owned()));
+    assert!(
+        paths.contains(&"new.md".to_owned()),
+        "`--others` includes what git has not been told about: {paths:?}"
+    );
+
+    // ── the history ───────────────────────────────────────────────────────
+    // Driven against the same real repository. Every one of these shells out
+    // to `git`, and the only way to know the arguments are right is to run
+    // them somewhere a wrong one fails.
+    let repo = bancada_app::commands::git::repo("thing".into()).expect("a repo");
+    assert!(repo.is_git, "the bench project is a git repository");
+    assert!(repo.head.is_some(), "and something is checked out by name");
+    // No upstream on a fresh `git init`, and level is the honest reading.
+    assert_eq!((repo.ahead, repo.behind), (0, 0));
+
+    let log = bancada_app::commands::git::history("thing".into(), 0, 30).expect("a history");
+    assert_eq!(log.len(), 1, "the bench has one commit");
+    assert_eq!(log[0].subject, "first");
+    assert_eq!(log[0].author, "T");
+    assert!(log[0].when > 0, "a commit has a date");
+    assert!(
+        bancada_app::commands::git::history("thing".into(), 1, 30)
+            .expect("a page past the end")
+            .is_empty(),
+        "skipping past the end is empty, not an error"
+    );
+
+    let refs = bancada_app::commands::git::branches("thing".into()).expect("branches");
+    assert_eq!(refs.len(), 1);
+    assert!(refs[0].current, "the only branch is the one we are on");
+
+    let landed =
+        bancada_app::commands::git::commit("thing".into(), log[0].sha.clone()).expect("the commit");
+    assert_eq!(landed.commit.short, log[0].short);
+    assert!(
+        landed
+            .diff
+            .files
+            .iter()
+            .any(|f| f.path == "kept.rs" && f.status == bancada_core::Status::Added),
+        "the first commit adds the file it committed: {:?}",
+        landed.diff.files
+    );
+    assert!(
+        bancada_app::commands::git::commit("thing".into(), "deadbeef".into()).is_err(),
+        "a commit that is not there is an error, not an empty diff"
+    );
+
+    // A directory git was never told about is a normal thing for a project
+    // to point at, and it answers rather than failing.
+    let plain = serde_json::from_str(&format!(
+        r#"{{"id":"plain","workspace":"personal","runtime":"here","path":"{}","weight":1,"idleAfterMinutes":1}}"#,
+        bench.root.join("home").display()
+    ))
+    .unwrap();
+    bancada_app::commands::setup::register_project(plain, None).expect("registered");
+    let none = bancada_app::commands::git::repo("plain".into()).expect("an answer");
+    assert!(!none.is_git, "a directory with no repository says so");
+    assert!(
+        bancada_app::commands::git::history("plain".into(), 0, 30).is_err(),
+        "and asking it for a history is an error"
+    );
+    bancada_app::commands::setup::forget_project("plain".into()).expect("forgotten");
+
     // ── writing it back ───────────────────────────────────────────────────
     let after = bancada_app::commands::work::register_workspace(
         serde_json::from_str(r#"{"id":"client-x","export":"summary"}"#).unwrap(),

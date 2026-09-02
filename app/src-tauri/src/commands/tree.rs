@@ -1,7 +1,7 @@
 // Same boundary as `queue`: the filesystem is read here, at the edge.
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
-use bancada_core::Cockpit;
+use bancada_core::{Cockpit, Worktree};
 use bancada_runtime::{HostRuntime, Runtime};
 use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
@@ -69,6 +69,95 @@ pub fn file(project: String, path: String) -> Result<String, String> {
         return Err("binary file".to_owned());
     }
     String::from_utf8(bytes).map_err(|_| "not text".to_owned())
+}
+
+/// What git says about every path in the project's tree.
+///
+/// One call for the whole tree rather than one per row: the pane lists a
+/// directory at a time and would otherwise ask git once per file, and the
+/// answer is the same command each time.
+///
+/// A project that is not a repository answers "nothing changed" rather than
+/// failing — the file pane still has a tree to show, and colouring it is the
+/// part that has no answer.
+#[tauri::command]
+pub fn worktree(project: String) -> Result<Worktree, String> {
+    let (root, at) = project_root(&project)?;
+    let cmd: Vec<String> = [
+        "git",
+        "-C",
+        &root.to_string_lossy(),
+        "status",
+        "--porcelain",
+        "--ignored",
+    ]
+    .iter()
+    .map(|a| (*a).to_owned())
+    .collect();
+    Ok(at
+        .exec(&cmd)
+        .map(|t| Worktree::parse(&t))
+        .unwrap_or_default())
+}
+
+/// Every file in the project, for searching by path.
+///
+/// `ls-files -co --exclude-standard` in a repository: one call, already
+/// excluding what git ignores, which is exactly the set worth searching.
+/// Anywhere else it is a walk, capped — a search box is not a reason to
+/// enumerate a hundred thousand paths over an ssh connection.
+#[tauri::command]
+pub fn paths(project: String) -> Result<Vec<String>, String> {
+    const MOST: usize = 20_000;
+    let (root, at) = project_root(&project)?;
+
+    let cmd: Vec<String> = [
+        "git",
+        "-C",
+        &root.to_string_lossy(),
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+    ]
+    .iter()
+    .map(|a| (*a).to_owned())
+    .collect();
+    if let Ok(text) = at.exec(&cmd) {
+        return Ok(text.lines().take(MOST).map(str::to_owned).collect());
+    }
+
+    let mut out = Vec::new();
+    walk(&at, &root, "", &mut out, MOST);
+    out.sort();
+    Ok(out)
+}
+
+fn walk(at: &HostRuntime, root: &Path, sub: &str, out: &mut Vec<String>, most: usize) {
+    if out.len() >= most {
+        return;
+    }
+    let Ok(entries) = at.read_dir(&under(root, sub).unwrap_or_else(|_| root.to_owned())) else {
+        return;
+    };
+    for p in entries {
+        let Some(name) = p.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+            continue;
+        };
+        if name == ".git" {
+            continue;
+        }
+        let rel = if sub.is_empty() {
+            name
+        } else {
+            format!("{sub}/{name}")
+        };
+        if at.read_dir(&p).is_ok() {
+            walk(at, root, &rel, out, most);
+        } else if out.len() < most {
+            out.push(rel);
+        }
+    }
 }
 
 /// The project's tree, and a runtime that can reach it.
