@@ -23,7 +23,7 @@
     .replace(/\.ink \{ fill: [^}]+\}/, `.ink { fill: ${ink}; }`)
     .replace(/\.clay \{ fill: [^}]+\}/, `.clay { fill: ${clay}; }`)
     .replace(/@media[\s\S]*?\n {4}\}\n/, "");
-  const url = (s) => "data:image/svg+xml;utf8," + encodeURIComponent(s);
+  const url = (s) => `data:image/svg+xml;utf8,${encodeURIComponent(s)}`;
 
   for (const [id, ink, clay] of [["l", "#1d1c1a", "#c15f3c"], ["d", "#ece8df", "#dd8560"]]) {
     const src = url(paint(ink, clay));

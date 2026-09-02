@@ -117,14 +117,19 @@ function Registered({
 /// The confirmation is evidence — *four sessions already recorded here* —
 /// rather than the encoded directory name this used to print. That was
 /// jargon asking a person to verify what the product can verify itself.
-function ProjectForm({
+export function ProjectForm({
   config,
   editing,
+  into,
   onSubmit,
   onCancel,
 }: {
   config: Config;
   editing: Project | null;
+  /// The workspace this is being registered into, when the form was opened
+  /// from inside one. Filling it in from where you clicked is the whole
+  /// difference between adding a project here and going to the settings.
+  into?: string;
   onSubmit: (p: Project, previous?: string) => void;
   onCancel: () => void;
 }) {
@@ -137,6 +142,12 @@ function ProjectForm({
   useEffect(() => {
     if (editing) load(editing);
   }, [editing, load]);
+
+  // Once, on the way in. Setting it on every render would fight whoever is
+  // typing in the field.
+  useEffect(() => {
+    if (into) setDraft((d) => (d.workspace ? d : { ...d, workspace: into }));
+  }, [into, setDraft]);
 
   const local = draft.runtime === THIS_MACHINE;
   const blocked = whyNot(draft, config, t, editing?.id);
