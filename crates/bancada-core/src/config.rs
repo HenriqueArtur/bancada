@@ -1,4 +1,4 @@
-use crate::{Project, RuntimeSpec, Workspace};
+use crate::{Limits, Project, RuntimeSpec, Stated, Workspace};
 use serde::{Deserialize, Serialize};
 
 /// Everything the product was told, and nothing it guessed.
@@ -30,6 +30,7 @@ impl Config {
     pub fn parse(text: &str) -> Result<Self, ConfigError> {
         let cfg: Self =
             serde_json::from_str(text).map_err(|e| ConfigError::Malformed(e.to_string()))?;
+        let cfg = cfg.migrated();
         cfg.check()?;
         Ok(cfg)
     }
@@ -42,9 +43,34 @@ impl Config {
     pub fn parse_with_home(text: &str, home: &std::path::Path) -> Result<Self, ConfigError> {
         let cfg: Self =
             serde_json::from_str(text).map_err(|e| ConfigError::Malformed(e.to_string()))?;
-        let cfg = cfg.with_this_machine(home);
+        let cfg = cfg.migrated().with_this_machine(home);
         cfg.check()?;
         Ok(cfg)
+    }
+
+    /// Fold every project's pre-preset numbers into its `limits`.
+    ///
+    /// On the way in, once, rather than at each read: a rule applied where
+    /// it is needed is a rule some future reader will forget in the one
+    /// place that matters, and the whole product asks for these numbers.
+    #[must_use]
+    fn migrated(mut self) -> Self {
+        self.projects = self.projects.into_iter().map(Project::migrated).collect();
+        self
+    }
+
+    /// Every number the rules engine reads for one project.
+    ///
+    /// Here rather than on `Project` because resolving needs the workspace,
+    /// and a project does not know its own — it knows the *name* of one,
+    /// which only the configuration can turn into policy.
+    pub fn limits_of(&self, project: &Project) -> Limits {
+        let workspace = self
+            .workspaces
+            .iter()
+            .find(|w| w.id == project.workspace)
+            .map_or_else(Stated::default, |w| w.limits);
+        Limits::resolve(&project.limits, &workspace)
     }
 
     fn check(&self) -> Result<(), ConfigError> {

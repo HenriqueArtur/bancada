@@ -1,21 +1,27 @@
 import { open as pickFolder } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { FolderOpenIcon } from "@phosphor-icons/react";
-import type { Config, Project } from "@/core/settings";
-import { THIS_MACHINE, evidenceOf, logDirName, whyNot } from "@/core/settings";
+import type { Config, Limits, Preset, Project } from "@/core/settings";
+import { THIS_MACHINE, evidenceOf, logDirName, presetLabel, whyNot } from "@/core/settings";
 import { Badge, Button, Card, Heading, Mono, Text } from "@/components";
 import { ChoiceField, Field, NewThing, Notice, Section } from "@/composites";
 import { Full, Grid, Inset, Row, Stack } from "@/frame";
 import { Disclosure } from "@/components";
+import { Resolved, Threshold, withLimits } from "@/pages/settings/limits";
 import { useDraftProject } from "@/pages/settings/logic";
 import { useText } from "@/lib/language";
 
 export function ProjectsPanel({
   config,
+  limits,
   onRegister,
   onForget,
 }: {
   config: Config;
+  /// What each project's numbers came out as, keyed by id. Resolved by the
+  /// core, because the order of precedence is a rule and this screen is not
+  /// the place to keep a second copy of it. Empty while it is being read.
+  limits: Record<string, Limits>;
   onRegister: (p: Project, previous?: string) => void;
   onForget: (id: string) => void;
 }) {
@@ -25,7 +31,7 @@ export function ProjectsPanel({
   return (
     <Stack gap="loose">
       <Section title={t("Watched")}>
-        <Registered config={config} onForget={onForget} onEdit={setEditing} />
+        <Registered config={config} limits={limits} onForget={onForget} onEdit={setEditing} />
       </Section>
       <ProjectForm
         config={config}
@@ -48,10 +54,12 @@ export function ProjectsPanel({
 /// one thing, not a row of a spreadsheet with four other things.
 function Registered({
   config,
+  limits,
   onForget,
   onEdit,
 }: {
   config: Config;
+  limits: Record<string, Limits>;
   onForget: (id: string) => void;
   onEdit: (p: Project) => void;
 }) {
@@ -91,19 +99,14 @@ function Registered({
               <Row gap="tight" wrap>
                 <Badge>{p.runtime === THIS_MACHINE ? t("This machine") : p.runtime}</Badge>
                 <Badge>{p.workspace}</Badge>
-                <Badge
-                  title={t(
-                    "How fast waiting hurts here. Scales time, never the kind of decision.",
-                  )}
-                >
-                  {t("Weight ×{n}", { n: p.weight })}
-                </Badge>
-                <Badge
-                  title={t("How long a finished turn stays quiet before it is worth your eyes")}
-                >
-                  {t("Quiet {n} min", { n: p.idleAfterMinutes })}
-                </Badge>
+                {p.limits?.preset ? <Badge>{presetLabel(p.limits.preset, t)}</Badge> : null}
               </Row>
+
+              {/* What the numbers came out as, rather than what this row
+                  states. A project stating nothing is the normal case, and
+                  a card that showed only what it states would be silent
+                  about every project on the screen. */}
+              {limits[p.id] ? <Resolved limits={limits[p.id]} workspace={p.workspace} /> : null}
             </Stack>
           </Inset>
         </Card>
@@ -247,18 +250,43 @@ export function ProjectForm({
           <Full>
             <Disclosure summary={t("How fast waiting hurts")}>
               <Grid columns={2}>
-                <Field
+                {/* The preset first, because it is the answer for almost
+                    every project and it is what makes the four boxes below
+                    it optional. A five-hour session is normal in a large
+                    refactor and strange almost everywhere else. */}
+                <ChoiceField
+                  label={t("Kind of work")}
+                  value={draft.limits?.preset ?? ""}
+                  onChange={(v) =>
+                    setDraft(
+                      withLimits(draft, { preset: (v || undefined) as Preset | undefined }),
+                    )
+                  }
+                  choices={[
+                    { value: "", label: t("Inherit from the workspace") },
+                    ...(["normal", "longRefactor", "exploratory"] as const).map((k) => ({
+                      value: k,
+                      label: presetLabel(k, t),
+                    })),
+                  ]}
+                  hint={t(
+                    "Sets every threshold at once. Say a number below to depart from it.",
+                  )}
+                />
+                <Threshold
                   label={t("Weight")}
-                  value={String(draft.weight)}
-                  onChange={(v) => setDraft({ ...draft, weight: Number(v) || 1 })}
+                  value={draft.limits?.weight}
+                  onChange={(weight) => setDraft(withLimits(draft, { weight }))}
                   hint={t(
                     "Scales how fast waiting hurts. Never overrides the kind of decision.",
                   )}
                 />
-                <Field
+                <Threshold
                   label={t("Quiet for (minutes)")}
-                  value={String(draft.idleAfterMinutes)}
-                  onChange={(v) => setDraft({ ...draft, idleAfterMinutes: Number(v) || 1 })}
+                  value={draft.limits?.idleAfterMinutes}
+                  onChange={(idleAfterMinutes) =>
+                    setDraft(withLimits(draft, { idleAfterMinutes }))
+                  }
                   hint={t("How long a finished turn stays quiet before it is worth your eyes.")}
                 />
                 {draft.path ? (

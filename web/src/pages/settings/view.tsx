@@ -55,7 +55,7 @@ export function SettingsPage({
   keys: Record<Action, Chord>;
   onChooseKeys: (keys: Record<Action, Chord>) => void;
 }) {
-  const { config, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
+  const { config, limits, failed, register, forget, addRuntime, addWorkspace, dropWorkspace } =
     useSettings(onChanged);
   const t = useText();
   const [active, setActive] = useState("projects");
@@ -87,7 +87,12 @@ export function SettingsPage({
           panel:
             body ??
             (config ? (
-              <ProjectsPanel config={config} onRegister={register} onForget={forget} />
+              <ProjectsPanel
+                config={config}
+                limits={limits}
+                onRegister={register}
+                onForget={forget}
+              />
             ) : null),
         },
         {

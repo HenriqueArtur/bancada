@@ -55,6 +55,7 @@ import { SidePanel } from "../src/pages/settings/side";
 import { DEFAULTS } from "../src/core/shortcuts";
 import { apply as applyZoom } from "../src/core/zoom";
 import { WorkspacesPanel } from "../src/pages/settings/workspaces";
+import { ProjectsPanel } from "../src/pages/settings/projects";
 import { ChangedFiles } from "../src/pages/review/changed";
 import { FileSection } from "../src/pages/review/diff";
 import { NOTHING_FILTERED, openOnArrival, sift, totals } from "../src/pages/review/logic";
@@ -376,6 +377,85 @@ const FILES = [
   "arch.config.json",
   "rust-toolchain.toml",
 ];
+
+/// The three states a threshold can be in, side by side.
+///
+/// The whole feature is *where a number came from*, and the three cases
+/// look identical in the code and have to be told apart by eye: one the
+/// project states, one it inherits from a preset on its workspace, and one
+/// nobody has ever said anything about.
+function Limits() {
+  const config = {
+    workspaces: [
+      { id: "personal", export: "full" as const },
+      {
+        id: "client-x",
+        export: "metadata" as const,
+        limits: { preset: "longRefactor" as const },
+      },
+    ],
+    runtimes: [],
+    projects: [
+      {
+        id: "bancada",
+        workspace: "personal",
+        runtime: "this-machine",
+        path: "/Users/henrique/Documents/dev/personal/bancada",
+        limits: { idleAfterMinutes: 5, weight: 3 },
+      },
+      {
+        id: "the-long-one",
+        workspace: "client-x",
+        runtime: "this-machine",
+        path: "/Users/henrique/Documents/dev/client-x/api",
+        limits: {},
+      },
+      {
+        id: "neo-gitmoji",
+        workspace: "personal",
+        runtime: "this-machine",
+        path: "/mnt/dev/neo-gitmoji.nvim",
+        limits: {},
+      },
+    ],
+  };
+  // What the core would answer, spelled by hand. The probe stubs the seam;
+  // the order of precedence is proved in Rust, and this is here to be
+  // looked at.
+  const limits = {
+    bancada: {
+      idleAfterMinutes: { value: 5, from: "project" as const },
+      weight: { value: 3, from: "project" as const },
+    },
+    "the-long-one": {
+      idleAfterMinutes: { value: 15, from: "workspacePreset" as const },
+      weight: { value: 1, from: "baseline" as const },
+    },
+    "neo-gitmoji": {
+      idleAfterMinutes: { value: 2, from: "baseline" as const },
+      weight: { value: 1, from: "baseline" as const },
+    },
+  };
+  return (
+    <Page>
+      <Stack gap="loose">
+        <Heading level={1} as="h1">
+          Projects
+        </Heading>
+        <Text tone="muted" size="sm">
+          The bodies of content this cockpit is watching.
+        </Text>
+        <Divider soft />
+        <ProjectsPanel
+          config={config}
+          limits={limits}
+          onRegister={() => {}}
+          onForget={() => {}}
+        />
+      </Stack>
+    </Page>
+  );
+}
 
 /// The settings dialog, with a configuration invented for it.
 function Settings() {
@@ -1070,7 +1150,9 @@ function Keys() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  q.has("settings") ? (
+  q.has("limits") ? (
+    <Limits />
+  ) : q.has("settings") ? (
     <Settings />
   ) : q.has("work") ? (
     <Work />

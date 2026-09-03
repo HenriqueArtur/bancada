@@ -96,7 +96,9 @@ describe("editing a workspace", () => {
 
 describe("editing a project", () => {
   it("fills the form from the one you picked", async () => {
-    render(<ProjectsPanel config={config} onRegister={vi.fn()} onForget={vi.fn()} />);
+    render(
+      <ProjectsPanel config={config} limits={{}} onRegister={vi.fn()} onForget={vi.fn()} />,
+    );
     fireEvent.click(screen.getByText("Edit"));
     await waitFor(() =>
       expect((screen.getByLabelText("Path") as HTMLInputElement).value).toBe(
@@ -106,7 +108,9 @@ describe("editing a project", () => {
   });
 
   it("lets you type into it", async () => {
-    render(<ProjectsPanel config={config} onRegister={vi.fn()} onForget={vi.fn()} />);
+    render(
+      <ProjectsPanel config={config} limits={{}} onRegister={vi.fn()} onForget={vi.fn()} />,
+    );
     fireEvent.click(screen.getByText("Edit"));
     const field = await screen.findByPlaceholderText("From the folder name");
     fireEvent.change(field, { target: { value: "renamed" } });
@@ -115,7 +119,9 @@ describe("editing a project", () => {
 
   it("hands back the old name so nothing is left behind", async () => {
     const onRegister = vi.fn();
-    render(<ProjectsPanel config={config} onRegister={onRegister} onForget={vi.fn()} />);
+    render(
+      <ProjectsPanel config={config} limits={{}} onRegister={onRegister} onForget={vi.fn()} />,
+    );
     fireEvent.click(screen.getByText("Edit"));
     fireEvent.change(await screen.findByPlaceholderText("From the folder name"), {
       target: { value: "renamed" },

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import type { Config, Workspace } from "@/core/settings";
+import type { Config, Preset, Workspace } from "@/core/settings";
+import { presetLabel } from "@/core/settings";
 import type { Translate } from "@/core/language";
 import { exportsAs } from "@/core/work";
 import { Badge, Button, Card, Heading, Text } from "@/components";
 import { ChoiceField, Field, NewThing, Notice, Section } from "@/composites";
 import { Grid, Inset, Row, Stack } from "@/frame";
+import { Threshold, withLimits } from "@/pages/settings/limits";
 import { useText } from "@/lib/language";
 
 function levels(t: Translate) {
@@ -144,6 +146,38 @@ export function WorkspaceForm({
           value={draft.export ?? "metadata"}
           onChange={(level) => setDraft({ ...draft, export: level as Level })}
           choices={levels(t)}
+        />
+
+        {/* Beside the export level, and for the same reason it is here at
+            all: this is where policy is stated once so twelve projects are
+            three answers. A project departs from it where the number is
+            wrong for that project. */}
+        <ChoiceField
+          label={t("Kind of work here, by default")}
+          value={draft.limits?.preset ?? ""}
+          onChange={(v) =>
+            setDraft(withLimits(draft, { preset: (v || undefined) as Preset | undefined }))
+          }
+          choices={[
+            { value: "", label: t("Say nothing") },
+            ...(["normal", "longRefactor", "exploratory"] as const).map((k) => ({
+              value: k,
+              label: presetLabel(k, t),
+            })),
+          ]}
+          hint={t("What a project here starts from when it says nothing itself.")}
+        />
+        <Threshold
+          label={t("Weight")}
+          value={draft.limits?.weight}
+          onChange={(weight) => setDraft(withLimits(draft, { weight }))}
+          hint={t("Scales how fast waiting hurts. Never overrides the kind of decision.")}
+        />
+        <Threshold
+          label={t("Quiet for (minutes)")}
+          value={draft.limits?.idleAfterMinutes}
+          onChange={(idleAfterMinutes) => setDraft(withLimits(draft, { idleAfterMinutes }))}
+          hint={t("How long a finished turn stays quiet before it is worth your eyes.")}
         />
       </Grid>
 

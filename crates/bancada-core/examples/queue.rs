@@ -55,7 +55,7 @@ fn main() {
             );
             states.extend(folded);
         }
-        let q = Cockpit::queue_of(project, &states, now);
+        let q = Cockpit::queue_of(project, &cockpit.config().limits_of(project), &states, now);
         println!("  → {} item(s)", q.len());
         items.extend(q);
     }

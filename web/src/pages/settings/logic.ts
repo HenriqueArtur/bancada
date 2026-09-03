@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Config, Preview, Project, RuntimeSpec, Workspace } from "@/core/settings";
+import type { Config, Limits, Preview, Project, RuntimeSpec, Workspace } from "@/core/settings";
 import { forgetWorkspace, registerWorkspace } from "@/core/work";
 import {
   BLANK,
   discover,
   forgetProject,
+  loadLimits,
   loadSettings,
   nameFrom,
   previewProject,
@@ -15,6 +16,11 @@ import {
 
 export interface Settings {
   config: Config | null;
+  /// What each project's numbers came out as, keyed by id. Read beside the
+  /// configuration rather than derived from it: the order of precedence is
+  /// the core's rule, and a second copy of it here would agree until one of
+  /// the two was edited. Empty until the first read lands.
+  limits: Record<string, Limits>;
   failed: string | null;
   register: (p: Project, previous?: string) => void;
   forget: (id: string) => void;
@@ -25,25 +31,44 @@ export interface Settings {
 
 export function useSettings(onChanged?: () => void): Settings {
   const [config, setConfig] = useState<Config | null>(null);
+  const [limits, setLimits] = useState<Record<string, Limits>>({});
   const [failed, setFailed] = useState<string | null>(null);
+
+  // Its own failure is swallowed rather than raised. A number the window
+  // could not resolve is a line missing from a card; a configuration it
+  // could not read is a screen that cannot be used, and showing the second
+  // error for the first problem sends somebody looking in the wrong place.
+  const refresh = useCallback(() => {
+    loadLimits()
+      .then(setLimits)
+      .catch(() => setLimits({}));
+  }, []);
 
   useEffect(() => {
     loadSettings()
-      .then(setConfig)
+      .then((c) => {
+        setConfig(c);
+        refresh();
+      })
       .catch((e) => setFailed(String(e)));
-  }, []);
+  }, [refresh]);
 
   const apply = (next: Promise<Config>) =>
     next
       .then((c) => {
         setConfig(c);
         setFailed(null);
+        // After the write, not before: what a project inherits changes when
+        // its workspace does, and the row that changed is rarely the row
+        // that has to be redrawn.
+        refresh();
         onChanged?.();
       })
       .catch((e) => setFailed(String(e)));
 
   return {
     config,
+    limits,
     failed,
     register: (p, previous) => void apply(registerProject(p, previous)),
     forget: (id) => void apply(forgetProject(id)),

@@ -1,3 +1,4 @@
+use crate::Stated;
 use serde::{Deserialize, Serialize};
 
 /// A confidentiality group. The boundary.
@@ -12,6 +13,13 @@ pub struct Workspace {
     /// Export permission, not import.
     #[serde(default)]
     pub export: Export,
+    /// The numbers every project here starts from.
+    ///
+    /// The same shape as the export level and for the same reason: policy
+    /// is stated once and departed from where it is wrong, so twelve
+    /// projects are three answers rather than twelve.
+    #[serde(default, skip_serializing_if = "Stated::is_empty")]
+    pub limits: Stated,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -40,6 +48,7 @@ mod tests {
         let w = Workspace {
             id: "personal".into(),
             export: Export::Full,
+            limits: Stated::default(),
         };
         let back: Workspace = serde_json::from_str(&serde_json::to_string(&w).unwrap()).unwrap();
         assert_eq!(w, back);

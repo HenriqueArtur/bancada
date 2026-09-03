@@ -2,6 +2,76 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Translate } from "@/core/language";
 
+/// What kind of work a project is, as a name rather than as six numbers.
+///
+/// Spelled the way the core serialises it. Asking somebody to pick six
+/// thresholds before the product says anything useful is asking them to
+/// guess, and a guessed threshold is never revisited.
+export type Preset = "normal" | "longRefactor" | "exploratory";
+
+/// The numbers a workspace or a project actually states.
+///
+/// Every field optional, and that is the point: *not stated here* and
+/// *stated to be what the default happens to be* are different facts. The
+/// second survives a change to the default; the first is supposed to follow
+/// it.
+export interface Stated {
+  preset?: Preset;
+  idleAfterMinutes?: number;
+  weight?: number;
+}
+
+/// Where a resolved number came from.
+///
+/// Carried from the core rather than worked out here. The order of
+/// precedence is a rule, and a rule written twice goes stale in one of the
+/// two places.
+export type Source = "project" | "projectPreset" | "workspace" | "workspacePreset" | "baseline";
+
+export interface Bound {
+  value: number;
+  from: Source;
+}
+
+/// Every number the rules engine reads for one project, resolved.
+export interface Limits {
+  idleAfterMinutes: Bound;
+  weight: Bound;
+}
+
+export function presetLabel(p: Preset, t: Translate): string {
+  switch (p) {
+    case "normal":
+      return t("Normal");
+    case "longRefactor":
+      return t("Long refactor");
+    case "exploratory":
+      return t("Exploratory");
+  }
+}
+
+/// Where an inherited number came from, or `null` when the project stated
+/// it itself. A trailing qualifier on the line, not a sentence under it.
+///
+/// Rendered as four cards said `Nobody has said. Normal.` twice each, and
+/// the note that appeared most often was the one that mattered least —
+/// nothing being stated is the state almost every project is in. Lowercase
+/// and short, because it finishes the line above it rather than making a
+/// claim of its own.
+export function whereFrom(from: Source, workspace: string, t: Translate): string | null {
+  switch (from) {
+    case "project":
+    case "projectPreset":
+      return null;
+    case "workspace":
+      return t("from the workspace {id}", { id: workspace });
+    case "workspacePreset":
+      return t("from the preset on {id}", { id: workspace });
+    case "baseline":
+      return t("default");
+  }
+}
+
 export interface Workspace {
   id: string;
   /// What the *other* workspaces' supervisors may read from this one.
@@ -11,6 +81,9 @@ export interface Workspace {
   /// ever contained — so nothing matched and the level always read as its
   /// default.
   export?: "metadata" | "summary" | "full";
+  /// The numbers every project here starts from. Policy stated once and
+  /// departed from where it is wrong, like the export level above it.
+  limits?: Stated;
 }
 
 export interface RuntimeSpec {
@@ -38,8 +111,13 @@ export interface Project {
   runtime: string;
   /// The path as the *guest* spells it — which is how the log spells it.
   path: string;
-  weight: number;
-  idleAfterMinutes: number;
+  /// What this project says about its own numbers. What it does not say,
+  /// its workspace says; what neither says, the preset says.
+  limits?: Stated;
+  /// Superseded by `limits`, and written by a bancada older than presets.
+  /// The core folds them on the way in and the next save drops them.
+  weight?: number;
+  idleAfterMinutes?: number;
   /// Set while the project is not allowed to ask for you.
   ///
   /// Carries when you silenced it and how much work it had then, because a
@@ -95,6 +173,13 @@ export const previewProject = (path: string, runtime: string): Promise<Preview> 
 export const registerRuntime = (runtime: RuntimeSpec): Promise<Config> =>
   invoke<Config>("register_runtime", { runtime });
 export const discover = (): Promise<Discovery[]> => invoke<Discovery[]>("discover");
+/// Every project's resolved numbers, keyed by project id.
+///
+/// Asked of the core rather than worked out here. The order of precedence
+/// is a rule; the window shows its answer and does not have a second copy
+/// of it to keep in step.
+export const loadLimits = (): Promise<Record<string, Limits>> =>
+  invoke<Record<string, Limits>>("project_limits");
 export const registerProject = (project: Project, previous?: string): Promise<Config> =>
   invoke<Config>("register_project", { project, previous: previous ?? null });
 export const forgetProject = (id: string): Promise<Config> =>
@@ -113,8 +198,9 @@ export const BLANK: Project = {
   // wrong to *offer*: the product is already running there.
   runtime: THIS_MACHINE,
   path: "",
-  weight: 1,
-  idleAfterMinutes: 2,
+  // Nothing stated. A blank project inherits, and filling a form with the
+  // defaults would freeze numbers nobody chose.
+  limits: {},
 };
 
 /// Why this project cannot be registered yet, in the order a person fills
@@ -155,7 +241,9 @@ export function whyNot(
       root: runs.guestRoot,
     });
   }
-  if (p.weight < 1) return t("weight 0 would erase the project from the order");
+  if ((p.limits?.weight ?? 1) < 1) {
+    return t("weight 0 would erase the project from the order");
+  }
   return null;
 }
 

@@ -6,6 +6,8 @@ import {
   evidenceOf,
   logDirName,
   nameFrom,
+  presetLabel,
+  whereFrom,
   whyNot,
   whyNotRuntime,
   type Config,
@@ -118,7 +120,7 @@ describe("whyNot", () => {
   });
 
   it("refuses weight zero, which would erase the project from the order", () => {
-    expect(whyNot({ ...good, weight: 0 }, config, t)).toMatch(/erase/);
+    expect(whyNot({ ...good, limits: { weight: 0 } }, config, t)).toMatch(/erase/);
   });
 });
 
@@ -248,5 +250,34 @@ describe("whyNot, editing rather than creating", () => {
     expect(whyNot({ ...good, id: "neo-gitmoji" }, taken, t, "bancada")).toBe(
       "neo-gitmoji is already registered",
     );
+  });
+});
+
+describe("presetLabel", () => {
+  it("names every preset, so none can render blank", () => {
+    for (const k of ["normal", "longRefactor", "exploratory"] as const) {
+      expect(presetLabel(k, t).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("whereFrom", () => {
+  it("says nothing when the project stated the number itself", () => {
+    // A note under every line is a note nobody reads. The interesting case
+    // is the number that came from somewhere else.
+    expect(whereFrom("project", "Personal", t)).toBeNull();
+    expect(whereFrom("projectPreset", "Personal", t)).toBeNull();
+  });
+
+  it("names the workspace an inherited number came from", () => {
+    expect(whereFrom("workspace", "Personal", t)).toBe("from the workspace Personal");
+    expect(whereFrom("workspacePreset", "Personal", t)).toBe("from the preset on Personal");
+  });
+
+  it("says only `default` for the state almost every project is in", () => {
+    // Rendered as a sentence it appeared twice on every card and read as a
+    // finding. The baseline is not news, and it must not be the loudest
+    // note on the screen.
+    expect(whereFrom("baseline", "Personal", t)).toBe("default");
   });
 });

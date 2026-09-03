@@ -1,4 +1,4 @@
-use crate::{Config, Diff, Project, Summary};
+use crate::{Config, Diff, Limits, Project, Summary};
 use bancada_adapter_claude::SessionLog;
 use bancada_meta::{MetaEvent, SessionId, Timestamp};
 use bancada_rules::{Grouped, QueueItem, SessionState, Wip, group, rank};
@@ -130,11 +130,21 @@ impl Cockpit {
     }
 
     /// The queue for one project, from every session it has.
-    pub fn queue_of(project: &Project, states: &[SessionState], now: Timestamp) -> Vec<QueueItem> {
+    /// The limits are passed in rather than read off the project: they are
+    /// resolved against its workspace, and only the configuration can do
+    /// that. Keeping this an associated function is worth the argument —
+    /// everything here is deterministic in what it is handed, which is what
+    /// makes the ranking testable at all.
+    pub fn queue_of(
+        project: &Project,
+        limits: &Limits,
+        states: &[SessionState],
+        now: Timestamp,
+    ) -> Vec<QueueItem> {
         let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
-        SessionState::queue(states, now, project.idle_after_ms(), &kept)
+        SessionState::queue(states, now, limits.idle_after_ms(), &kept)
             .into_iter()
-            .map(|i| i.with_weight(project.weight).in_project(&project.id))
+            .map(|i| i.with_weight(limits.weight.value).in_project(&project.id))
             .collect()
     }
 
@@ -145,11 +155,12 @@ impl Cockpit {
     /// screen showing sessions needs both, and the queue needs only the one.
     pub fn quieted_in(
         project: &Project,
+        limits: &Limits,
         states: &[SessionState],
         now: Timestamp,
     ) -> Vec<SessionId> {
         let kept: Vec<SessionId> = project.kept.iter().map(SessionId::new).collect();
-        SessionState::quieted(states, now, project.idle_after_ms(), &kept)
+        SessionState::quieted(states, now, limits.idle_after_ms(), &kept)
     }
 
     /// Which session of a project you have moved to.
@@ -293,6 +304,7 @@ impl Cockpit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Stated;
     use bancada_meta::DecisionKind;
     use bancada_testing::{Answers, FakeRuntime};
 
@@ -424,7 +436,8 @@ mod tests {
         };
         let states = Cockpit::states_of(&[spoke("old", 100), spoke("new", 200)]);
 
-        let held = Cockpit::quieted_in(&c.config().projects[0], &states, now);
+        let limits = c.config().limits_of(&c.config().projects[0]);
+        let held = Cockpit::quieted_in(&c.config().projects[0], &limits, &states, now);
         assert_eq!(
             held.iter().map(SessionId::as_str).collect::<Vec<_>>(),
             ["old"]
@@ -434,7 +447,7 @@ mod tests {
             kept: vec!["old".to_owned()],
             ..c.config().projects[0].clone()
         };
-        assert!(Cockpit::quieted_in(&kept, &states, now).is_empty());
+        assert!(Cockpit::quieted_in(&kept, &limits, &states, now).is_empty());
     }
 
     #[test]
@@ -454,7 +467,12 @@ mod tests {
                 kind: DecisionKind::Question,
             },
         ];
-        let q = Cockpit::queue_of(p, &Cockpit::states_of(&facts), now);
+        let q = Cockpit::queue_of(
+            p,
+            &c.config().limits_of(p),
+            &Cockpit::states_of(&facts),
+            now,
+        );
         assert_eq!(q.len(), 1);
         assert_eq!(q[0].project_weight, 3);
     }
@@ -663,8 +681,9 @@ mod tests {
                 workspace: "w".into(),
                 runtime: "gone".into(),
                 path: "/x".into(),
-                weight: 1,
-                idle_after_minutes: 2,
+                limits: Stated::default(),
+                weight: None,
+                idle_after_minutes: None,
                 muted: None,
                 kept: Vec::new(),
             }],
