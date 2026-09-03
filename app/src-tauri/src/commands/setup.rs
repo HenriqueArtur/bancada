@@ -2,7 +2,7 @@
 // the edge. This is the only command that writes anything at all.
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
-use bancada_core::{Cockpit, Config, Discovery, Muted, Project, RuntimeSpec};
+use bancada_core::{Cockpit, Config, Discovery, Limits, Muted, Project, RuntimeSpec};
 use bancada_runtime::HostRuntime;
 
 /// Everything registered, as the product currently sees it.
@@ -16,6 +16,23 @@ pub fn settings() -> Result<Config, String> {
 /// A separate command from [`settings`] on purpose: probing shells into
 /// every VM, which is slow and can hang on a machine that is asleep. The
 /// settings screen must open whether or not any of that answers.
+/// Every project's resolved numbers, keyed by project id.
+///
+/// Asked for all of them at once rather than one at a time: the settings
+/// screen draws every project, and a round trip per row is a round trip per
+/// row. Resolved *here* rather than in the window because the order of
+/// precedence — project, its preset, workspace, its preset, baseline — is a
+/// rule, and a rule written twice goes stale in one of the two places.
+#[tauri::command]
+pub fn project_limits() -> Result<std::collections::BTreeMap<String, Limits>, String> {
+    let config = super::queue::load_config()?;
+    Ok(config
+        .projects
+        .iter()
+        .map(|p| (p.id.clone(), config.limits_of(p)))
+        .collect())
+}
+
 #[tauri::command]
 pub fn discover() -> Result<Vec<Discovery>, String> {
     let config = super::queue::load_config()?;

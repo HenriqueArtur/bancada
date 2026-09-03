@@ -56,6 +56,7 @@ pub fn run() {
             commands::sessions::chat,
             commands::setup::settings,
             commands::setup::discover,
+            commands::setup::project_limits,
             commands::setup::register_project,
             commands::setup::forget_project,
             commands::setup::register_runtime,

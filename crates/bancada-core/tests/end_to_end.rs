@@ -48,7 +48,12 @@ fn a_session_that_ended_long_ago_is_in_the_queue_as_review() {
 
     // An hour after the last thing happened.
     let now = Timestamp::from_millis(last_event_time(&facts).as_millis() + 3_600_000);
-    let items = Cockpit::queue_of(project, &Cockpit::states_of(&facts), now);
+    let items = Cockpit::queue_of(
+        project,
+        &cfg.limits_of(project),
+        &Cockpit::states_of(&facts),
+        now,
+    );
 
     assert_eq!(items.len(), 1, "expected exactly one thing to look at");
     assert_eq!(items[0].kind, bancada_meta::DecisionKind::Review);
@@ -61,7 +66,13 @@ fn the_same_session_is_not_in_the_queue_the_moment_it_stops() {
     let now = Timestamp::from_millis(last_event_time(&facts).as_millis() + 1_000);
 
     assert!(
-        Cockpit::queue_of(&cfg.projects[0], &Cockpit::states_of(&facts), now).is_empty(),
+        Cockpit::queue_of(
+            &cfg.projects[0],
+            &cfg.limits_of(&cfg.projects[0]),
+            &Cockpit::states_of(&facts),
+            now
+        )
+        .is_empty(),
         "listed a turn that may still continue"
     );
 }
@@ -100,7 +111,8 @@ fn three_recorded_sessions_are_one_group_until_they_are_kept() {
     // file at a time, every call would see a single session, nothing would
     // have anything to compare against, and it would pass while proving the
     // opposite. It found the wrong expectation here first.
-    let (groups, wip) = Cockpit::present(Cockpit::queue_of(project, &states, now), now);
+    let limits = cfg.limits_of(project);
+    let (groups, wip) = Cockpit::present(Cockpit::queue_of(project, &limits, &states, now), now);
     assert_eq!(groups.len(), 1, "the two it moved on from still asked");
     assert_eq!(wip.sessions_waiting, 1);
 
@@ -113,7 +125,7 @@ fn three_recorded_sessions_are_one_group_until_they_are_kept() {
             .collect(),
         ..project.clone()
     };
-    let (groups, wip) = Cockpit::present(Cockpit::queue_of(&kept, &states, now), now);
+    let (groups, wip) = Cockpit::present(Cockpit::queue_of(&kept, &limits, &states, now), now);
     assert_eq!(groups.len(), 3, "each recorded session is its own group");
     assert_eq!(wip.sessions_waiting, 3);
     assert!(
@@ -127,7 +139,12 @@ fn a_question_fixture_produces_a_question_in_the_queue() {
     let cfg = Config::parse(CFG).unwrap();
     let facts = Cockpit::facts(&fixture("events/ask-user-question/event.jsonl"));
     let now = Timestamp::from_millis(last_event_time(&facts).as_millis() + 1_000);
-    let items = Cockpit::queue_of(&cfg.projects[0], &Cockpit::states_of(&facts), now);
+    let items = Cockpit::queue_of(
+        &cfg.projects[0],
+        &cfg.limits_of(&cfg.projects[0]),
+        &Cockpit::states_of(&facts),
+        now,
+    );
 
     // The extracted event is a question *and* its answer, so it resolves.
     // Asserting the resolution is asserting that ids matched, which is the

@@ -85,14 +85,17 @@ pub fn sessions(project: String) -> Result<Vec<SessionView>, String> {
         found.push(session);
     }
 
-    let waiting: std::collections::BTreeSet<String> = Cockpit::queue_of(project, &states, now)
-        .iter()
-        .map(|i| i.session.as_str().to_owned())
-        .collect();
-    let quieted: std::collections::BTreeSet<String> = Cockpit::quieted_in(project, &states, now)
-        .iter()
-        .map(|s| s.as_str().to_owned())
-        .collect();
+    let limits = cockpit.config().limits_of(project);
+    let waiting: std::collections::BTreeSet<String> =
+        Cockpit::queue_of(project, &limits, &states, now)
+            .iter()
+            .map(|i| i.session.as_str().to_owned())
+            .collect();
+    let quieted: std::collections::BTreeSet<String> =
+        Cockpit::quieted_in(project, &limits, &states, now)
+            .iter()
+            .map(|s| s.as_str().to_owned())
+            .collect();
     // Every session, not only the ones that produced a row: a project whose
     // newest session has said nothing yet still has a newest session, and it
     // is the one doing the quieting.

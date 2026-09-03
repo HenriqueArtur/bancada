@@ -43,8 +43,11 @@ pub fn preview(path: String, runtime: String) -> Result<Preview, String> {
         workspace: String::new(),
         runtime: runtime.clone(),
         path: path.clone(),
-        weight: 1,
-        idle_after_minutes: 2,
+        // Nothing stated: this project exists for one call to
+        // `log_dir_name` and no rule will ever read a number off it.
+        limits: Default::default(),
+        weight: None,
+        idle_after_minutes: None,
         muted: None,
         kept: Vec::new(),
     };

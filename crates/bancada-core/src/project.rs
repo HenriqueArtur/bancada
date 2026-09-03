@@ -1,3 +1,4 @@
+use crate::Stated;
 use bancada_meta::Timestamp;
 use serde::{Deserialize, Serialize};
 
@@ -14,14 +15,25 @@ pub struct Project {
     pub runtime: String,
     /// The path as the *guest* spells it — which is how the log spells it.
     pub path: String,
-    /// How fast waiting hurts here. Scales time; never overrides the kind
-    /// of decision, so a permission on a heavy project stays below an
-    /// architecture choice on a light one.
-    #[serde(default = "one")]
-    pub weight: u32,
-    /// How long a finished turn stays quiet before it is worth your eyes.
-    #[serde(default = "two")]
-    pub idle_after_minutes: u32,
+    /// What this project says about its own numbers.
+    ///
+    /// What it does not say, its workspace says; what neither says, the
+    /// preset says. See [`crate::Limits::resolve`] for the order.
+    #[serde(default, skip_serializing_if = "Stated::is_empty")]
+    pub limits: Stated,
+    /// Superseded by `limits`, and read only on the way in.
+    ///
+    /// A configuration written before presets existed states these at the
+    /// top level of a project. [`Project::migrated`] folds them into
+    /// `limits` and the next save drops them, so nobody loses a number they
+    /// chose — which is the one failure a settings migration is not allowed
+    /// to have. Kept rather than aliased: serde has no alias across a
+    /// nesting level, and these two are one level out from where they now
+    /// belong.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idle_after_minutes: Option<u32>,
     /// Set while the project is not allowed to ask for you.
     ///
     /// Absent is the normal state. See [`Muted`] for why it carries two
@@ -67,13 +79,6 @@ pub struct Muted {
     pub sessions: usize,
 }
 
-fn one() -> u32 {
-    1
-}
-fn two() -> u32 {
-    2
-}
-
 impl Project {
     /// The directory the harness keeps this project's logs in.
     ///
@@ -100,8 +105,23 @@ impl Project {
         self.muted.is_none_or(|m| sessions > m.sessions)
     }
 
-    pub fn idle_after_ms(&self) -> i64 {
-        i64::from(self.idle_after_minutes) * 60_000
+    /// Fold a pre-preset configuration into `limits`.
+    ///
+    /// Run once on the way in, by [`crate::Config::parse`]. The stated
+    /// number wins over nothing, never over something: a file carrying both
+    /// spellings was written by a newer bancada and edited by an older one,
+    /// and the newer place is the one to believe.
+    #[must_use]
+    pub fn migrated(mut self) -> Self {
+        if self.limits.weight.is_none() {
+            self.limits.weight = self.weight;
+        }
+        if self.limits.idle_after_minutes.is_none() {
+            self.limits.idle_after_minutes = self.idle_after_minutes;
+        }
+        self.weight = None;
+        self.idle_after_minutes = None;
+        self
     }
 }
 
@@ -150,8 +170,9 @@ mod tests {
             workspace: "w".into(),
             runtime: "r".into(),
             path: path.into(),
-            weight: 1,
-            idle_after_minutes: 2,
+            limits: Stated::default(),
+            weight: None,
+            idle_after_minutes: None,
             muted: None,
             kept: Vec::new(),
         }
@@ -175,10 +196,41 @@ mod tests {
     }
 
     #[test]
-    fn a_project_with_nothing_stated_is_baseline_weight_and_two_minutes() {
+    fn a_project_with_nothing_stated_states_nothing() {
+        // The numbers are no longer the project's alone, so the absence has
+        // to survive to where the workspace can be asked. A default filled
+        // in here would look exactly like a number somebody chose.
         let p: Project =
             serde_json::from_str(r#"{"id":"p","workspace":"w","runtime":"r","path":"/x"}"#)
                 .unwrap();
-        assert_eq!((p.weight, p.idle_after_ms()), (1, 120_000));
+        assert!(p.limits.is_empty());
+    }
+
+    #[test]
+    fn a_configuration_written_before_presets_keeps_its_numbers() {
+        // The failure a settings migration is not allowed to have. This
+        // spelling is what is in the file on the machine this was written
+        // on, with one project deliberately at one minute.
+        let stored: Project = serde_json::from_str(
+            r#"{"id":"p","workspace":"w","runtime":"r","path":"/x","weight":3,"idleAfterMinutes":1}"#,
+        )
+        .unwrap();
+        let p = stored.migrated();
+        assert_eq!(p.limits.weight, Some(3));
+        assert_eq!(p.limits.idle_after_minutes, Some(1));
+        // And the old spelling is gone, so the next save writes one place.
+        assert_eq!((p.weight, p.idle_after_minutes), (None, None));
+    }
+
+    #[test]
+    fn the_newer_spelling_wins_when_a_file_carries_both() {
+        // Written by a newer bancada, then edited by an older one. The
+        // newer place is the one that was chosen most recently.
+        let stored: Project = serde_json::from_str(
+            r#"{"id":"p","workspace":"w","runtime":"r","path":"/x","weight":3,"limits":{"weight":5}}"#,
+        )
+        .unwrap();
+        let p = stored.migrated();
+        assert_eq!(p.limits.weight, Some(5));
     }
 }

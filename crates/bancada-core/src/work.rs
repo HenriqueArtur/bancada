@@ -187,6 +187,7 @@ impl Config {
 mod tests {
     use super::*;
     use crate::Export;
+    use crate::Stated;
     use bancada_testing::{Answers, FakeRuntime};
     use std::collections::BTreeMap;
     use std::path::PathBuf;
@@ -307,6 +308,7 @@ mod tests {
         let cfg = Config::parse(CFG).unwrap().with_workspace(Workspace {
             id: "spare".into(),
             export: Export::Metadata,
+            limits: Stated::default(),
         });
         assert!(cfg.without_workspace("spare").is_ok());
     }
@@ -369,6 +371,7 @@ mod tests {
         let cfg = Config::parse(CFG).unwrap().with_workspace(Workspace {
             id: "personal".into(),
             export: Export::Full,
+            limits: Stated::default(),
         });
         assert_eq!(cfg.workspaces.len(), 2);
         assert_eq!(cfg.workspaces[1].export, Export::Full);
@@ -386,8 +389,9 @@ mod tests {
                 workspace: "gone".into(),
                 runtime: "local".into(),
                 path: "/dev/loose".into(),
-                weight: 1,
-                idle_after_minutes: 2,
+                limits: Stated::default(),
+                weight: None,
+                idle_after_minutes: None,
                 muted: None,
                 kept: Vec::new(),
             }],

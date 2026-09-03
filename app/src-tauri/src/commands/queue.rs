@@ -87,6 +87,7 @@ pub fn queue() -> Result<Queue, String> {
     let mut silenced = 0;
 
     for project in &cockpit.config().projects {
+        let limits = cockpit.config().limits_of(project);
         let scan = cockpit.scan(project, &host);
         if let Some(why) = scan.unreachable {
             unreachable.push(format!("{}: {why}", project.id));
@@ -119,7 +120,7 @@ pub fn queue() -> Result<Queue, String> {
             }
         }
 
-        let raised = Cockpit::queue_of(project, &states, now);
+        let raised = Cockpit::queue_of(project, &limits, &states, now);
         // Read a second time, and only for the sessions that reached the
         // queue. A project with forty finished logs should not cost forty
         // content reads every ten seconds to say nothing — and which forty
